@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  rtpengine:
+    # Replace image with a compatible rtpengine image if needed
+    image: instrumentisto/rtpengine:latest
+    container_name: rtpengine
+    networks:
+      - ivr_net
+    ports:
+      - "2223:2223/udp"        # rtpengine control port (example)
+      - "10000-20000:10000-20000/udp" # RTP port range (match Asterisk)
+    command: ["--interface=0.0.0.0"]
+    restart: unless-stopped
+
+  kamailio:
+    image: kamailio/kamailio:5.6
+    container_name: kamailio
+    depends_on:
+      - rtpengine
+    networks:
+      - ivr_net
+    ports:
+      - "5060:5060/udp"        # SIP UDP
+      - "5060:5060/tcp"        # SIP TCP (if needed)
+    volumes:
+      - ./kamailio_snippet.cfg:/usr/local/etc/kamailio/kamailio_snippet.cfg:ro
+    environment:
+      - KAMAILIO_CFG=/usr/local/etc/kamailio/kamailio.cfg
+    restart: unless-stopped
+
+networks:
+  ivr_net:
+    driver: bridge
+    # If you want Kamailio to be on the same docker-compose network as your Asterisk service, set external: true and use the name of your existing compose network.
+    # external: true
+    # name: ivr_lab_default

@@ -1,0 +1,124 @@
+
+services:
+  asterisk:
+    image: andrius/asterisk:20
+    container_name: asterisk
+    ports:
+      - "5060:5060/udp"
+      - "10000-10100:10000-10100/udp"
+      - "8088:8088"
+      - "5038:5038"
+    volumes:
+      - ./asterisk/pjsip.conf:/etc/asterisk/pjsip.conf:ro
+      - ./asterisk/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ./asterisk/http.conf:/etc/asterisk/http.conf:ro
+      - ./asterisk/ari.conf:/etc/asterisk/ari.conf:ro
+      - ./asterisk/modules.conf:/etc/asterisk/modules.conf:ro
+      - ./asterisk/rtp.conf:/etc/asterisk/rtp.conf:ro
+      - ./asterisk/manager.conf:/etc/asterisk/manager.conf:ro
+      - ./prompts:/var/lib/asterisk/sounds/custom:ro
+      - ./prompts:/var/lib/asterisk/sounds/en/custom:ro
+      # Arabic prompts and digits
+      - ./prompts/ar:/var/lib/asterisk/sounds/ar:ro
+      - ./asterisk/log:/var/log/asterisk:rw
+      # Outbound call spool directory
+      - asterisk-spool:/var/spool/asterisk
+    networks: [ ivrnet ]
+
+  ivr-node:
+    build: ./ivr-node
+    container_name: ivr-node
+    environment:
+      ARI_URL: "http://ariuser:aripass@asterisk:8088"
+      ARI_USER: "ariuser"
+      ARI_PASS: "aripass"
+      APP_NAME: "balance-ivr"
+      BALANCE_API_URL: "http://balance-api:3000"
+      PLATFORM_API_URL: "http://platform-api:3001"
+      # Language: "ar" for Arabic, "en" for English
+      IVR_LANGUAGE: "ar"
+      # IVR Mode: "dynamic" uses Platform API flows, "legacy" uses hardcoded balance-ivr
+      IVR_MODE: "dynamic"
+    depends_on: [ asterisk, balance-api, platform-api ]
+    networks: [ ivrnet ]
+
+  balance-api:
+    build: ./balance-api
+    container_name: balance-api
+    ports:
+      - "3000:3000"
+    volumes:
+      - ivr-data:/data
+    environment:
+      DB_PATH: "/data/ivr_calls.db"
+    networks: [ ivrnet ]
+
+  platform-api:
+    build: ./platform-api
+    container_name: platform-api
+    ports:
+      - "3001:3001"
+    volumes:
+      - platform-data:/app/data
+      - ./prompts:/app/prompts
+      # Shared spool directory for outbound calls
+      - asterisk-spool:/asterisk-spool
+    environment:
+      PORT: "3001"
+      DB_PATH: "/app/data/platform.db"
+      PROMPTS_PATH: "/app/prompts"
+      JWT_SECRET: "change-this-in-production-use-strong-secret"
+      # ElevenLabs API key for text-to-speech generation
+      ELEVENLABS_API_KEY: "sk_09d0cc298b338bb94a4c36bcae48dc0c1a8beeae7747f21c"
+      # Asterisk spool directory for outbound calls
+      ASTERISK_SPOOL_DIR: "/asterisk-spool"
+    networks: [ ivrnet ]
+
+  admin-portal:
+    build: ./admin-portal
+    container_name: admin-portal
+    ports:
+      - "8081:8080"
+    volumes:
+      - ivr-data:/data:ro
+    environment:
+      DB_PATH: "/data/ivr_calls.db"
+      PORT: "8080"
+    depends_on: [ balance-api ]
+    networks: [ ivrnet ]
+
+  admin-portal-v2:
+    build: ./admin-portal-v2
+    container_name: admin-portal-v2
+    ports:
+      - "8082:80"
+    depends_on: [ platform-api ]
+    networks: [ ivrnet ]
+
+  # -- RTP Engine for media anchoring --
+  rtpengine:
+    image: sipwise/rtpengine
+    container_name: rtpengine
+    networks: [ ivrnet ]
+    ports:
+      - "2223:2223/udp"
+      - "12000-12100:12000-12100/udp"
+    command: rtpengine --interface=eth0 --port-min=12000 --port-max=12100 --log-level=5 --listen-ng=0.0.0.0:2223
+
+  # -- SBC for SDP rewriting --
+  kamailio:
+    build: ./sbc/opensips
+    container_name: kamailio
+    depends_on: [ asterisk, rtpengine ]
+    networks: [ ivrnet ]
+    ports:
+      - "5062:5060/udp"   # host 5062 -> kamailio 5060
+
+networks:
+  ivrnet:
+    driver: bridge
+
+volumes:
+  ivr-data:
+  platform-data:
+  asterisk-spool:

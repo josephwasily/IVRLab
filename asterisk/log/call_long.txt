@@ -1,0 +1,901 @@
+00:27:24.811303 ?     In  IP (tos 0x0, ttl 64, id 48365, offset 0, flags [DF], proto UDP (17), length 32)
+    172.20.0.1.42697 > 172.20.0.3.5060: [bad udp cksum 0x584a -> 0xd307!] SIP
+00:27:25.034996 ?     In  IP (tos 0x0, ttl 64, id 48366, offset 0, flags [DF], proto UDP (17), length 1029)
+    172.20.0.1.42697 > 172.20.0.3.5060: [bad udp cksum 0x5c2f -> 0x1133!] SIP, length: 1001
+	INVITE sip:6000@127.0.0.1;transport=UDP SIP/2.0
+	Via: SIP/2.0/UDP 127.0.0.1:64002;branch=z9hG4bK-524287-1---92f582bf8da58bf6;rport
+	Max-Forwards: 70
+	Contact: <sip:1001@172.20.0.1:42697;transport=UDP>
+	To: <sip:6000@127.0.0.1>
+	From: <sip:1001@127.0.0.1;transport=UDP>;tag=30669807
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	CSeq: 1 INVITE
+	Allow: INVITE, ACK, CANCEL, BYE, NOTIFY, REFER, MESSAGE, OPTIONS, INFO, SUBSCRIBE
+	Content-Type: application/sdp
+	Supported: replaces, norefersub, extended-refer, timer, sec-agree, outbound, path, X-cisco-serviceuri
+	User-Agent: Z 5.6.12 v2.10.20.12-mod
+	Allow-Events: presence, kpml, talk, as-feature-event
+	Content-Length: 335
+	
+	v=0
+	o=Z 0 175167921 IN IP4 127.0.0.1
+	s=Z
+	c=IN IP4 127.0.0.1
+	t=0 0
+	m=audio 49936 RTP/AVP 106 9 98 101 0 8 3
+	a=rtpmap:106 opus/48000/2
+	a=fmtp:106 sprop-maxcapturerate=16000; minptime=20; useinbandfec=1
+	a=rtpmap:98 telephone-event/48000
+	a=fmtp:98 0-16
+	a=rtpmap:101 telephone-event/8000
+	a=fmtp:101 0-16
+	a=sendrecv
+	a=rtcp-mux
+00:27:25.039688 ?     Out IP (tos 0x0, ttl 64, id 26868, offset 0, flags [DF], proto UDP (17), length 519)
+    172.20.0.3.5060 > 172.20.0.1.42697: [bad udp cksum 0x5a31 -> 0x62c2!] SIP, length: 491
+	SIP/2.0 401 Unauthorized
+	Via: SIP/2.0/UDP 127.0.0.1:64002;rport=42697;received=172.20.0.1;branch=z9hG4bK-524287-1---92f582bf8da58bf6
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	From: <sip:1001@127.0.0.1>;tag=30669807
+	To: <sip:6000@127.0.0.1>;tag=z9hG4bK-524287-1---92f582bf8da58bf6
+	CSeq: 1 INVITE
+	WWW-Authenticate: Digest realm="asterisk",nonce="1767572845/62ee7656d63c303e9e640319d99add28",opaque="4fef3ddd7a026b92",algorithm=MD5,qop="auth"
+	Server: Asterisk PBX 20.17.0
+	Content-Length:  0
+	
+00:27:25.045478 ?     In  IP (tos 0x0, ttl 64, id 48367, offset 0, flags [DF], proto UDP (17), length 365)
+    172.20.0.1.42697 > 172.20.0.3.5060: [bad udp cksum 0x5997 -> 0xf7d3!] SIP, length: 337
+	ACK sip:6000@127.0.0.1;transport=UDP SIP/2.0
+	Via: SIP/2.0/UDP 127.0.0.1:64002;branch=z9hG4bK-524287-1---92f582bf8da58bf6;rport
+	Max-Forwards: 70
+	To: <sip:6000@127.0.0.1>;tag=z9hG4bK-524287-1---92f582bf8da58bf6
+	From: <sip:1001@127.0.0.1;transport=UDP>;tag=30669807
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	CSeq: 1 ACK
+	Content-Length: 0
+	
+00:27:25.173763 ?     In  IP (tos 0x0, ttl 64, id 48368, offset 0, flags [DF], proto UDP (17), length 1323)
+    172.20.0.1.42697 > 172.20.0.3.5060: [bad udp cksum 0x5d55 -> 0xd969!] SIP, length: 1295
+	INVITE sip:6000@127.0.0.1;transport=UDP SIP/2.0
+	Via: SIP/2.0/UDP 127.0.0.1:64002;branch=z9hG4bK-524287-1---4343189435fefa3a;rport
+	Max-Forwards: 70
+	Contact: <sip:1001@172.20.0.1:42697;transport=UDP>
+	To: <sip:6000@127.0.0.1>
+	From: <sip:1001@127.0.0.1;transport=UDP>;tag=30669807
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	CSeq: 2 INVITE
+	Allow: INVITE, ACK, CANCEL, BYE, NOTIFY, REFER, MESSAGE, OPTIONS, INFO, SUBSCRIBE
+	Content-Type: application/sdp
+	Supported: replaces, norefersub, extended-refer, timer, sec-agree, outbound, path, X-cisco-serviceuri
+	User-Agent: Z 5.6.12 v2.10.20.12-mod
+	Authorization: Digest username="1001",realm="asterisk",nonce="1767572845/62ee7656d63c303e9e640319d99add28",uri="sip:6000@127.0.0.1;transport=UDP",response="052a837dc3ca530a82ba19f817d73855",cnonce="e5caaf261e6a30488725dfbd006fd048",nc=00000001,qop=auth,algorithm=MD5,opaque="4fef3ddd7a026b92"
+	Allow-Events: presence, kpml, talk, as-feature-event
+	Content-Length: 335
+	
+	v=0
+	o=Z 0 175167921 IN IP4 127.0.0.1
+	s=Z
+	c=IN IP4 127.0.0.1
+	t=0 0
+	m=audio 49936 RTP/AVP 106 9 98 101 0 8 3
+	a=rtpmap:106 opus/48000/2
+	a=fmtp:106 sprop-maxcapturerate=16000; minptime=20; useinbandfec=1
+	a=rtpmap:98 telephone-event/48000
+	a=fmtp:98 0-16
+	a=rtpmap:101 telephone-event/8000
+	a=fmtp:101 0-16
+	a=sendrecv
+	a=rtcp-mux
+00:27:25.176779 ?     Out IP (tos 0x0, ttl 64, id 26878, offset 0, flags [DF], proto UDP (17), length 327)
+    172.20.0.3.5060 > 172.20.0.1.42697: [bad udp cksum 0x5971 -> 0x0ebc!] SIP, length: 299
+	SIP/2.0 100 Trying
+	Via: SIP/2.0/UDP 127.0.0.1:64002;rport=42697;received=172.20.0.1;branch=z9hG4bK-524287-1---4343189435fefa3a
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	From: <sip:1001@127.0.0.1>;tag=30669807
+	To: <sip:6000@127.0.0.1>
+	CSeq: 2 INVITE
+	Server: Asterisk PBX 20.17.0
+	Content-Length:  0
+	
+00:27:25.183719 ?     Out IP (tos 0x0, ttl 64, id 26879, offset 0, flags [DF], proto UDP (17), length 941)
+    172.20.0.3.5060 > 172.20.0.1.42697: [bad udp cksum 0x5bd7 -> 0xfc76!] SIP, length: 913
+	SIP/2.0 200 OK
+	Via: SIP/2.0/UDP 127.0.0.1:64002;rport=42697;received=172.20.0.1;branch=z9hG4bK-524287-1---4343189435fefa3a
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	From: <sip:1001@127.0.0.1>;tag=30669807
+	To: <sip:6000@127.0.0.1>;tag=615fed2f-edbd-4654-a4e0-3d0c129f43da
+	CSeq: 2 INVITE
+	Server: Asterisk PBX 20.17.0
+	Contact: <sip:172.20.0.3:5060>
+	Allow: OPTIONS, REGISTER, SUBSCRIBE, NOTIFY, PUBLISH, INVITE, ACK, BYE, CANCEL, UPDATE, PRACK, INFO, REFER, MESSAGE
+	Supported: 100rel, timer, replaces, norefersub
+	Content-Type: application/sdp
+	Content-Length:   346
+	
+	v=0
+	o=- 0 175167923 IN IP4 172.20.0.3
+	s=Asterisk
+	c=IN IP4 172.20.0.3
+	t=0 0
+	m=audio 18406 RTP/AVP 0 106 101 98
+	a=rtpmap:0 PCMU/8000
+	a=rtpmap:106 opus/48000/2
+	a=fmtp:106 sprop-maxcapturerate=16000
+	a=rtpmap:101 telephone-event/8000
+	a=fmtp:101 0-16
+	a=ptime:20
+	a=maxptime:60
+	a=sendrecv
+	a=rtpmap:98 telephone-event/48000
+	a=fmtp:98 0-16
+00:27:25.310855 ?     In  IP (tos 0x0, ttl 64, id 48369, offset 0, flags [DF], proto UDP (17), length 1004)
+    172.20.0.1.42697 > 172.20.0.3.5060: [bad udp cksum 0x5c16 -> 0xe0ab!] SIP, length: 976
+	REGISTER sip:127.0.0.1;transport=UDP SIP/2.0
+	Via: SIP/2.0/UDP 127.0.0.1:64002;branch=z9hG4bK-524287-1---2f2c6cb83e56239f;rport
+	Max-Forwards: 70
+	Contact: <sip:1001@172.20.0.1:42697;transport=UDP;rinstance=6df723f78d761530>
+	To: <sip:1001@127.0.0.1;transport=UDP>
+	From: <sip:1001@127.0.0.1;transport=UDP>;tag=04722546
+	Call-ID: GRjpAXVoHOUPcwWsUzTfdg..
+	CSeq: 47 REGISTER
+	Expires: 60
+	Allow: INVITE, ACK, CANCEL, BYE, NOTIFY, REFER, MESSAGE, OPTIONS, INFO, SUBSCRIBE
+	Supported: replaces, norefersub, extended-refer, timer, sec-agree, outbound, path, X-cisco-serviceuri
+	User-Agent: Z 5.6.12 v2.10.20.12-mod
+	Authorization: Digest username="1001",realm="asterisk",nonce="1767572792/7eb9caee0916a640a88a3029e08db0ca",uri="sip:127.0.0.1;transport=UDP",response="09d7aa517440d44518f3667046572766",cnonce="f161420f0068679afa6f1ec567ccc4cc",nc=00000002,qop=auth,algorithm=MD5,opaque="18f151eb2d06fd71"
+	Allow-Events: presence, kpml, talk, as-feature-event
+	Content-Length: 0
+	
+00:27:25.312330 ?     Out IP (tos 0x0, ttl 64, id 26889, offset 0, flags [DF], proto UDP (17), length 533)
+    172.20.0.3.5060 > 172.20.0.1.42697: [bad udp cksum 0x5a3f -> 0xe976!] SIP, length: 505
+	SIP/2.0 401 Unauthorized
+	Via: SIP/2.0/UDP 127.0.0.1:64002;rport=42697;received=172.20.0.1;branch=z9hG4bK-524287-1---2f2c6cb83e56239f
+	Call-ID: GRjpAXVoHOUPcwWsUzTfdg..
+	From: <sip:1001@127.0.0.1>;tag=04722546
+	To: <sip:1001@127.0.0.1>;tag=z9hG4bK-524287-1---2f2c6cb83e56239f
+	CSeq: 47 REGISTER
+	WWW-Authenticate: Digest realm="asterisk",nonce="1767572845/62ee7656d63c303e9e640319d99add28",opaque="6534943a0ea345b5",stale=true,algorithm=MD5,qop="auth"
+	Server: Asterisk PBX 20.17.0
+	Content-Length:  0
+	
+00:27:25.423841 ?     In  IP (tos 0x0, ttl 64, id 48370, offset 0, flags [DF], proto UDP (17), length 1004)
+    172.20.0.1.42697 > 172.20.0.3.5060: [bad udp cksum 0x5c16 -> 0x8a59!] SIP, length: 976
+	REGISTER sip:127.0.0.1;transport=UDP SIP/2.0
+	Via: SIP/2.0/UDP 127.0.0.1:64002;branch=z9hG4bK-524287-1---90354a490ab74b2f;rport
+	Max-Forwards: 70
+	Contact: <sip:1001@172.20.0.1:42697;transport=UDP;rinstance=6df723f78d761530>
+	To: <sip:1001@127.0.0.1;transport=UDP>
+	From: <sip:1001@127.0.0.1;transport=UDP>;tag=04722546
+	Call-ID: GRjpAXVoHOUPcwWsUzTfdg..
+	CSeq: 48 REGISTER
+	Expires: 60
+	Allow: INVITE, ACK, CANCEL, BYE, NOTIFY, REFER, MESSAGE, OPTIONS, INFO, SUBSCRIBE
+	Supported: replaces, norefersub, extended-refer, timer, sec-agree, outbound, path, X-cisco-serviceuri
+	User-Agent: Z 5.6.12 v2.10.20.12-mod
+	Authorization: Digest username="1001",realm="asterisk",nonce="1767572845/62ee7656d63c303e9e640319d99add28",uri="sip:127.0.0.1;transport=UDP",response="ecedcd9c0f466909819e97cff664f69f",cnonce="a2024f51081e2c48ceac33db0fa53a9b",nc=00000001,qop=auth,algorithm=MD5,opaque="6534943a0ea345b5"
+	Allow-Events: presence, kpml, talk, as-feature-event
+	Content-Length: 0
+	
+00:27:25.426734 ?     Out IP (tos 0x0, ttl 64, id 26897, offset 0, flags [DF], proto UDP (17), length 492)
+    172.20.0.3.5060 > 172.20.0.1.42697: [bad udp cksum 0x5a16 -> 0xfc2a!] SIP, length: 464
+	SIP/2.0 200 OK
+	Via: SIP/2.0/UDP 127.0.0.1:64002;rport=42697;received=172.20.0.1;branch=z9hG4bK-524287-1---90354a490ab74b2f
+	Call-ID: GRjpAXVoHOUPcwWsUzTfdg..
+	From: <sip:1001@127.0.0.1>;tag=04722546
+	To: <sip:1001@127.0.0.1>;tag=z9hG4bK-524287-1---90354a490ab74b2f
+	CSeq: 48 REGISTER
+	Date: Mon, 05 Jan 2026 00:27:25 GMT
+	Contact: <sip:1001@172.20.0.1:42697;rinstance=6df723f78d761530>;expires=59
+	Expires: 60
+	Server: Asterisk PBX 20.17.0
+	Content-Length:  0
+	
+00:27:25.685480 ?     Out IP (tos 0x0, ttl 64, id 26930, offset 0, flags [DF], proto UDP (17), length 941)
+    172.20.0.3.5060 > 172.20.0.1.42697: [bad udp cksum 0x5bd7 -> 0xfc76!] SIP, length: 913
+	SIP/2.0 200 OK
+	Via: SIP/2.0/UDP 127.0.0.1:64002;rport=42697;received=172.20.0.1;branch=z9hG4bK-524287-1---4343189435fefa3a
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	From: <sip:1001@127.0.0.1>;tag=30669807
+	To: <sip:6000@127.0.0.1>;tag=615fed2f-edbd-4654-a4e0-3d0c129f43da
+	CSeq: 2 INVITE
+	Server: Asterisk PBX 20.17.0
+	Contact: <sip:172.20.0.3:5060>
+	Allow: OPTIONS, REGISTER, SUBSCRIBE, NOTIFY, PUBLISH, INVITE, ACK, BYE, CANCEL, UPDATE, PRACK, INFO, REFER, MESSAGE
+	Supported: 100rel, timer, replaces, norefersub
+	Content-Type: application/sdp
+	Content-Length:   346
+	
+	v=0
+	o=- 0 175167923 IN IP4 172.20.0.3
+	s=Asterisk
+	c=IN IP4 172.20.0.3
+	t=0 0
+	m=audio 18406 RTP/AVP 0 106 101 98
+	a=rtpmap:0 PCMU/8000
+	a=rtpmap:106 opus/48000/2
+	a=fmtp:106 sprop-maxcapturerate=16000
+	a=rtpmap:101 telephone-event/8000
+	a=fmtp:101 0-16
+	a=ptime:20
+	a=maxptime:60
+	a=sendrecv
+	a=rtpmap:98 telephone-event/48000
+	a=fmtp:98 0-16
+00:27:25.794073 lo    In  IP (tos 0x0, ttl 64, id 54418, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x7cbe!] UDP, length 172
+00:27:25.814893 lo    In  IP (tos 0x0, ttl 64, id 54419, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x28ca!] UDP, length 172
+00:27:25.835062 lo    In  IP (tos 0x0, ttl 64, id 54422, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xadb3!] UDP, length 172
+00:27:25.854969 lo    In  IP (tos 0x0, ttl 64, id 54426, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x3312!] UDP, length 172
+00:27:25.875240 lo    In  IP (tos 0x0, ttl 64, id 54430, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xc57e!] UDP, length 172
+00:27:25.895185 lo    In  IP (tos 0x0, ttl 64, id 54432, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x0f2d!] UDP, length 172
+00:27:25.915019 lo    In  IP (tos 0x0, ttl 64, id 54435, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xb369!] UDP, length 172
+00:27:25.935091 lo    In  IP (tos 0x0, ttl 64, id 54438, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x29bf!] UDP, length 172
+00:27:25.955099 lo    In  IP (tos 0x0, ttl 64, id 54439, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x52bd!] UDP, length 172
+00:27:25.975096 lo    In  IP (tos 0x0, ttl 64, id 54442, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xdc1f!] UDP, length 172
+00:27:25.994982 lo    In  IP (tos 0x0, ttl 64, id 54444, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x0943!] UDP, length 172
+00:27:26.015117 lo    In  IP (tos 0x0, ttl 64, id 54448, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xe730!] UDP, length 172
+00:27:26.035093 lo    In  IP (tos 0x0, ttl 64, id 54450, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xe98d!] UDP, length 172
+00:27:26.055019 lo    In  IP (tos 0x0, ttl 64, id 54454, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xae88!] UDP, length 172
+00:27:26.075130 lo    In  IP (tos 0x0, ttl 64, id 54457, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x448c!] UDP, length 172
+00:27:26.095189 lo    In  IP (tos 0x0, ttl 64, id 54462, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x3dd4!] UDP, length 172
+00:27:26.115088 lo    In  IP (tos 0x0, ttl 64, id 54463, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x343d!] UDP, length 172
+00:27:26.135117 lo    In  IP (tos 0x0, ttl 64, id 54467, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x47b9!] UDP, length 172
+00:27:26.155119 lo    In  IP (tos 0x0, ttl 64, id 54472, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x9bbe!] UDP, length 172
+00:27:26.175284 lo    In  IP (tos 0x0, ttl 64, id 54476, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x3a48!] UDP, length 172
+00:27:26.195163 lo    In  IP (tos 0x0, ttl 64, id 54479, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x5345!] UDP, length 172
+00:27:26.215145 lo    In  IP (tos 0x0, ttl 64, id 54482, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x6efa!] UDP, length 172
+00:27:26.235111 lo    In  IP (tos 0x0, ttl 64, id 54483, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x9f4e!] UDP, length 172
+00:27:26.255092 lo    In  IP (tos 0x0, ttl 64, id 54487, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x263d!] UDP, length 172
+00:27:26.275218 lo    In  IP (tos 0x0, ttl 64, id 54489, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xbbdb!] UDP, length 172
+00:27:26.296548 lo    In  IP (tos 0x0, ttl 64, id 54493, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x2952!] UDP, length 172
+00:27:26.315081 lo    In  IP (tos 0x0, ttl 64, id 54498, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x1fff!] UDP, length 172
+00:27:26.335086 lo    In  IP (tos 0x0, ttl 64, id 54499, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x0a8c!] UDP, length 172
+00:27:26.355231 lo    In  IP (tos 0x0, ttl 64, id 54502, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x60ac!] UDP, length 172
+00:27:26.375066 lo    In  IP (tos 0x0, ttl 64, id 54504, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x05f6!] UDP, length 172
+00:27:26.395007 lo    In  IP (tos 0x0, ttl 64, id 54506, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xb4f8!] UDP, length 172
+00:27:26.415210 lo    In  IP (tos 0x0, ttl 64, id 54509, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x923d!] UDP, length 172
+00:27:26.435021 lo    In  IP (tos 0x0, ttl 64, id 54514, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x4ead!] UDP, length 172
+00:27:26.455019 lo    In  IP (tos 0x0, ttl 64, id 54515, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x825c!] UDP, length 172
+00:27:26.475274 lo    In  IP (tos 0x0, ttl 64, id 54516, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xc3b5!] UDP, length 172
+00:27:26.495009 lo    In  IP (tos 0x0, ttl 64, id 54521, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xbb8e!] UDP, length 172
+00:27:26.515062 lo    In  IP (tos 0x0, ttl 64, id 54522, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x6950!] UDP, length 172
+00:27:26.535079 lo    In  IP (tos 0x0, ttl 64, id 54527, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xfe7f!] UDP, length 172
+00:27:26.555193 lo    In  IP (tos 0x0, ttl 64, id 54531, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x18ad!] UDP, length 172
+00:27:26.575096 lo    In  IP (tos 0x0, ttl 64, id 54534, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xda5f!] UDP, length 172
+00:27:26.595121 lo    In  IP (tos 0x0, ttl 64, id 54537, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xda95!] UDP, length 172
+00:27:26.615043 lo    In  IP (tos 0x0, ttl 64, id 54542, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xb11b!] UDP, length 172
+00:27:26.635180 lo    In  IP (tos 0x0, ttl 64, id 54544, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x5997!] UDP, length 172
+00:27:26.655100 lo    In  IP (tos 0x0, ttl 64, id 54548, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x5556!] UDP, length 172
+00:27:26.675096 lo    In  IP (tos 0x0, ttl 64, id 54552, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xbd86!] UDP, length 172
+00:27:26.684554 ?     Out IP (tos 0x0, ttl 64, id 26939, offset 0, flags [DF], proto UDP (17), length 941)
+    172.20.0.3.5060 > 172.20.0.1.42697: [bad udp cksum 0x5bd7 -> 0xfc76!] SIP, length: 913
+	SIP/2.0 200 OK
+	Via: SIP/2.0/UDP 127.0.0.1:64002;rport=42697;received=172.20.0.1;branch=z9hG4bK-524287-1---4343189435fefa3a
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	From: <sip:1001@127.0.0.1>;tag=30669807
+	To: <sip:6000@127.0.0.1>;tag=615fed2f-edbd-4654-a4e0-3d0c129f43da
+	CSeq: 2 INVITE
+	Server: Asterisk PBX 20.17.0
+	Contact: <sip:172.20.0.3:5060>
+	Allow: OPTIONS, REGISTER, SUBSCRIBE, NOTIFY, PUBLISH, INVITE, ACK, BYE, CANCEL, UPDATE, PRACK, INFO, REFER, MESSAGE
+	Supported: 100rel, timer, replaces, norefersub
+	Content-Type: application/sdp
+	Content-Length:   346
+	
+	v=0
+	o=- 0 175167923 IN IP4 172.20.0.3
+	s=Asterisk
+	c=IN IP4 172.20.0.3
+	t=0 0
+	m=audio 18406 RTP/AVP 0 106 101 98
+	a=rtpmap:0 PCMU/8000
+	a=rtpmap:106 opus/48000/2
+	a=fmtp:106 sprop-maxcapturerate=16000
+	a=rtpmap:101 telephone-event/8000
+	a=fmtp:101 0-16
+	a=ptime:20
+	a=maxptime:60
+	a=sendrecv
+	a=rtpmap:98 telephone-event/48000
+	a=fmtp:98 0-16
+00:27:26.695214 lo    In  IP (tos 0x0, ttl 64, id 54557, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x8672!] UDP, length 172
+00:27:26.715046 lo    In  IP (tos 0x0, ttl 64, id 54561, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x2619!] UDP, length 172
+00:27:26.735049 lo    In  IP (tos 0x0, ttl 64, id 54564, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x7f50!] UDP, length 172
+00:27:26.755232 lo    In  IP (tos 0x0, ttl 64, id 54569, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xe277!] UDP, length 172
+00:27:26.775112 lo    In  IP (tos 0x0, ttl 64, id 54571, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x5fc6!] UDP, length 172
+00:27:26.795104 lo    In  IP (tos 0x0, ttl 64, id 54575, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xd85a!] UDP, length 172
+00:27:26.818840 lo    In  IP (tos 0x0, ttl 64, id 54580, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xcc37!] UDP, length 172
+00:27:26.835075 lo    In  IP (tos 0x0, ttl 64, id 54583, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x2df2!] UDP, length 172
+00:27:26.854887 lo    In  IP (tos 0x0, ttl 64, id 54585, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xee96!] UDP, length 172
+00:27:26.874917 lo    In  IP (tos 0x0, ttl 64, id 54589, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xacff!] UDP, length 172
+00:27:26.894927 lo    In  IP (tos 0x0, ttl 64, id 54593, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x8014!] UDP, length 172
+00:27:26.915010 lo    In  IP (tos 0x0, ttl 64, id 54598, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xd036!] UDP, length 172
+00:27:26.934980 lo    In  IP (tos 0x0, ttl 64, id 54599, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x7930!] UDP, length 172
+00:27:26.954944 lo    In  IP (tos 0x0, ttl 64, id 54601, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xc505!] UDP, length 172
+00:27:26.975120 lo    In  IP (tos 0x0, ttl 64, id 54604, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xa7a1!] UDP, length 172
+00:27:26.994950 lo    In  IP (tos 0x0, ttl 64, id 54607, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xa814!] UDP, length 172
+00:27:27.015107 lo    In  IP (tos 0x0, ttl 64, id 54611, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x27db!] UDP, length 172
+00:27:27.034986 lo    In  IP (tos 0x0, ttl 64, id 54615, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xea3e!] UDP, length 172
+00:27:27.054975 lo    In  IP (tos 0x0, ttl 64, id 54620, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x8b46!] UDP, length 172
+00:27:27.075008 lo    In  IP (tos 0x0, ttl 64, id 54621, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xd202!] UDP, length 172
+00:27:27.095096 lo    In  IP (tos 0x0, ttl 64, id 54626, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x1a32!] UDP, length 172
+00:27:27.114880 lo    In  IP (tos 0x0, ttl 64, id 54631, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x18bc!] UDP, length 172
+00:27:27.135005 lo    In  IP (tos 0x0, ttl 64, id 54634, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xa31e!] UDP, length 172
+00:27:27.154919 lo    In  IP (tos 0x0, ttl 64, id 54636, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xe749!] UDP, length 172
+00:27:27.175059 lo    In  IP (tos 0x0, ttl 64, id 54637, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x2dbb!] UDP, length 172
+00:27:27.195271 lo    In  IP (tos 0x0, ttl 64, id 54642, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x4e87!] UDP, length 172
+00:27:27.215204 lo    In  IP (tos 0x0, ttl 64, id 54647, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xd317!] UDP, length 172
+00:27:27.234954 lo    In  IP (tos 0x0, ttl 64, id 54650, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x9e51!] UDP, length 172
+00:27:27.255088 lo    In  IP (tos 0x0, ttl 64, id 54654, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x7766!] UDP, length 172
+00:27:27.275148 lo    In  IP (tos 0x0, ttl 64, id 54656, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x7cdc!] UDP, length 172
+00:27:27.295239 lo    In  IP (tos 0x0, ttl 64, id 54661, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xd5b6!] UDP, length 172
+00:27:27.315460 lo    In  IP (tos 0x0, ttl 64, id 54662, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xd457!] UDP, length 172
+00:27:27.334956 lo    In  IP (tos 0x0, ttl 64, id 54667, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x7a76!] UDP, length 172
+00:27:27.354952 lo    In  IP (tos 0x0, ttl 64, id 54668, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x169f!] UDP, length 172
+00:27:27.375067 lo    In  IP (tos 0x0, ttl 64, id 54672, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xb21e!] UDP, length 172
+00:27:27.395046 lo    In  IP (tos 0x0, ttl 64, id 54673, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x870b!] UDP, length 172
+00:27:27.414994 lo    In  IP (tos 0x0, ttl 64, id 54676, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xf87b!] UDP, length 172
+00:27:27.434996 lo    In  IP (tos 0x0, ttl 64, id 54677, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x036b!] UDP, length 172
+00:27:27.455014 lo    In  IP (tos 0x0, ttl 64, id 54678, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x9764!] UDP, length 172
+00:27:27.474923 lo    In  IP (tos 0x0, ttl 64, id 54681, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x5396!] UDP, length 172
+00:27:27.494965 lo    In  IP (tos 0x0, ttl 64, id 54684, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x3ca2!] UDP, length 172
+00:27:27.515033 lo    In  IP (tos 0x0, ttl 64, id 54688, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xf7cc!] UDP, length 172
+00:27:27.535019 lo    In  IP (tos 0x0, ttl 64, id 54692, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xa14d!] UDP, length 172
+00:27:27.554917 lo    In  IP (tos 0x0, ttl 64, id 54694, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x5dd1!] UDP, length 172
+00:27:27.575049 lo    In  IP (tos 0x0, ttl 64, id 54695, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xed01!] UDP, length 172
+00:27:27.594943 lo    In  IP (tos 0x0, ttl 64, id 54700, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x07c3!] UDP, length 172
+00:27:27.614961 lo    In  IP (tos 0x0, ttl 64, id 54701, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xbbfc!] UDP, length 172
+00:27:27.635072 lo    In  IP (tos 0x0, ttl 64, id 54705, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xbd5e!] UDP, length 172
+00:27:27.654952 lo    In  IP (tos 0x0, ttl 64, id 54706, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x76f9!] UDP, length 172
+00:27:27.675006 lo    In  IP (tos 0x0, ttl 64, id 54708, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x71ca!] UDP, length 172
+00:27:27.695005 lo    In  IP (tos 0x0, ttl 64, id 54711, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x98d8!] UDP, length 172
+00:27:27.715040 lo    In  IP (tos 0x0, ttl 64, id 54712, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xc854!] UDP, length 172
+00:27:27.735049 lo    In  IP (tos 0x0, ttl 64, id 54716, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xab45!] UDP, length 172
+00:27:27.754958 lo    In  IP (tos 0x0, ttl 64, id 54721, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xebc0!] UDP, length 172
+00:27:27.775022 lo    In  IP (tos 0x0, ttl 64, id 54725, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x0c8e!] UDP, length 172
+00:27:27.794934 lo    In  IP (tos 0x0, ttl 64, id 54726, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x8cb8!] UDP, length 172
+00:27:27.815003 lo    In  IP (tos 0x0, ttl 64, id 54729, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x2677!] UDP, length 172
+00:27:27.837417 lo    In  IP (tos 0x0, ttl 64, id 54732, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x4fe6!] UDP, length 172
+00:27:27.854949 lo    In  IP (tos 0x0, ttl 64, id 54735, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x62b6!] UDP, length 172
+00:27:27.874979 lo    In  IP (tos 0x0, ttl 64, id 54736, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x2ce3!] UDP, length 172
+00:27:27.895054 lo    In  IP (tos 0x0, ttl 64, id 54737, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xeb9c!] UDP, length 172
+00:27:27.914988 lo    In  IP (tos 0x0, ttl 64, id 54741, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x5589!] UDP, length 172
+00:27:27.934986 lo    In  IP (tos 0x0, ttl 64, id 54743, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x1b58!] UDP, length 172
+00:27:27.954921 lo    In  IP (tos 0x0, ttl 64, id 54744, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x7ca6!] UDP, length 172
+00:27:27.974941 lo    In  IP (tos 0x0, ttl 64, id 54747, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xb0b0!] UDP, length 172
+00:27:27.994923 lo    In  IP (tos 0x0, ttl 64, id 54750, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x8580!] UDP, length 172
+00:27:28.015013 lo    In  IP (tos 0x0, ttl 64, id 54754, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x8215!] UDP, length 172
+00:27:28.034937 lo    In  IP (tos 0x0, ttl 64, id 54759, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x2b8e!] UDP, length 172
+00:27:28.054893 lo    In  IP (tos 0x0, ttl 64, id 54762, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x9ff1!] UDP, length 172
+00:27:28.075058 lo    In  IP (tos 0x0, ttl 64, id 54767, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xcb40!] UDP, length 172
+00:27:28.094984 lo    In  IP (tos 0x0, ttl 64, id 54770, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xf612!] UDP, length 172
+00:27:28.115016 lo    In  IP (tos 0x0, ttl 64, id 54774, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x26db!] UDP, length 172
+00:27:28.135015 lo    In  IP (tos 0x0, ttl 64, id 54777, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x5588!] UDP, length 172
+00:27:28.155086 lo    In  IP (tos 0x0, ttl 64, id 54781, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x9fbd!] UDP, length 172
+00:27:28.174946 lo    In  IP (tos 0x0, ttl 64, id 54784, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x7490!] UDP, length 172
+00:27:28.195234 lo    In  IP (tos 0x0, ttl 64, id 54789, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x34b9!] UDP, length 172
+00:27:28.215014 lo    In  IP (tos 0x0, ttl 64, id 54793, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x7359!] UDP, length 172
+00:27:28.235053 lo    In  IP (tos 0x0, ttl 64, id 54797, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x2c09!] UDP, length 172
+00:27:28.255067 lo    In  IP (tos 0x0, ttl 64, id 54798, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xf186!] UDP, length 172
+00:27:28.275177 lo    In  IP (tos 0x0, ttl 64, id 54801, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x7fbd!] UDP, length 172
+00:27:28.295299 lo    In  IP (tos 0x0, ttl 64, id 54806, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x37ea!] UDP, length 172
+00:27:28.315053 lo    In  IP (tos 0x0, ttl 64, id 54811, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x4227!] UDP, length 172
+00:27:28.334999 lo    In  IP (tos 0x0, ttl 64, id 54815, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x4b7c!] UDP, length 172
+00:27:28.355459 lo    In  IP (tos 0x0, ttl 64, id 54816, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xacef!] UDP, length 172
+00:27:28.374952 lo    In  IP (tos 0x0, ttl 64, id 54821, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xe00c!] UDP, length 172
+00:27:28.395033 lo    In  IP (tos 0x0, ttl 64, id 54824, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xdf38!] UDP, length 172
+00:27:28.414936 lo    In  IP (tos 0x0, ttl 64, id 54829, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x70d4!] UDP, length 172
+00:27:28.434943 lo    In  IP (tos 0x0, ttl 64, id 54832, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xf188!] UDP, length 172
+00:27:28.454949 lo    In  IP (tos 0x0, ttl 64, id 54836, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x9c0c!] UDP, length 172
+00:27:28.474975 lo    In  IP (tos 0x0, ttl 64, id 54841, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xb608!] UDP, length 172
+00:27:28.495024 lo    In  IP (tos 0x0, ttl 64, id 54843, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x91b9!] UDP, length 172
+00:27:28.515020 lo    In  IP (tos 0x0, ttl 64, id 54846, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xd40d!] UDP, length 172
+00:27:28.534976 lo    In  IP (tos 0x0, ttl 64, id 54849, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x0957!] UDP, length 172
+00:27:28.555075 lo    In  IP (tos 0x0, ttl 64, id 54853, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x5bbd!] UDP, length 172
+00:27:28.575091 lo    In  IP (tos 0x0, ttl 64, id 54858, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x4bc9!] UDP, length 172
+00:27:28.595159 lo    In  IP (tos 0x0, ttl 64, id 54863, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xd188!] UDP, length 172
+00:27:28.615106 lo    In  IP (tos 0x0, ttl 64, id 54868, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x8313!] UDP, length 172
+00:27:28.635296 lo    In  IP (tos 0x0, ttl 64, id 54872, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x1c39!] UDP, length 172
+00:27:28.654975 lo    In  IP (tos 0x0, ttl 64, id 54877, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x4bfd!] UDP, length 172
+00:27:28.675100 lo    In  IP (tos 0x0, ttl 64, id 54882, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x0969!] UDP, length 172
+00:27:28.685743 ?     Out IP (tos 0x0, ttl 64, id 27352, offset 0, flags [DF], proto UDP (17), length 941)
+    172.20.0.3.5060 > 172.20.0.1.42697: [bad udp cksum 0x5bd7 -> 0xfc76!] SIP, length: 913
+	SIP/2.0 200 OK
+	Via: SIP/2.0/UDP 127.0.0.1:64002;rport=42697;received=172.20.0.1;branch=z9hG4bK-524287-1---4343189435fefa3a
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	From: <sip:1001@127.0.0.1>;tag=30669807
+	To: <sip:6000@127.0.0.1>;tag=615fed2f-edbd-4654-a4e0-3d0c129f43da
+	CSeq: 2 INVITE
+	Server: Asterisk PBX 20.17.0
+	Contact: <sip:172.20.0.3:5060>
+	Allow: OPTIONS, REGISTER, SUBSCRIBE, NOTIFY, PUBLISH, INVITE, ACK, BYE, CANCEL, UPDATE, PRACK, INFO, REFER, MESSAGE
+	Supported: 100rel, timer, replaces, norefersub
+	Content-Type: application/sdp
+	Content-Length:   346
+	
+	v=0
+	o=- 0 175167923 IN IP4 172.20.0.3
+	s=Asterisk
+	c=IN IP4 172.20.0.3
+	t=0 0
+	m=audio 18406 RTP/AVP 0 106 101 98
+	a=rtpmap:0 PCMU/8000
+	a=rtpmap:106 opus/48000/2
+	a=fmtp:106 sprop-maxcapturerate=16000
+	a=rtpmap:101 telephone-event/8000
+	a=fmtp:101 0-16
+	a=ptime:20
+	a=maxptime:60
+	a=sendrecv
+	a=rtpmap:98 telephone-event/48000
+	a=fmtp:98 0-16
+00:27:28.695079 lo    In  IP (tos 0x0, ttl 64, id 54883, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x863b!] UDP, length 172
+00:27:28.715257 lo    In  IP (tos 0x0, ttl 64, id 54885, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xb500!] UDP, length 172
+00:27:28.735022 lo    In  IP (tos 0x0, ttl 64, id 54887, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xda2b!] UDP, length 172
+00:27:28.754954 lo    In  IP (tos 0x0, ttl 64, id 54890, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x45a5!] UDP, length 172
+00:27:28.775111 lo    In  IP (tos 0x0, ttl 64, id 54895, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x2a04!] UDP, length 172
+00:27:28.795254 lo    In  IP (tos 0x0, ttl 64, id 54899, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xb3fa!] UDP, length 172
+00:27:28.815042 lo    In  IP (tos 0x0, ttl 64, id 54901, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xe83f!] UDP, length 172
+00:27:28.835081 lo    In  IP (tos 0x0, ttl 64, id 54902, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xe9c0!] UDP, length 172
+00:27:28.855802 lo    In  IP (tos 0x0, ttl 64, id 54907, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x9c11!] UDP, length 172
+00:27:28.875001 lo    In  IP (tos 0x0, ttl 64, id 54911, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x7c4c!] UDP, length 172
+00:27:28.895108 lo    In  IP (tos 0x0, ttl 64, id 54914, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x828e!] UDP, length 172
+00:27:28.915134 lo    In  IP (tos 0x0, ttl 64, id 54918, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x1b5c!] UDP, length 172
+00:27:28.935068 lo    In  IP (tos 0x0, ttl 64, id 54922, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x67c5!] UDP, length 172
+00:27:28.955092 lo    In  IP (tos 0x0, ttl 64, id 54924, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xd1db!] UDP, length 172
+00:27:28.975122 lo    In  IP (tos 0x0, ttl 64, id 54925, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x028b!] UDP, length 172
+00:27:28.995055 lo    In  IP (tos 0x0, ttl 64, id 54927, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x5c41!] UDP, length 172
+00:27:29.014941 lo    In  IP (tos 0x0, ttl 64, id 54931, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x2ffd!] UDP, length 172
+00:27:29.034968 lo    In  IP (tos 0x0, ttl 64, id 54933, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x7e14!] UDP, length 172
+00:27:29.054929 lo    In  IP (tos 0x0, ttl 64, id 54937, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x5d8d!] UDP, length 172
+00:27:29.074900 lo    In  IP (tos 0x0, ttl 64, id 54942, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x7398!] UDP, length 172
+00:27:29.095084 lo    In  IP (tos 0x0, ttl 64, id 54947, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x317a!] UDP, length 172
+00:27:29.115028 lo    In  IP (tos 0x0, ttl 64, id 54952, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x6742!] UDP, length 172
+00:27:29.135059 lo    In  IP (tos 0x0, ttl 64, id 54954, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x8d49!] UDP, length 172
+00:27:29.155000 lo    In  IP (tos 0x0, ttl 64, id 54955, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x623f!] UDP, length 172
+00:27:29.175083 lo    In  IP (tos 0x0, ttl 64, id 54957, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x9832!] UDP, length 172
+00:27:29.195072 lo    In  IP (tos 0x0, ttl 64, id 54959, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xf36a!] UDP, length 172
+00:27:29.215014 lo    In  IP (tos 0x0, ttl 64, id 54961, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x456c!] UDP, length 172
+00:27:29.235050 lo    In  IP (tos 0x0, ttl 64, id 54966, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xd24f!] UDP, length 172
+00:27:29.255079 lo    In  IP (tos 0x0, ttl 64, id 54971, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xc8a5!] UDP, length 172
+00:27:29.275052 lo    In  IP (tos 0x0, ttl 64, id 54976, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x7c3f!] UDP, length 172
+00:27:29.295123 lo    In  IP (tos 0x0, ttl 64, id 54979, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xd1f1!] UDP, length 172
+00:27:29.315209 lo    In  IP (tos 0x0, ttl 64, id 54980, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x7b84!] UDP, length 172
+00:27:29.335077 lo    In  IP (tos 0x0, ttl 64, id 54983, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xac03!] UDP, length 172
+00:27:29.355197 lo    In  IP (tos 0x0, ttl 64, id 54985, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x9255!] UDP, length 172
+00:27:29.377124 lo    In  IP (tos 0x0, ttl 64, id 54987, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0xc660!] UDP, length 172
+00:27:29.395425 lo    In  IP (tos 0x0, ttl 64, id 54991, offset 0, flags [DF], proto UDP (17), length 200)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfec7 -> 0x0508!] UDP, length 172
+00:27:29.416078 lo    In  IP (tos 0x0, ttl 64, id 54992, offset 0, flags [DF], proto UDP (17), length 128)
+    127.0.0.1.18406 > 127.0.0.1.49936: [bad udp cksum 0xfe7f -> 0xb666!] UDP, length 100
+00:27:30.794330 lo    In  IP (tos 0x0, ttl 64, id 55308, offset 0, flags [DF], proto UDP (17), length 104)
+    127.0.0.1.18407 > 127.0.0.1.49937: [bad udp cksum 0xfe67 -> 0xa178!] UDP, length 76
+00:27:32.685721 ?     Out IP (tos 0x0, ttl 64, id 27499, offset 0, flags [DF], proto UDP (17), length 941)
+    172.20.0.3.5060 > 172.20.0.1.42697: [bad udp cksum 0x5bd7 -> 0xfc76!] SIP, length: 913
+	SIP/2.0 200 OK
+	Via: SIP/2.0/UDP 127.0.0.1:64002;rport=42697;received=172.20.0.1;branch=z9hG4bK-524287-1---4343189435fefa3a
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	From: <sip:1001@127.0.0.1>;tag=30669807
+	To: <sip:6000@127.0.0.1>;tag=615fed2f-edbd-4654-a4e0-3d0c129f43da
+	CSeq: 2 INVITE
+	Server: Asterisk PBX 20.17.0
+	Contact: <sip:172.20.0.3:5060>
+	Allow: OPTIONS, REGISTER, SUBSCRIBE, NOTIFY, PUBLISH, INVITE, ACK, BYE, CANCEL, UPDATE, PRACK, INFO, REFER, MESSAGE
+	Supported: 100rel, timer, replaces, norefersub
+	Content-Type: application/sdp
+	Content-Length:   346
+	
+	v=0
+	o=- 0 175167923 IN IP4 172.20.0.3
+	s=Asterisk
+	c=IN IP4 172.20.0.3
+	t=0 0
+	m=audio 18406 RTP/AVP 0 106 101 98
+	a=rtpmap:0 PCMU/8000
+	a=rtpmap:106 opus/48000/2
+	a=fmtp:106 sprop-maxcapturerate=16000
+	a=rtpmap:101 telephone-event/8000
+	a=fmtp:101 0-16
+	a=ptime:20
+	a=maxptime:60
+	a=sendrecv
+	a=rtpmap:98 telephone-event/48000
+	a=fmtp:98 0-16
+00:27:35.794857 lo    In  IP (tos 0x0, ttl 64, id 55752, offset 0, flags [DF], proto UDP (17), length 84)
+    127.0.0.1.18407 > 127.0.0.1.49937: [bad udp cksum 0xfe53 -> 0x0a8a!] UDP, length 56
+00:27:36.682796 ?     Out IP (tos 0x0, ttl 64, id 28073, offset 0, flags [DF], proto UDP (17), length 941)
+    172.20.0.3.5060 > 172.20.0.1.42697: [bad udp cksum 0x5bd7 -> 0xfc76!] SIP, length: 913
+	SIP/2.0 200 OK
+	Via: SIP/2.0/UDP 127.0.0.1:64002;rport=42697;received=172.20.0.1;branch=z9hG4bK-524287-1---4343189435fefa3a
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	From: <sip:1001@127.0.0.1>;tag=30669807
+	To: <sip:6000@127.0.0.1>;tag=615fed2f-edbd-4654-a4e0-3d0c129f43da
+	CSeq: 2 INVITE
+	Server: Asterisk PBX 20.17.0
+	Contact: <sip:172.20.0.3:5060>
+	Allow: OPTIONS, REGISTER, SUBSCRIBE, NOTIFY, PUBLISH, INVITE, ACK, BYE, CANCEL, UPDATE, PRACK, INFO, REFER, MESSAGE
+	Supported: 100rel, timer, replaces, norefersub
+	Content-Type: application/sdp
+	Content-Length:   346
+	
+	v=0
+	o=- 0 175167923 IN IP4 172.20.0.3
+	s=Asterisk
+	c=IN IP4 172.20.0.3
+	t=0 0
+	m=audio 18406 RTP/AVP 0 106 101 98
+	a=rtpmap:0 PCMU/8000
+	a=rtpmap:106 opus/48000/2
+	a=fmtp:106 sprop-maxcapturerate=16000
+	a=rtpmap:101 telephone-event/8000
+	a=fmtp:101 0-16
+	a=ptime:20
+	a=maxptime:60
+	a=sendrecv
+	a=rtpmap:98 telephone-event/48000
+	a=fmtp:98 0-16
+00:27:40.682979 ?     Out IP (tos 0x0, ttl 64, id 29004, offset 0, flags [DF], proto UDP (17), length 941)
+    172.20.0.3.5060 > 172.20.0.1.42697: [bad udp cksum 0x5bd7 -> 0xfc76!] SIP, length: 913
+	SIP/2.0 200 OK
+	Via: SIP/2.0/UDP 127.0.0.1:64002;rport=42697;received=172.20.0.1;branch=z9hG4bK-524287-1---4343189435fefa3a
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	From: <sip:1001@127.0.0.1>;tag=30669807
+	To: <sip:6000@127.0.0.1>;tag=615fed2f-edbd-4654-a4e0-3d0c129f43da
+	CSeq: 2 INVITE
+	Server: Asterisk PBX 20.17.0
+	Contact: <sip:172.20.0.3:5060>
+	Allow: OPTIONS, REGISTER, SUBSCRIBE, NOTIFY, PUBLISH, INVITE, ACK, BYE, CANCEL, UPDATE, PRACK, INFO, REFER, MESSAGE
+	Supported: 100rel, timer, replaces, norefersub
+	Content-Type: application/sdp
+	Content-Length:   346
+	
+	v=0
+	o=- 0 175167923 IN IP4 172.20.0.3
+	s=Asterisk
+	c=IN IP4 172.20.0.3
+	t=0 0
+	m=audio 18406 RTP/AVP 0 106 101 98
+	a=rtpmap:0 PCMU/8000
+	a=rtpmap:106 opus/48000/2
+	a=fmtp:106 sprop-maxcapturerate=16000
+	a=rtpmap:101 telephone-event/8000
+	a=fmtp:101 0-16
+	a=ptime:20
+	a=maxptime:60
+	a=sendrecv
+	a=rtpmap:98 telephone-event/48000
+	a=fmtp:98 0-16
+00:27:40.794565 lo    In  IP (tos 0x0, ttl 64, id 56718, offset 0, flags [DF], proto UDP (17), length 84)
+    127.0.0.1.18407 > 127.0.0.1.49937: [bad udp cksum 0xfe53 -> 0x0a8a!] UDP, length 56
+00:27:44.683582 ?     Out IP (tos 0x0, ttl 64, id 29035, offset 0, flags [DF], proto UDP (17), length 941)
+    172.20.0.3.5060 > 172.20.0.1.42697: [bad udp cksum 0x5bd7 -> 0xfc76!] SIP, length: 913
+	SIP/2.0 200 OK
+	Via: SIP/2.0/UDP 127.0.0.1:64002;rport=42697;received=172.20.0.1;branch=z9hG4bK-524287-1---4343189435fefa3a
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	From: <sip:1001@127.0.0.1>;tag=30669807
+	To: <sip:6000@127.0.0.1>;tag=615fed2f-edbd-4654-a4e0-3d0c129f43da
+	CSeq: 2 INVITE
+	Server: Asterisk PBX 20.17.0
+	Contact: <sip:172.20.0.3:5060>
+	Allow: OPTIONS, REGISTER, SUBSCRIBE, NOTIFY, PUBLISH, INVITE, ACK, BYE, CANCEL, UPDATE, PRACK, INFO, REFER, MESSAGE
+	Supported: 100rel, timer, replaces, norefersub
+	Content-Type: application/sdp
+	Content-Length:   346
+	
+	v=0
+	o=- 0 175167923 IN IP4 172.20.0.3
+	s=Asterisk
+	c=IN IP4 172.20.0.3
+	t=0 0
+	m=audio 18406 RTP/AVP 0 106 101 98
+	a=rtpmap:0 PCMU/8000
+	a=rtpmap:106 opus/48000/2
+	a=fmtp:106 sprop-maxcapturerate=16000
+	a=rtpmap:101 telephone-event/8000
+	a=fmtp:101 0-16
+	a=ptime:20
+	a=maxptime:60
+	a=sendrecv
+	a=rtpmap:98 telephone-event/48000
+	a=fmtp:98 0-16
+00:27:45.793921 lo    In  IP (tos 0x0, ttl 64, id 56896, offset 0, flags [DF], proto UDP (17), length 84)
+    127.0.0.1.18407 > 127.0.0.1.49937: [bad udp cksum 0xfe53 -> 0x0a8a!] UDP, length 56
+00:27:48.684054 ?     Out IP (tos 0x0, ttl 64, id 30013, offset 0, flags [DF], proto UDP (17), length 941)
+    172.20.0.3.5060 > 172.20.0.1.42697: [bad udp cksum 0x5bd7 -> 0xfc76!] SIP, length: 913
+	SIP/2.0 200 OK
+	Via: SIP/2.0/UDP 127.0.0.1:64002;rport=42697;received=172.20.0.1;branch=z9hG4bK-524287-1---4343189435fefa3a
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	From: <sip:1001@127.0.0.1>;tag=30669807
+	To: <sip:6000@127.0.0.1>;tag=615fed2f-edbd-4654-a4e0-3d0c129f43da
+	CSeq: 2 INVITE
+	Server: Asterisk PBX 20.17.0
+	Contact: <sip:172.20.0.3:5060>
+	Allow: OPTIONS, REGISTER, SUBSCRIBE, NOTIFY, PUBLISH, INVITE, ACK, BYE, CANCEL, UPDATE, PRACK, INFO, REFER, MESSAGE
+	Supported: 100rel, timer, replaces, norefersub
+	Content-Type: application/sdp
+	Content-Length:   346
+	
+	v=0
+	o=- 0 175167923 IN IP4 172.20.0.3
+	s=Asterisk
+	c=IN IP4 172.20.0.3
+	t=0 0
+	m=audio 18406 RTP/AVP 0 106 101 98
+	a=rtpmap:0 PCMU/8000
+	a=rtpmap:106 opus/48000/2
+	a=fmtp:106 sprop-maxcapturerate=16000
+	a=rtpmap:101 telephone-event/8000
+	a=fmtp:101 0-16
+	a=ptime:20
+	a=maxptime:60
+	a=sendrecv
+	a=rtpmap:98 telephone-event/48000
+	a=fmtp:98 0-16
+00:27:52.683888 ?     Out IP (tos 0x0, ttl 64, id 30473, offset 0, flags [DF], proto UDP (17), length 941)
+    172.20.0.3.5060 > 172.20.0.1.42697: [bad udp cksum 0x5bd7 -> 0xfc76!] SIP, length: 913
+	SIP/2.0 200 OK
+	Via: SIP/2.0/UDP 127.0.0.1:64002;rport=42697;received=172.20.0.1;branch=z9hG4bK-524287-1---4343189435fefa3a
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	From: <sip:1001@127.0.0.1>;tag=30669807
+	To: <sip:6000@127.0.0.1>;tag=615fed2f-edbd-4654-a4e0-3d0c129f43da
+	CSeq: 2 INVITE
+	Server: Asterisk PBX 20.17.0
+	Contact: <sip:172.20.0.3:5060>
+	Allow: OPTIONS, REGISTER, SUBSCRIBE, NOTIFY, PUBLISH, INVITE, ACK, BYE, CANCEL, UPDATE, PRACK, INFO, REFER, MESSAGE
+	Supported: 100rel, timer, replaces, norefersub
+	Content-Type: application/sdp
+	Content-Length:   346
+	
+	v=0
+	o=- 0 175167923 IN IP4 172.20.0.3
+	s=Asterisk
+	c=IN IP4 172.20.0.3
+	t=0 0
+	m=audio 18406 RTP/AVP 0 106 101 98
+	a=rtpmap:0 PCMU/8000
+	a=rtpmap:106 opus/48000/2
+	a=fmtp:106 sprop-maxcapturerate=16000
+	a=rtpmap:101 telephone-event/8000
+	a=fmtp:101 0-16
+	a=ptime:20
+	a=maxptime:60
+	a=sendrecv
+	a=rtpmap:98 telephone-event/48000
+	a=fmtp:98 0-16
+00:27:54.816157 ?     In  IP (tos 0x0, ttl 64, id 48371, offset 0, flags [DF], proto UDP (17), length 32)
+    172.20.0.1.42697 > 172.20.0.3.5060: [bad udp cksum 0x584a -> 0xd307!] SIP
+00:27:56.684355 ?     Out IP (tos 0x0, ttl 64, id 30919, offset 0, flags [DF], proto UDP (17), length 941)
+    172.20.0.3.5060 > 172.20.0.1.42697: [bad udp cksum 0x5bd7 -> 0xfc76!] SIP, length: 913
+	SIP/2.0 200 OK
+	Via: SIP/2.0/UDP 127.0.0.1:64002;rport=42697;received=172.20.0.1;branch=z9hG4bK-524287-1---4343189435fefa3a
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	From: <sip:1001@127.0.0.1>;tag=30669807
+	To: <sip:6000@127.0.0.1>;tag=615fed2f-edbd-4654-a4e0-3d0c129f43da
+	CSeq: 2 INVITE
+	Server: Asterisk PBX 20.17.0
+	Contact: <sip:172.20.0.3:5060>
+	Allow: OPTIONS, REGISTER, SUBSCRIBE, NOTIFY, PUBLISH, INVITE, ACK, BYE, CANCEL, UPDATE, PRACK, INFO, REFER, MESSAGE
+	Supported: 100rel, timer, replaces, norefersub
+	Content-Type: application/sdp
+	Content-Length:   346
+	
+	v=0
+	o=- 0 175167923 IN IP4 172.20.0.3
+	s=Asterisk
+	c=IN IP4 172.20.0.3
+	t=0 0
+	m=audio 18406 RTP/AVP 0 106 101 98
+	a=rtpmap:0 PCMU/8000
+	a=rtpmap:106 opus/48000/2
+	a=fmtp:106 sprop-maxcapturerate=16000
+	a=rtpmap:101 telephone-event/8000
+	a=fmtp:101 0-16
+	a=ptime:20
+	a=maxptime:60
+	a=sendrecv
+	a=rtpmap:98 telephone-event/48000
+	a=fmtp:98 0-16
+00:27:57.182374 ?     Out IP (tos 0x0, ttl 64, id 30995, offset 0, flags [DF], proto UDP (17), length 441)
+    172.20.0.3.5060 > 172.20.0.1.42697: [bad udp cksum 0x59e3 -> 0x910f!] SIP, length: 413
+	BYE sip:1001@172.20.0.1:42697 SIP/2.0
+	Via: SIP/2.0/UDP 172.20.0.3:5060;rport;branch=z9hG4bKPj8146e035-a9bd-48e3-a7dd-4a03d927ca3d
+	From: <sip:6000@127.0.0.1>;tag=615fed2f-edbd-4654-a4e0-3d0c129f43da
+	To: <sip:1001@127.0.0.1>;tag=30669807
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	CSeq: 3064 BYE
+	Reason: SIP ;cause=408 ;text="Request Timeout"
+	Max-Forwards: 70
+	User-Agent: Asterisk PBX 20.17.0
+	Content-Length:  0
+	
+00:27:57.214564 ?     In  IP (tos 0x0, ttl 64, id 48372, offset 0, flags [DF], proto UDP (17), length 431)
+    172.20.0.1.42697 > 172.20.0.3.5060: [bad udp cksum 0x59d9 -> 0x1840!] SIP, length: 403
+	SIP/2.0 200 OK
+	Via: SIP/2.0/UDP 172.20.0.3:5060;rport=5060;branch=z9hG4bKPj8146e035-a9bd-48e3-a7dd-4a03d927ca3d;received=127.0.0.1
+	Contact: <sip:1001@172.20.0.1:42697;transport=UDP>
+	To: <sip:1001@127.0.0.1>;tag=30669807
+	From: <sip:6000@127.0.0.1>;tag=615fed2f-edbd-4654-a4e0-3d0c129f43da
+	Call-ID: U9t6auA0mNVkLsfg05HWSQ..
+	CSeq: 3064 BYE
+	User-Agent: Z 5.6.12 v2.10.20.12-mod
+	Content-Length: 0
+	
