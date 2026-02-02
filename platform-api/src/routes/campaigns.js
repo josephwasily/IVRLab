@@ -5,6 +5,74 @@ const { v4: uuidv4 } = require('uuid');
 const { authMiddleware } = require('../middleware/auth');
 const multer = require('multer');
 const csv = require('csv-parse/sync');
+const net = require('net');
+
+// AMI Configuration
+const AMI_HOST = process.env.AMI_HOST || 'asterisk';
+const AMI_PORT = parseInt(process.env.AMI_PORT || '5038');
+const AMI_USER = process.env.AMI_USER || 'admin';
+const AMI_SECRET = process.env.AMI_SECRET || 'amipass';
+
+/**
+ * Send AMI command to Asterisk
+ */
+function sendAMICommand(action, params = {}) {
+    return new Promise((resolve, reject) => {
+        const client = new net.Socket();
+        let response = '';
+        let loggedIn = false;
+        
+        client.setTimeout(10000);
+        
+        client.connect(AMI_PORT, AMI_HOST, () => {
+            console.log('Connected to AMI');
+        });
+        
+        client.on('data', (data) => {
+            response += data.toString();
+            
+            // First, login
+            if (!loggedIn && response.includes('Asterisk Call Manager')) {
+                const loginCmd = `Action: Login\r\nUsername: ${AMI_USER}\r\nSecret: ${AMI_SECRET}\r\n\r\n`;
+                client.write(loginCmd);
+                loggedIn = true;
+                response = '';
+            }
+            // After login success, send the actual command
+            else if (loggedIn && response.includes('Response: Success') && !response.includes('Message: Originate')) {
+                let cmd = `Action: ${action}\r\n`;
+                for (const [key, value] of Object.entries(params)) {
+                    cmd += `${key}: ${value}\r\n`;
+                }
+                cmd += `\r\n`;
+                client.write(cmd);
+                response = '';
+            }
+            // Check for final response
+            else if (response.includes('Message: Originate') || response.includes('Response: Error')) {
+                client.end();
+                if (response.includes('Response: Error')) {
+                    reject(new Error(response));
+                } else {
+                    resolve(response);
+                }
+            }
+        });
+        
+        client.on('timeout', () => {
+            client.destroy();
+            reject(new Error('AMI connection timeout'));
+        });
+        
+        client.on('error', (err) => {
+            reject(err);
+        });
+        
+        client.on('close', () => {
+            console.log('AMI connection closed');
+        });
+    });
+}
 
 // Configure multer for CSV uploads
 const upload = multer({ 
@@ -296,6 +364,13 @@ router.post('/:id/contacts/manual', (req, res) => {
             db.prepare('DELETE FROM campaign_contacts WHERE campaign_id = ?').run(req.params.id);
         }
         
+        // Get existing phone numbers to prevent duplicates
+        const existingPhones = new Set(
+            db.prepare('SELECT phone_number FROM campaign_contacts WHERE campaign_id = ?')
+                .all(req.params.id)
+                .map(c => c.phone_number)
+        );
+        
         // Insert contacts
         const insertStmt = db.prepare(`
             INSERT INTO campaign_contacts (id, campaign_id, phone_number, variables)
@@ -303,15 +378,24 @@ router.post('/:id/contacts/manual', (req, res) => {
         `);
         
         let imported = 0;
+        let duplicates = 0;
         
         const insertMany = db.transaction((contactList) => {
             for (const contact of contactList) {
                 const phone = contact.phone_number.trim();
+                
+                // Skip if phone number already exists
+                if (existingPhones.has(phone)) {
+                    duplicates++;
+                    continue;
+                }
+                
                 const variables = {};
                 if (contact.name) variables.name = contact.name;
                 if (contact.variables) Object.assign(variables, contact.variables);
                 
                 insertStmt.run(uuidv4(), req.params.id, phone, JSON.stringify(variables));
+                existingPhones.add(phone); // Track newly added phones too
                 imported++;
             }
         });
@@ -324,7 +408,8 @@ router.post('/:id/contacts/manual', (req, res) => {
         
         res.json({ 
             success: true, 
-            imported, 
+            imported,
+            duplicates,
             total: totalContacts 
         });
     } catch (error) {
@@ -374,6 +459,13 @@ router.post('/:id/contacts', upload.single('file'), (req, res) => {
             db.prepare('DELETE FROM campaign_contacts WHERE campaign_id = ?').run(req.params.id);
         }
         
+        // Get existing phone numbers to prevent duplicates
+        const existingPhones = new Set(
+            db.prepare('SELECT phone_number FROM campaign_contacts WHERE campaign_id = ?')
+                .all(req.params.id)
+                .map(c => c.phone_number)
+        );
+        
         // Insert contacts
         const insertStmt = db.prepare(`
             INSERT INTO campaign_contacts (id, campaign_id, phone_number, variables)
@@ -382,6 +474,7 @@ router.post('/:id/contacts', upload.single('file'), (req, res) => {
         
         let imported = 0;
         let skipped = 0;
+        let duplicates = 0;
         
         const insertMany = db.transaction((records) => {
             for (const record of records) {
@@ -391,11 +484,18 @@ router.post('/:id/contacts', upload.single('file'), (req, res) => {
                     continue;
                 }
                 
+                // Skip if phone number already exists
+                if (existingPhones.has(phone)) {
+                    duplicates++;
+                    continue;
+                }
+                
                 // Store all columns as variables (except phone)
                 const variables = { ...record };
                 delete variables[phone_column];
                 
                 insertStmt.run(uuidv4(), req.params.id, phone, JSON.stringify(variables));
+                existingPhones.add(phone); // Track newly added phones too
                 imported++;
             }
         });
@@ -409,7 +509,8 @@ router.post('/:id/contacts', upload.single('file'), (req, res) => {
         res.json({ 
             success: true, 
             imported, 
-            skipped, 
+            skipped,
+            duplicates,
             total: totalContacts 
         });
     } catch (error) {
@@ -478,6 +579,39 @@ router.delete('/:id/contacts', (req, res) => {
     } catch (error) {
         console.error('Error deleting contacts:', error);
         res.status(500).json({ error: 'Failed to delete contacts' });
+    }
+});
+
+// Delete single contact
+router.delete('/:id/contacts/:contactId', (req, res) => {
+    try {
+        const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?')
+            .get(req.params.id, req.user.tenantId);
+        
+        if (!campaign) {
+            return res.status(404).json({ error: 'Campaign not found' });
+        }
+        
+        // Check if campaign is running
+        const runningRun = db.prepare(`
+            SELECT * FROM campaign_runs WHERE campaign_id = ? AND status = 'running'
+        `).get(req.params.id);
+        
+        if (runningRun) {
+            return res.status(400).json({ error: 'Cannot delete contact while campaign is running' });
+        }
+        
+        const result = db.prepare('DELETE FROM campaign_contacts WHERE id = ? AND campaign_id = ?')
+            .run(req.params.contactId, req.params.id);
+        
+        if (result.changes === 0) {
+            return res.status(404).json({ error: 'Contact not found' });
+        }
+        
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting contact:', error);
+        res.status(500).json({ error: 'Failed to delete contact' });
     }
 });
 
@@ -621,6 +755,12 @@ router.post('/:id/start', (req, res) => {
             return res.status(400).json({ error: 'Campaign must have a SIP trunk configured' });
         }
         
+        // Get trunk details
+        const trunk = db.prepare('SELECT * FROM sip_trunks WHERE id = ?').get(trunkId);
+        if (!trunk) {
+            return res.status(400).json({ error: 'SIP trunk not found' });
+        }
+        
         // Get total contacts count
         const contactCount = db.prepare('SELECT COUNT(*) as count FROM campaign_contacts WHERE campaign_id = ?')
             .get(req.params.id).count;
@@ -666,10 +806,26 @@ router.post('/:id/start', (req, res) => {
             WHERE campaign_id = ?
         `).run(req.params.id);
         
-        // Note: Campaign status is now tracked via campaign_runs, not campaigns table
-        // This allows multiple runs without changing the campaign definition
-        
         console.log(`Campaign ${req.params.id} started - Run #${runNumber} (${runId})`);
+        
+        // Start processing contacts asynchronously
+        const effectiveCallerId = campaign.caller_id || settings.caller_id || trunk.caller_id || '1000';
+        const maxConcurrent = campaign.max_concurrent_calls || settings.max_concurrent_calls || 5;
+        
+        // Get IVR extension if IVR is configured
+        let ivrExtension = null;
+        if (campaign.ivr_id) {
+            const ivr = db.prepare('SELECT extension FROM ivr_flows WHERE id = ?').get(campaign.ivr_id);
+            ivrExtension = ivr?.extension;
+        }
+        
+        // Process contacts in the background
+        processCampaignContacts(req.params.id, runId, {
+            trunk,
+            ivrExtension,
+            callerId: effectiveCallerId,
+            maxConcurrent
+        });
         
         res.json({ 
             success: true, 
@@ -772,5 +928,135 @@ router.post('/:id/cancel', (req, res) => {
         res.status(500).json({ error: 'Failed to cancel campaign' });
     }
 });
+
+/**
+ * Process campaign contacts and make calls
+ * @param {string} campaignId 
+ * @param {string} runId 
+ * @param {object} options 
+ */
+async function processCampaignContacts(campaignId, runId, options) {
+    const { trunk, ivrExtension, callerId, maxConcurrent } = options;
+    
+    console.log(`[Campaign ${campaignId}] Starting to process contacts for run ${runId}`);
+    
+    // Process contacts sequentially with concurrency limit
+    const processNext = async () => {
+        // Check if run is still active
+        const run = db.prepare('SELECT status FROM campaign_runs WHERE id = ?').get(runId);
+        if (!run || run.status !== 'running') {
+            console.log(`[Campaign ${campaignId}] Run ${runId} is no longer running (status: ${run?.status})`);
+            return;
+        }
+        
+        // Count active calls
+        const activeCalls = db.prepare(`
+            SELECT COUNT(*) as count FROM campaign_contacts 
+            WHERE campaign_id = ? AND status = 'calling'
+        `).get(campaignId).count;
+        
+        if (activeCalls >= maxConcurrent) {
+            // Wait and try again
+            setTimeout(processNext, 2000);
+            return;
+        }
+        
+        // Get next pending contact
+        const contact = db.prepare(`
+            SELECT * FROM campaign_contacts 
+            WHERE campaign_id = ? AND status = 'pending'
+            LIMIT 1
+        `).get(campaignId);
+        
+        if (!contact) {
+            // Check if any calls are still in progress
+            if (activeCalls === 0) {
+                // All done - mark run as completed
+                db.prepare(`
+                    UPDATE campaign_runs 
+                    SET status = 'completed', completed_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                `).run(runId);
+                console.log(`[Campaign ${campaignId}] Run ${runId} completed`);
+            } else {
+                // Wait for active calls to finish
+                setTimeout(processNext, 2000);
+            }
+            return;
+        }
+        
+        // Mark contact as calling
+        db.prepare(`
+            UPDATE campaign_contacts 
+            SET status = 'calling', attempts = attempts + 1, last_attempt_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `).run(contact.id);
+        
+        // Create outbound call record
+        const callId = uuidv4();
+        db.prepare(`
+            INSERT INTO outbound_calls (id, campaign_id, contact_id, run_id, trunk_id, phone_number, caller_id, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', CURRENT_TIMESTAMP)
+        `).run(callId, campaignId, contact.id, runId, trunk.id, contact.phone_number, callerId);
+        
+        // Build dial string for trunk - always use PJSIP
+        // Use endpoint name if it matches a PJSIP endpoint, otherwise use host directly
+        let dialString;
+        const trunkNameLower = trunk.name.toLowerCase().replace(/\s+/g, '');
+        
+        // Check if this is the IP Office trunk (192.168.2.211)
+        if (trunk.host === '192.168.2.211') {
+            dialString = `PJSIP/${contact.phone_number}@ipoffice`;
+        } else {
+            // Default to PJSIP with the phone number routed through the endpoint
+            // For local asterisk, dial the extension directly
+            dialString = `PJSIP/${contact.phone_number}`;
+        }
+        
+        // Determine extension to call when answered
+        const extension = ivrExtension || '1000';
+        
+        console.log(`[Campaign ${campaignId}] Calling ${contact.phone_number} via ${dialString} -> ext ${extension}`);
+        
+        try {
+            await sendAMICommand('Originate', {
+                Channel: dialString,
+                Context: 'from-internal',
+                Exten: extension,
+                Priority: '1',
+                CallerID: `"Campaign" <${callerId}>`,
+                Timeout: '30000',
+                Async: 'true',
+                Variable: `CAMPAIGN_ID=${campaignId},CONTACT_ID=${contact.id},CALL_ID=${callId}`
+            });
+            
+            // Update call status (use 'dialing' which is valid in CHECK constraint)
+            db.prepare(`UPDATE outbound_calls SET status = 'dialing' WHERE id = ?`).run(callId);
+            db.prepare(`UPDATE campaign_runs SET contacts_called = contacts_called + 1 WHERE id = ?`).run(runId);
+            
+            console.log(`[Campaign ${campaignId}] Call initiated for ${contact.phone_number}`);
+            
+            // Mark contact as completed after a delay (assuming call will complete)
+            setTimeout(() => {
+                db.prepare(`UPDATE campaign_contacts SET status = 'completed' WHERE id = ? AND status = 'calling'`).run(contact.id);
+                db.prepare(`UPDATE outbound_calls SET status = 'completed' WHERE id = ? AND status = 'dialing'`).run(callId);
+            }, 35000);
+            
+        } catch (error) {
+            console.error(`[Campaign ${campaignId}] Failed to call ${contact.phone_number}:`, error.message);
+            db.prepare(`UPDATE campaign_contacts SET status = 'failed', result = ? WHERE id = ?`)
+                .run(error.message, contact.id);
+            db.prepare(`UPDATE outbound_calls SET status = 'failed' WHERE id = ?`)
+                .run(callId);
+            db.prepare(`UPDATE campaign_runs SET contacts_failed = contacts_failed + 1 WHERE id = ?`).run(runId);
+        }
+        
+        // Process next contact
+        setTimeout(processNext, 500);
+    };
+    
+    // Start processing
+    processNext();
+}
 
 module.exports = router;

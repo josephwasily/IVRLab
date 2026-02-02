@@ -3,11 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { 
   getCampaign, createCampaign, updateCampaign, uploadCampaignContacts, addManualContacts,
-  getCampaignStats, getTrunks, getIVRFlows
+  getCampaignStats, getTrunks, getIVRFlows, getCampaignRuns, startCampaign, getCampaignContacts, deleteCampaignContacts, deleteCampaignContact
 } from '../lib/api'
 import { 
   ArrowLeft, Save, Upload, Users, Phone, Clock, AlertCircle,
-  CheckCircle, XCircle, Loader2, FileSpreadsheet, Trash2, Plus, List
+  CheckCircle, XCircle, Loader2, FileSpreadsheet, Trash2, Plus, List, Play, History, RefreshCw
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -63,6 +63,14 @@ export default function CampaignEdit() {
     refetchInterval: campaign?.status === 'running' ? 5000 : false
   })
 
+  // Fetch runs history
+  const { data: runs } = useQuery({
+    queryKey: ['campaign-runs', id],
+    queryFn: () => getCampaignRuns(id),
+    enabled: !isNew,
+    refetchInterval: 10000
+  })
+
   // Fetch trunks and IVR flows
   const { data: trunks } = useQuery({
     queryKey: ['trunks'],
@@ -72,6 +80,41 @@ export default function CampaignEdit() {
   const { data: ivrFlows } = useQuery({
     queryKey: ['ivr-flows'],
     queryFn: getIVRFlows
+  })
+
+  // Fetch existing contacts
+  const { data: existingContacts, refetch: refetchContacts } = useQuery({
+    queryKey: ['campaign-contacts', id],
+    queryFn: () => getCampaignContacts(id),
+    enabled: !isNew
+  })
+
+  // Start campaign mutation
+  const startMutation = useMutation({
+    mutationFn: () => startCampaign(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['campaign', id])
+      queryClient.invalidateQueries(['campaign-runs', id])
+    }
+  })
+
+  // Delete all contacts mutation
+  const deleteContactsMutation = useMutation({
+    mutationFn: () => deleteCampaignContacts(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['campaign-contacts', id])
+      queryClient.invalidateQueries(['campaign', id])
+      setUploadStatus({ success: true, message: 'All contacts deleted' })
+    }
+  })
+
+  // Delete single contact mutation
+  const deleteContactMutation = useMutation({
+    mutationFn: (contactId) => deleteCampaignContact(id, contactId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['campaign-contacts', id])
+      queryClient.invalidateQueries(['campaign', id])
+    }
   })
 
   // Update form when campaign loads
@@ -111,6 +154,7 @@ export default function CampaignEdit() {
       setCsvFile(null)
       setCsvPreview(null)
       queryClient.invalidateQueries(['campaign', id])
+      queryClient.invalidateQueries(['campaign-contacts', id])
     },
     onError: (error) => {
       setUploadStatus({ success: false, message: error.message })
@@ -123,6 +167,7 @@ export default function CampaignEdit() {
       setUploadStatus({ success: true, message: `Added ${data.imported} contacts` })
       setManualContacts([{ phone_number: '', name: '' }])
       queryClient.invalidateQueries(['campaign', id])
+      queryClient.invalidateQueries(['campaign-contacts', id])
     },
     onError: (error) => {
       setUploadStatus({ success: false, message: error.response?.data?.error || error.message })
@@ -315,6 +360,79 @@ export default function CampaignEdit() {
         </div>
       )}
 
+      {/* Run History & Start Button */}
+      {!isNew && (
+        <div className="bg-white rounded-lg shadow p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-medium text-gray-900 flex items-center gap-2">
+              <History className="w-5 h-5" />
+              Run History
+            </h3>
+            <button
+              onClick={() => startMutation.mutate()}
+              disabled={startMutation.isLoading || !campaign?.trunk_id || !existingContacts?.total || runs?.some(r => r.status === 'running')}
+              className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={!campaign?.trunk_id ? 'Configure SIP trunk first' : 
+                     !existingContacts?.total ? 'Add contacts first' :
+                     runs?.some(r => r.status === 'running') ? 'Campaign already running' : 'Start new run'}
+            >
+              {startMutation.isLoading ? (
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              ) : (
+                <Play className="w-5 h-5 mr-2" />
+              )}
+              {runs?.length > 0 ? 'Start New Run' : 'Start Campaign'}
+            </button>
+          </div>
+          
+          {runs && runs.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 px-2">Run #</th>
+                    <th className="text-left py-2 px-2">Status</th>
+                    <th className="text-left py-2 px-2">Contacts</th>
+                    <th className="text-left py-2 px-2">Completed</th>
+                    <th className="text-left py-2 px-2">Failed</th>
+                    <th className="text-left py-2 px-2">Started</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {runs.map(run => (
+                    <tr key={run.id} className="border-b hover:bg-gray-50">
+                      <td className="py-2 px-2 font-medium">#{run.run_number}</td>
+                      <td className="py-2 px-2">
+                        <span className={clsx(
+                          'px-2 py-1 rounded-full text-xs font-medium',
+                          run.status === 'running' && 'bg-green-100 text-green-800',
+                          run.status === 'completed' && 'bg-blue-100 text-blue-800',
+                          run.status === 'paused' && 'bg-yellow-100 text-yellow-800',
+                          run.status === 'cancelled' && 'bg-gray-100 text-gray-800',
+                          run.status === 'failed' && 'bg-red-100 text-red-800'
+                        )}>
+                          {run.status}
+                        </span>
+                      </td>
+                      <td className="py-2 px-2">{run.total_contacts}</td>
+                      <td className="py-2 px-2 text-green-600">{run.contacts_completed || 0}</td>
+                      <td className="py-2 px-2 text-red-600">{run.contacts_failed || 0}</td>
+                      <td className="py-2 px-2 text-gray-500">
+                        {new Date(run.started_at).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-gray-500 text-sm text-center py-4">
+              No runs yet. Add contacts and click "Start Campaign" to begin.
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Basic Info */}
         <div className="bg-white rounded-lg shadow p-6">
@@ -475,13 +593,92 @@ export default function CampaignEdit() {
         <div className="bg-white rounded-lg shadow p-6 mt-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-gray-900">Contact List</h3>
-            {campaign?.total_contacts > 0 && (
-              <span className="text-sm text-gray-500">
-                <Users className="w-4 h-4 inline mr-1" />
-                {campaign.total_contacts} contacts loaded
-              </span>
-            )}
+            <div className="flex items-center gap-2">
+              {existingContacts?.total > 0 && (
+                <>
+                  <span className="text-sm text-gray-500">
+                    <Users className="w-4 h-4 inline mr-1" />
+                    {existingContacts.total} contacts
+                  </span>
+                  <button
+                    onClick={() => {
+                      if (confirm('Delete all contacts from this campaign?')) {
+                        deleteContactsMutation.mutate()
+                      }
+                    }}
+                    disabled={deleteContactsMutation.isLoading}
+                    className="text-sm text-red-600 hover:text-red-700 flex items-center gap-1 ml-2"
+                    title="Clear all contacts"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Clear All
+                  </button>
+                </>
+              )}
+            </div>
           </div>
+
+          {/* Existing Contacts Table */}
+          {existingContacts?.contacts?.length > 0 && (
+            <div className="mb-4 border rounded-lg overflow-hidden">
+              <div className="bg-gray-50 px-3 py-2 border-b flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-700">Current Contacts</span>
+                <button
+                  onClick={() => refetchContacts()}
+                  className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Refresh
+                </button>
+              </div>
+              <div className="max-h-48 overflow-y-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="text-left py-2 px-3 text-gray-600">Phone</th>
+                      <th className="text-left py-2 px-3 text-gray-600">Name</th>
+                      <th className="text-left py-2 px-3 text-gray-600">Status</th>
+                      <th className="text-right py-2 px-3 text-gray-600 w-16"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {existingContacts.contacts.map((contact, idx) => (
+                      <tr key={contact.id || idx} className="border-t hover:bg-gray-50">
+                        <td className="py-2 px-3">{contact.phone_number}</td>
+                        <td className="py-2 px-3 text-gray-500">{contact.name || '-'}</td>
+                        <td className="py-2 px-3">
+                          <span className={clsx(
+                            'px-2 py-0.5 rounded text-xs',
+                            contact.status === 'pending' && 'bg-gray-100 text-gray-600',
+                            contact.status === 'calling' && 'bg-blue-100 text-blue-600',
+                            contact.status === 'completed' && 'bg-green-100 text-green-600',
+                            contact.status === 'failed' && 'bg-red-100 text-red-600'
+                          )}>
+                            {contact.status}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-right">
+                          <button
+                            onClick={() => deleteContactMutation.mutate(contact.id)}
+                            disabled={deleteContactMutation.isLoading || contact.status === 'calling'}
+                            className="text-red-500 hover:text-red-700 disabled:opacity-30 p-1"
+                            title="Remove contact"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {existingContacts.total > existingContacts.contacts.length && (
+                <div className="bg-gray-50 px-3 py-2 border-t text-center text-xs text-gray-500">
+                  Showing {existingContacts.contacts.length} of {existingContacts.total} contacts
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Mode Toggle */}
           <div className="flex gap-2 mb-4">

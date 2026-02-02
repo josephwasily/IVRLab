@@ -250,6 +250,21 @@ export const addManualContacts = async (campaignId, contacts, clearExisting = fa
   return response.data
 }
 
+export const getCampaignContacts = async (campaignId, params = {}) => {
+  const response = await api.get(`/campaigns/${campaignId}/contacts`, { params })
+  return response.data
+}
+
+export const deleteCampaignContacts = async (campaignId) => {
+  const response = await api.delete(`/campaigns/${campaignId}/contacts`)
+  return response.data
+}
+
+export const deleteCampaignContact = async (campaignId, contactId) => {
+  const response = await api.delete(`/campaigns/${campaignId}/contacts/${contactId}`)
+  return response.data
+}
+
 export const getCampaignStats = async (id) => {
   const response = await api.get(`/campaigns/${id}/stats`)
   return response.data

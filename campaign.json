@@ -1,0 +1,8 @@
+{
+  "name": "Test Call to 5000",
+  "ivr_id": "d519693d-ed24-440c-8c36-62e01f2fdb4a",
+  "campaign_type": "notification",
+  "trunk_id": "adb36747-41b1-4fcc-80dd-e79fb02f77c7",
+  "caller_id": "3000",
+  "max_concurrent_calls": 1
+}

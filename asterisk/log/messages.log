@@ -5327,3 +5327,48 @@
 [Feb  2 11:11:12] NOTICE[198] sorcery.c: Type 'system' is not reloadable, maintaining previous values
 [Feb  2 12:11:18] NOTICE[198] res_pjsip/config_transport.c: Transport 'transport-udp' is not fully reloadable, not reloading: protocol, bind, TLS (everything but certificate and private key if filename is unchanged), TCP, ToS, or CoS options.
 [Feb  2 12:11:18] NOTICE[198] sorcery.c: Type 'system' is not reloadable, maintaining previous values
+[Feb  2 13:37:52] WARNING[12927] channel.c: No channel type registered for 'SIP'
+[Feb  2 14:26:53] ERROR[198] res_pjsip.c: Endpoint 'ipoffice': Could not create dialog to invalid URI 'ipoffice'.  Is endpoint registered and reachable?
+[Feb  2 14:26:53] ERROR[198] chan_pjsip.c: Failed to create outgoing session to endpoint 'ipoffice'
+[Feb  2 14:28:22] ERROR[198] res_pjsip.c: Endpoint 'ipoffice': Could not create dialog to invalid URI 'ipoffice'.  Is endpoint registered and reachable?
+[Feb  2 14:28:22] ERROR[198] chan_pjsip.c: Failed to create outgoing session to endpoint 'ipoffice'
+[Feb  2 14:30:00] Asterisk 20.17.0 built by root @ buildkitsandbox on a x86_64 running Linux on 2025-12-31 08:05:35 UTC
+[Feb  2 14:30:00] NOTICE[1] loader.c: 338 modules will be loaded.
+[Feb  2 14:30:00] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database user found, using 'asterisk' as default.
+[Feb  2 14:30:00] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database password found, using 'asterisk' as default.
+[Feb  2 14:30:00] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database host found, using localhost via socket.
+[Feb  2 14:30:00] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database name found, using 'asterisk' as default.
+[Feb  2 14:30:00] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database port found, using 5432 as default.
+[Feb  2 14:30:00] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database socket found, using '/tmp/.s.PGSQL.5432' as default.
+[Feb  2 14:30:00] ERROR[1] res_config_pgsql.c: PostgreSQL RealTime: Failed to connect database asterisk on : 
+[Feb  2 14:30:00] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: Couldn't establish connection. Check debug.
+[Feb  2 14:30:00] NOTICE[1] res_config_ldap.c: No directory user found, anonymous binding as default.
+[Feb  2 14:30:00] ERROR[1] res_config_ldap.c: No directory URL or host found.
+[Feb  2 14:30:00] ERROR[1] res_config_ldap.c: Cannot load LDAP RealTime driver.
+[Feb  2 14:30:00] NOTICE[1] cdr.c: CDR simple logging enabled.
+[Feb  2 14:30:00] NOTICE[1] indications.c: Default country for indication tones: us
+[Feb  2 14:30:00] NOTICE[1] indications.c: Setting default indication country to 'us'
+[Feb  2 14:30:00] ERROR[1] netsock2.c: getnameinfo(): ai_family not supported
+[Feb  2 14:30:00] ERROR[1] res_rtp_asterisk.c: Failed to setup recurring DNS resolution of stunaddr ''
+[Feb  2 14:30:00] WARNING[1] res_phoneprov.c: Unable to find a valid server address or name.
+[Feb  2 14:30:00] WARNING[1] res_musiconhold.c: No music on hold classes configured, disabling music on hold.
+[Feb  2 14:30:00] NOTICE[1] res_smdi.c: No SMDI interfaces are available to listen on, not starting SMDI listener.
+[Feb  2 14:30:00] NOTICE[1] confbridge/conf_config_parser.c: Adding default_menu menu to app_confbridge
+[Feb  2 14:30:00] NOTICE[1] cel_custom.c: No mappings found in cel_custom.conf. Not logging CEL to custom CSVs.
+[Feb  2 14:30:00] NOTICE[1] cdr_pgsql.c: cdr_pgsql configuration contains no global section, skipping module load.
+[Feb  2 14:30:00] WARNING[1] cel_pgsql.c: CEL pgsql config file missing global section.
+[Feb  2 14:30:00] WARNING[1] res_hep_rtcp.c: res_hep is disabled; declining module load
+[Feb  2 14:30:00] WARNING[1] res_hep_pjsip.c: res_hep is disabled; declining module load
+[Feb  2 14:30:00] WARNING[1] loader.c: Some non-required modules failed to load.
+[Feb  2 14:30:00] WARNING[1] loader.c: Module 'res_adsi' has been loaded but may be removed in a future release.
+[Feb  2 14:30:00] WARNING[1] loader.c: Module 'app_getcpeid' has been loaded but may be removed in a future release.
+[Feb  2 14:30:00] WARNING[1] loader.c: Module 'app_adsiprog' has been loaded but may be removed in a future release.
+[Feb  2 14:30:00] ERROR[1] loader.c: Error loading module 'format_ogg_vorbis.so': libvorbisenc.so.2: cannot open shared object file: No such file or directory
+[Feb  2 14:30:00] ERROR[1] loader.c: cel_sqlite3_custom declined to load.
+[Feb  2 14:30:00] ERROR[1] loader.c: cdr_pgsql declined to load.
+[Feb  2 14:30:00] ERROR[1] loader.c: cdr_sqlite3_custom declined to load.
+[Feb  2 14:30:00] ERROR[1] loader.c: res_hep_rtcp declined to load.
+[Feb  2 14:30:00] ERROR[1] loader.c: res_hep_pjsip declined to load.
+[Feb  2 14:30:29] WARNING[38] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.21.0.1:41271) to AOR '1001' will exceed max contacts of 1
+[Feb  2 14:30:33] WARNING[38] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.21.0.1:41271) to AOR '1001' will exceed max contacts of 1
+[Feb  2 14:30:38] WARNING[139][C-00000001] pbx.c: Channel 'PJSIP/ipoffice-00000000' sent to invalid extension but no invalid handler: context,exten,priority=outbound-campaign,2002,1
