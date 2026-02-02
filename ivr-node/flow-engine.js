@@ -158,13 +158,16 @@ class FlowEngine {
     }
     
     async handlePlaySequence(node) {
+        this.log(`handlePlaySequence: Processing ${node.sequence.length} items`);
         for (const item of node.sequence) {
+            this.log(`handlePlaySequence: Item type=${item.type}, variable=${item.variable}, value=${item.value}`);
             switch (item.type) {
                 case 'prompt':
                     await this.playSound(this.getSoundPath(item.value));
                     break;
                 case 'number':
                     const number = this.getVariable(item.variable);
+                    this.log(`handlePlaySequence: Got number value: ${number}`);
                     await this.sayNumber(number);
                     break;
                 case 'digits':
@@ -437,15 +440,81 @@ class FlowEngine {
         });
     }
     
+    /**
+     * Say a number in proper Arabic pronunciation
+     * Handles thousands, hundreds, tens, and units with proper grammar
+     * E.g., 1350 = "ألف وثلاثمائة وخمسون" (one thousand three hundred and fifty)
+     * For decimals like 740.70, says the whole part as a number
+     */
     async sayNumber(number) {
-        const num = parseInt(number);
-        if (isNaN(num)) return;
+        this.log(`sayNumber called with: ${number} (type: ${typeof number})`);
         
-        // For Arabic, we need to handle number pronunciation
-        // This is a simplified version - full Arabic number pronunciation is complex
-        const digits = num.toString();
-        for (const digit of digits) {
-            await this.playSound(`${this.soundBasePath}/digits/${digit}`);
+        // Handle decimal numbers - use the integer part for currency
+        const numStr = number.toString();
+        const wholePart = numStr.includes('.') ? numStr.split('.')[0] : numStr;
+        const num = parseInt(wholePart);
+        
+        this.log(`sayNumber parsed: ${num}`);
+        
+        if (isNaN(num) || num < 0) {
+            this.log(`sayNumber: Invalid number, skipping`);
+            return;
+        }
+        
+        // Special case for zero
+        if (num === 0) {
+            this.log(`sayNumber: Playing zero`);
+            await this.playSound(`${this.soundBasePath}/numbers/0`);
+            return;
+        }
+        
+        const parts = [];
+        let remaining = num;
+        
+        // Thousands (1000-9999)
+        if (remaining >= 1000) {
+            const thousands = Math.floor(remaining / 1000) * 1000;
+            parts.push(thousands.toString());
+            remaining = remaining % 1000;
+        }
+        
+        // Hundreds (100-900)
+        if (remaining >= 100) {
+            const hundreds = Math.floor(remaining / 100) * 100;
+            parts.push(hundreds.toString());
+            remaining = remaining % 100;
+        }
+        
+        // Tens and units (1-99)
+        if (remaining > 0) {
+            if (remaining <= 19) {
+                // 1-19 have unique words
+                parts.push(remaining.toString());
+            } else {
+                // 20-99: tens + units
+                const tens = Math.floor(remaining / 10) * 10;
+                const units = remaining % 10;
+                
+                // In Arabic, units come before tens (e.g., "واحد وعشرون" = 21)
+                if (units > 0) {
+                    parts.push(units.toString());
+                }
+                parts.push(tens.toString());
+            }
+        }
+        
+        this.log(`sayNumber: Playing parts: ${JSON.stringify(parts)}`);
+        
+        // Play the parts with "wa" (و) connector between them
+        for (let i = 0; i < parts.length; i++) {
+            if (i > 0) {
+                // Add "wa" (and) between parts
+                this.log(`sayNumber: Playing 'wa' connector`);
+                await this.playSound(`${this.soundBasePath}/numbers/wa`);
+            }
+            const soundPath = `${this.soundBasePath}/numbers/${parts[i]}`;
+            this.log(`sayNumber: Playing ${soundPath}`);
+            await this.playSound(soundPath);
         }
     }
     
