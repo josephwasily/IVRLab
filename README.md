@@ -206,6 +206,23 @@ docker exec platform-api node src/db/seed.js
 docker ps
 ```
 
+### Pre-built IVR Flows
+
+The platform includes two pre-built IVR flows that are automatically seeded on first startup:
+
+| Flow | Extension | Description |
+|------|-----------|-------------|
+| **Billing Invoice Inquiry** | 2010 | Monthly billing/invoice inquiry with account number collection and verification |
+| **Customer Satisfaction Survey** | 2020 | 5-question customer satisfaction survey collecting ratings from 1-5 |
+
+These flows include Arabic audio prompts located in `prompts/billing/` and `prompts/survey/`.
+
+**To add custom audio files for new IVR flows:**
+1. Place your audio files in `new sounds/<flow-name>/` folder
+2. Run the conversion script: `python scripts/convert_ivr_sounds.py`
+3. The script converts audio to Asterisk-compatible ulaw format (8kHz mono)
+4. Restart platform-api to seed the prompts: `docker compose restart platform-api`
+
 ### Access the Admin Portal
 
 Open **http://localhost:8082** in your browser.
@@ -236,7 +253,28 @@ Login with:
 
 **Root Cause:** Your host machine's IP address changed (common with DHCP, VPN, or switching networks).
 
-**Solution:**
+**Solution - Automatic (Recommended):**
+
+Use the IP update script to automatically detect and update all configuration files:
+
+```powershell
+# Windows PowerShell
+cd scripts
+.\update-ip.ps1
+```
+
+The script will:
+- Auto-detect your current IP address
+- Update `asterisk/pjsip.conf` and other config files
+- Restart the Asterisk container
+- Verify endpoint status
+
+You can also specify an IP manually:
+```powershell
+.\update-ip.ps1 -NewIP "192.168.1.100"
+```
+
+**Solution - Manual:**
 
 1. **Find your current IP:**
    ```powershell

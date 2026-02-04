@@ -1,8 +1,30 @@
 import { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { X, Volume2 } from 'lucide-react'
+import { getPrompts, getFilesystemPrompts, getPromptAudioUrl, getFilesystemAudioUrl } from '../../lib/api'
 
 export default function NodeProperties({ node, onChange, onClose }) {
   const [formData, setFormData] = useState(node?.data || {})
+  const [playingPrompt, setPlayingPrompt] = useState(null)
+  const audioRef = useState(null)
+
+  // Fetch prompts from database
+  const { data: dbPrompts } = useQuery({
+    queryKey: ['prompts'],
+    queryFn: () => getPrompts({})
+  })
+
+  // Fetch filesystem prompts (Arabic)
+  const { data: fsPromptsAr } = useQuery({
+    queryKey: ['filesystem-prompts', 'ar'],
+    queryFn: () => getFilesystemPrompts('ar')
+  })
+
+  // Fetch filesystem prompts (English)  
+  const { data: fsPromptsEn } = useQuery({
+    queryKey: ['filesystem-prompts', 'en'],
+    queryFn: () => getFilesystemPrompts('en')
+  })
 
   useEffect(() => {
     setFormData(node?.data || {})
@@ -40,6 +62,94 @@ export default function NodeProperties({ node, onChange, onClose }) {
     handleChange('branches', branches)
   }
 
+  // Build combined prompt list
+  const allPrompts = []
+  
+  // Add database prompts
+  if (dbPrompts) {
+    dbPrompts.forEach(p => {
+      allPrompts.push({
+        value: p.filename.replace('.ulaw', ''),
+        label: p.name,
+        category: p.category || 'custom',
+        language: p.language,
+        source: 'db',
+        id: p.id
+      })
+    })
+  }
+  
+  // Add filesystem prompts (Arabic)
+  if (fsPromptsAr) {
+    fsPromptsAr.forEach(f => {
+      const baseName = f.filename.replace('.ulaw', '')
+      // Avoid duplicates
+      if (!allPrompts.find(p => p.value === `ar/${baseName}`)) {
+        allPrompts.push({
+          value: `ar/${baseName}`,
+          label: `${f.name} (Arabic)`,
+          category: 'filesystem',
+          language: 'ar',
+          source: 'fs',
+          filename: f.filename
+        })
+      }
+    })
+  }
+  
+  // Add filesystem prompts (English)
+  if (fsPromptsEn) {
+    fsPromptsEn.forEach(f => {
+      const baseName = f.filename.replace('.ulaw', '')
+      if (!allPrompts.find(p => p.value === `en/${baseName}`)) {
+        allPrompts.push({
+          value: `en/${baseName}`,
+          label: `${f.name} (English)`,
+          category: 'filesystem',
+          language: 'en',
+          source: 'fs',
+          filename: f.filename
+        })
+      }
+    })
+  }
+
+  // Group prompts by category/language
+  const groupedPrompts = {
+    'Arabic (ar/)': allPrompts.filter(p => p.language === 'ar'),
+    'English (en/)': allPrompts.filter(p => p.language === 'en'),
+    'Custom': allPrompts.filter(p => p.source === 'db')
+  }
+
+  // Prompt select component
+  const PromptSelect = ({ value, onChange, placeholder }) => (
+    <div className="space-y-1">
+      <select
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2 border rounded-lg text-sm"
+      >
+        <option value="">{placeholder || 'Select a prompt...'}</option>
+        {Object.entries(groupedPrompts).map(([group, prompts]) => (
+          prompts.length > 0 && (
+            <optgroup key={group} label={group}>
+              {prompts.map(p => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </optgroup>
+          )
+        ))}
+      </select>
+      {value && (
+        <div className="text-xs text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded">
+          Path: {value}
+        </div>
+      )}
+    </div>
+  )
+
   return (
     <div className="bg-white rounded-lg shadow p-4 w-80">
       <div className="flex justify-between items-center mb-4">
@@ -65,12 +175,10 @@ export default function NodeProperties({ node, onChange, onClose }) {
         {(formData.type === 'play' || formData.type === 'play_digits') && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Prompt</label>
-            <input
-              type="text"
-              value={formData.prompt || ''}
-              onChange={(e) => handleChange('prompt', e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg text-sm"
-              placeholder="e.g., welcome, enter_account"
+            <PromptSelect
+              value={formData.prompt}
+              onChange={(value) => handleChange('prompt', value)}
+              placeholder="Select prompt to play..."
             />
           </div>
         )}
@@ -79,11 +187,10 @@ export default function NodeProperties({ node, onChange, onClose }) {
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Prompt</label>
-              <input
-                type="text"
-                value={formData.prompt || ''}
-                onChange={(e) => handleChange('prompt', e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg text-sm"
+              <PromptSelect
+                value={formData.prompt}
+                onChange={(value) => handleChange('prompt', value)}
+                placeholder="Select prompt for input..."
               />
             </div>
             <div className="grid grid-cols-2 gap-2">

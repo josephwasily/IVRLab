@@ -11,13 +11,22 @@ console.log('Seeding database with sample data...');
 // Check if already seeded
 const existingTenant = db.prepare('SELECT id FROM tenants WHERE slug = ?').get('demo');
 if (existingTenant) {
-    console.log('Database already seeded. Skipping...');
-    console.log('\nLogin credentials:');
-    console.log('  Email: admin@demo.com');
-    console.log('  Password: admin123');
+    console.log('Base database already seeded. Checking IVR flows...');
     db.close();
-    process.exit(0);
-}
+    
+    // Still try to run IVR flow seeding (it has its own check)
+    const { seedIvrFlows } = require('./seed-ivr-flows');
+    seedIvrFlows().then(() => {
+        console.log('\nLogin credentials:');
+        console.log('  Email: admin@demo.com');
+        console.log('  Password: admin123');
+    }).catch(err => {
+        console.log('IVR flow seeding skipped:', err.message);
+        console.log('\nLogin credentials:');
+        console.log('  Email: admin@demo.com');
+        console.log('  Password: admin123');
+    });
+} else {
 
 // Create default tenant
 const tenantId = uuidv4();
@@ -246,10 +255,22 @@ db.prepare(`
 );
 console.log('Created template: Card Activation');
 
-console.log('\n✅ Database seeding completed!');
+console.log('\n✅ Base database seeding completed!');
 console.log('\nLogin credentials:');
 console.log('  Email: admin@demo.com');
 console.log('  Password: admin123');
 console.log(`\nSample IVR Extension: ${extension}`);
 
 db.close();
+
+// Run IVR flows seeding if new sounds folder exists
+const { seedIvrFlows } = require('./seed-ivr-flows');
+console.log('\nChecking for IVR flow seeding...');
+seedIvrFlows().then(() => {
+    console.log('\n✅ All seeding completed!');
+}).catch(err => {
+    console.log('\nNote: IVR flow seeding skipped (source files may not be available)');
+    console.log('  You can run it manually: node src/db/seed-ivr-flows.js');
+});
+
+} // end of else block (base seeding)

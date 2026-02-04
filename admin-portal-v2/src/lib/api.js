@@ -158,6 +158,18 @@ export const getFilesystemPrompts = async (language = 'ar') => {
   return response.data
 }
 
+// Get audio URL for prompt playback (converts ulaw to wav)
+export const getPromptAudioUrl = (promptId) => {
+  const token = localStorage.getItem('token')
+  return `${api.defaults.baseURL}/prompts/${promptId}/audio?format=wav&token=${token}`
+}
+
+// Get filesystem audio URL for prompt playback
+export const getFilesystemAudioUrl = (filename, language = 'ar') => {
+  const token = localStorage.getItem('token')
+  return `${api.defaults.baseURL}/prompts/filesystem/audio?filename=${encodeURIComponent(filename)}&language=${language}&format=wav&token=${token}`
+}
+
 // TTS / Voice Generation
 export const getVoices = async () => {
   const response = await api.get('/prompts/voices')

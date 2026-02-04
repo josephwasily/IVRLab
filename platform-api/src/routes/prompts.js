@@ -535,11 +535,109 @@ router.get('/:id/audio', (req, res) => {
             return res.status(404).json({ error: 'Audio file not found' });
         }
         
-        res.setHeader('Content-Type', 'audio/basic');
-        res.setHeader('Content-Disposition', `attachment; filename="${prompt.filename}"`);
-        res.sendFile(filePath);
+        // Check if browser requests playable format
+        const format = req.query.format || 'original';
+        
+        if (format === 'wav' && prompt.filename.endsWith('.ulaw')) {
+            // Convert ulaw to wav for browser playback using sox
+            const tempWavPath = path.join('/tmp', `${prompt.id}_preview.wav`);
+            
+            // Check if we have a cached conversion
+            if (fs.existsSync(tempWavPath)) {
+                const stats = fs.statSync(tempWavPath);
+                const ageMs = Date.now() - stats.mtimeMs;
+                // Use cache if less than 1 hour old
+                if (ageMs < 3600000) {
+                    res.setHeader('Content-Type', 'audio/wav');
+                    res.setHeader('Content-Disposition', `inline; filename="${prompt.filename.replace('.ulaw', '.wav')}"`);
+                    return res.sendFile(tempWavPath);
+                }
+            }
+            
+            // Convert ulaw to wav using sox
+            const soxCmd = `sox -t ul -r 8000 -c 1 "${filePath}" -t wav -r 8000 "${tempWavPath}"`;
+            exec(soxCmd, (error, stdout, stderr) => {
+                if (error) {
+                    console.error('Sox conversion error:', error);
+                    // Fallback to original file
+                    res.setHeader('Content-Type', 'audio/basic');
+                    res.setHeader('Content-Disposition', `attachment; filename="${prompt.filename}"`);
+                    return res.sendFile(filePath);
+                }
+                
+                res.setHeader('Content-Type', 'audio/wav');
+                res.setHeader('Content-Disposition', `inline; filename="${prompt.filename.replace('.ulaw', '.wav')}"`);
+                res.sendFile(tempWavPath);
+            });
+        } else {
+            // Serve original file
+            res.setHeader('Content-Type', 'audio/basic');
+            res.setHeader('Content-Disposition', `attachment; filename="${prompt.filename}"`);
+            res.sendFile(filePath);
+        }
     } catch (error) {
         console.error('Error serving prompt audio:', error);
+        res.status(500).json({ error: 'Failed to serve audio' });
+    }
+});
+
+// Stream filesystem audio file for preview (no database record needed)
+router.get('/filesystem/audio', (req, res) => {
+    try {
+        const { filename, language = 'ar' } = req.query;
+        
+        if (!filename) {
+            return res.status(400).json({ error: 'Filename required' });
+        }
+        
+        // Sanitize filename to prevent path traversal
+        const sanitizedFilename = path.basename(filename);
+        const filePath = path.join(PROMPTS_PATH, language, sanitizedFilename);
+        
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'Audio file not found' });
+        }
+        
+        // Check if browser requests playable format
+        const format = req.query.format || 'original';
+        
+        if (format === 'wav' && sanitizedFilename.endsWith('.ulaw')) {
+            // Convert ulaw to wav for browser playback using sox
+            const tempWavPath = path.join('/tmp', `fs_${language}_${sanitizedFilename.replace('.ulaw', '.wav')}`);
+            
+            // Check if we have a cached conversion
+            if (fs.existsSync(tempWavPath)) {
+                const stats = fs.statSync(tempWavPath);
+                const ageMs = Date.now() - stats.mtimeMs;
+                // Use cache if less than 1 hour old
+                if (ageMs < 3600000) {
+                    res.setHeader('Content-Type', 'audio/wav');
+                    res.setHeader('Content-Disposition', `inline; filename="${sanitizedFilename.replace('.ulaw', '.wav')}"`);
+                    return res.sendFile(tempWavPath);
+                }
+            }
+            
+            // Convert ulaw to wav using sox
+            const soxCmd = `sox -t ul -r 8000 -c 1 "${filePath}" -t wav -r 8000 "${tempWavPath}"`;
+            exec(soxCmd, (error, stdout, stderr) => {
+                if (error) {
+                    console.error('Sox conversion error:', error);
+                    res.setHeader('Content-Type', 'audio/basic');
+                    res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFilename}"`);
+                    return res.sendFile(filePath);
+                }
+                
+                res.setHeader('Content-Type', 'audio/wav');
+                res.setHeader('Content-Disposition', `inline; filename="${sanitizedFilename.replace('.ulaw', '.wav')}"`);
+                res.sendFile(tempWavPath);
+            });
+        } else {
+            res.setHeader('Content-Type', 'audio/basic');
+            res.setHeader('Content-Disposition', `attachment; filename="${sanitizedFilename}"`);
+            res.sendFile(filePath);
+        }
+    } catch (error) {
+        console.error('Error serving filesystem audio:', error);
         res.status(500).json({ error: 'Failed to serve audio' });
     }
 });

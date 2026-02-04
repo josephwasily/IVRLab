@@ -175,21 +175,17 @@ router.get('/:id', (req, res) => {
         if (campaign.settings) {
             try { 
                 campaign.settings = JSON.parse(campaign.settings);
-                // Extract common fields from settings
-                campaign.trunk_id = campaign.settings.trunk_id;
-                campaign.caller_id = campaign.settings.caller_id;
-                campaign.description = campaign.settings.description;
-                campaign.campaign_type = campaign.settings.campaign_type;
-                campaign.max_concurrent_calls = campaign.settings.max_concurrent_calls;
-                campaign.retry_attempts = campaign.settings.retry_attempts;
-                campaign.retry_delay_minutes = campaign.settings.retry_delay_minutes;
-                
-                // Get trunk name
-                if (campaign.trunk_id) {
-                    const trunk = db.prepare('SELECT name FROM sip_trunks WHERE id = ?').get(campaign.trunk_id);
-                    campaign.trunk_name = trunk ? trunk.name : null;
-                }
-            } catch(e) {}
+            } catch(e) {
+                campaign.settings = {};
+            }
+        } else {
+            campaign.settings = {};
+        }
+        
+        // Get trunk name if trunk_id exists (from direct column, not settings)
+        if (campaign.trunk_id) {
+            const trunk = db.prepare('SELECT name FROM sip_trunks WHERE id = ?').get(campaign.trunk_id);
+            campaign.trunk_name = trunk ? trunk.name : null;
         }
         
         // Default values

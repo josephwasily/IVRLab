@@ -3,13 +3,20 @@ const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
 function authMiddleware(req, res, next) {
+    // Check for token in Authorization header first
     const authHeader = req.headers.authorization;
+    let token = null;
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'No token provided' });
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+    } else if (req.query.token) {
+        // Fallback to query parameter (used for audio streaming)
+        token = req.query.token;
     }
     
-    const token = authHeader.substring(7);
+    if (!token) {
+        return res.status(401).json({ error: 'No token provided' });
+    }
     
     try {
         const decoded = jwt.verify(token, JWT_SECRET);

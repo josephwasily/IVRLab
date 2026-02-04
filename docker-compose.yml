@@ -63,6 +63,8 @@ services:
       - ./prompts:/app/prompts
       # Shared spool directory for outbound calls
       - asterisk-spool:/asterisk-spool
+      # New sounds folder for IVR flow seeding (read-only)
+      - "./new sounds:/app/new-sounds:ro"
     environment:
       PORT: "3001"
       DB_PATH: "/app/data/platform.db"
@@ -72,6 +74,8 @@ services:
       ELEVENLABS_API_KEY: "sk_09d0cc298b338bb94a4c36bcae48dc0c1a8beeae7747f21c"
       # Asterisk spool directory for outbound calls
       ASTERISK_SPOOL_DIR: "/asterisk-spool"
+      # New sounds directory for IVR flow seeding
+      NEW_SOUNDS_DIR: "/app/new-sounds"
     networks: [ ivrnet ]
 
   admin-portal:

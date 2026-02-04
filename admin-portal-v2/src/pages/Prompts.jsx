@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getPrompts, uploadPrompt, deletePrompt, getFilesystemPrompts, getVoices, generatePromptTTS } from '../lib/api'
-import { Upload, Trash2, Music, Clock, HardDrive, Plus, X, FolderOpen, RefreshCw, Type, Mic } from 'lucide-react'
+import { getPrompts, uploadPrompt, deletePrompt, getFilesystemPrompts, getVoices, generatePromptTTS, getPromptAudioUrl, getFilesystemAudioUrl } from '../lib/api'
+import { Upload, Trash2, Music, Clock, HardDrive, Plus, X, FolderOpen, RefreshCw, Type, Mic, Play, Pause, Square, Volume2 } from 'lucide-react'
 import clsx from 'clsx'
 
 const categories = [
@@ -39,6 +39,9 @@ export default function Prompts() {
   const [showFilesystem, setShowFilesystem] = useState(false)
   const [filterLanguage, setFilterLanguage] = useState('')
   const [filterCategory, setFilterCategory] = useState('')
+  const [playingId, setPlayingId] = useState(null)
+  const [playingFsFile, setPlayingFsFile] = useState(null)
+  const audioRef = useRef(null)
 
   const { data: prompts, isLoading } = useQuery({
     queryKey: ['prompts', filterLanguage, filterCategory],
@@ -55,6 +58,73 @@ export default function Prompts() {
     mutationFn: deletePrompt,
     onSuccess: () => queryClient.invalidateQueries(['prompts'])
   })
+
+  // Play prompt audio
+  const playPrompt = (promptId) => {
+    if (playingId === promptId) {
+      // Stop playing
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.currentTime = 0
+      }
+      setPlayingId(null)
+      return
+    }
+
+    // Stop any current playback
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
+    setPlayingFsFile(null)
+
+    const url = getPromptAudioUrl(promptId)
+    audioRef.current = new Audio(url)
+    audioRef.current.onended = () => setPlayingId(null)
+    audioRef.current.onerror = () => {
+      console.error('Error playing audio')
+      setPlayingId(null)
+    }
+    audioRef.current.play()
+    setPlayingId(promptId)
+  }
+
+  // Play filesystem prompt
+  const playFilesystemPrompt = (filename) => {
+    if (playingFsFile === filename) {
+      // Stop playing
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.currentTime = 0
+      }
+      setPlayingFsFile(null)
+      return
+    }
+
+    // Stop any current playback
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
+    setPlayingId(null)
+
+    const url = getFilesystemAudioUrl(filename, 'ar')
+    audioRef.current = new Audio(url)
+    audioRef.current.onended = () => setPlayingFsFile(null)
+    audioRef.current.onerror = () => {
+      console.error('Error playing filesystem audio')
+      setPlayingFsFile(null)
+    }
+    audioRef.current.play()
+    setPlayingFsFile(filename)
+  }
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+      }
+    }
+  }, [])
 
   return (
     <div>
@@ -124,9 +194,27 @@ export default function Prompts() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
             {filesystemPrompts?.map((file) => (
-              <div key={file.filename} className="bg-white rounded p-2 text-sm border border-gray-200">
-                <div className="font-medium text-gray-900 truncate" title={file.name}>
-                  {file.name}
+              <div key={file.filename} className="bg-white rounded p-2 text-sm border border-gray-200 hover:border-blue-300 transition-colors">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="font-medium text-gray-900 truncate flex-1" title={file.name}>
+                    {file.name}
+                  </div>
+                  <button
+                    onClick={() => playFilesystemPrompt(file.filename)}
+                    className={clsx(
+                      'ml-2 p-1 rounded-full transition-colors',
+                      playingFsFile === file.filename 
+                        ? 'bg-blue-100 text-blue-600' 
+                        : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                    )}
+                    title={playingFsFile === file.filename ? 'Stop' : 'Play'}
+                  >
+                    {playingFsFile === file.filename ? (
+                      <Square className="w-3 h-3" />
+                    ) : (
+                      <Play className="w-3 h-3" />
+                    )}
+                  </button>
                 </div>
                 <div className="text-xs text-gray-500">
                   {formatFileSize(file.size)}
@@ -167,6 +255,7 @@ export default function Prompts() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-12">Play</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Filename</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Language</th>
@@ -179,6 +268,24 @@ export default function Prompts() {
             <tbody className="bg-white divide-y divide-gray-200">
               {prompts?.map((prompt) => (
                 <tr key={prompt.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-4">
+                    <button
+                      onClick={() => playPrompt(prompt.id)}
+                      className={clsx(
+                        'p-2 rounded-full transition-colors',
+                        playingId === prompt.id 
+                          ? 'bg-blue-100 text-blue-600' 
+                          : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+                      )}
+                      title={playingId === prompt.id ? 'Stop' : 'Play'}
+                    >
+                      {playingId === prompt.id ? (
+                        <Square className="w-5 h-5" />
+                      ) : (
+                        <Play className="w-5 h-5" />
+                      )}
+                    </button>
+                  </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center">
                       <Music className="w-5 h-5 text-gray-400 mr-3" />

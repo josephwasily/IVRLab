@@ -182,6 +182,115 @@ Connect IVRs to external systems.
 
 ---
 
+## Phase 8: AI Agent Features (Voiceflow.com Analysis)
+
+### Goal
+Analyze and integrate conversational AI agent capabilities inspired by Voiceflow.com to enhance IVR intelligence.
+
+### Research Areas
+- **Conversational AI Integration**: Natural language understanding (NLU) for voice interactions
+- **Intent Recognition**: Automatic detection of caller intent without rigid menu structures
+- **Entity Extraction**: Extract key data from natural speech (dates, names, account numbers)
+- **Dialog Management**: Multi-turn conversations with context retention
+- **AI-Powered Responses**: GPT/LLM integration for dynamic response generation
+- **Knowledge Base Integration**: Connect to FAQs and documentation for automated answers
+- **Agent Handoff**: Intelligent escalation to human agents with context transfer
+- **Analytics & Training**: Conversation analytics to improve AI models
+
+### Voiceflow Features to Evaluate
+- Visual conversation designer with AI blocks
+- No-code NLU training interface
+- Multi-channel deployment (voice, chat, SMS)
+- Built-in testing and debugging tools
+- Collaboration features for team workflows
+- API and webhook integrations
+- Custom functions and logic blocks
+- Voice-specific features (SSML, voice selection)
+
+### Potential Implementations
+- [ ] NLU engine integration (Dialogflow, LUIS, or open-source)
+- [ ] AI conversation blocks in flow designer
+- [ ] Voice-to-text transcription for natural input
+- [ ] LLM integration for dynamic responses
+- [ ] Conversation memory and context management
+- [ ] A/B testing for conversation flows
+- [ ] Sentiment analysis during calls
+
+---
+
+## Phase 9: Application Licensing & Cloud Deployment
+
+### Goal
+Implement a licensing system to enable commercial distribution and SaaS deployment.
+
+### Licensing System
+
+#### License Types
+1. **Trial License**: 14-30 day evaluation, limited features
+2. **Starter License**: Small business, limited extensions/campaigns
+3. **Professional License**: Full features, higher limits
+4. **Enterprise License**: Unlimited, white-label, priority support
+5. **On-Premise License**: Self-hosted with license key validation
+
+#### Implementation Options
+
+**Option A: Cloud License Server**
+```
+┌─────────────────┐     ┌──────────────────────┐
+│  IVR Platform   │────▶│  License Server      │
+│  (Customer)     │◀────│  (Cloud Database)    │
+└─────────────────┘     │  - PostgreSQL/MySQL  │
+                        │  - License validation│
+                        │  - Usage metering    │
+                        └──────────────────────┘
+```
+
+**Option B: Hybrid Model**
+- Cloud database for license validation and telemetry
+- Local SQLite for operational data (IVRs, campaigns, logs)
+- Periodic sync for usage reporting
+
+#### Cloud Database Architecture
+- **License Database (Cloud)**:
+  - License keys and activation status
+  - Customer/tenant registration
+  - Usage metrics and quotas
+  - Billing integration hooks
+  
+- **Operational Database (Local)**:
+  - IVR flows and configurations
+  - Call logs and CDR
+  - Contacts and campaigns
+  - Real-time operational data
+
+#### License Validation
+- Online validation at startup
+- Periodic heartbeat checks
+- Grace period for offline operation
+- Feature flags based on license tier
+- Hardware fingerprinting for on-premise licenses
+
+### Deliverables
+- [ ] License key generation system
+- [ ] Cloud license validation API
+- [ ] License tier management
+- [ ] Usage metering and reporting
+- [ ] Quota enforcement
+- [ ] Admin portal for license management
+- [ ] Customer self-service portal
+- [ ] Billing system integration (Stripe, etc.)
+- [ ] License expiration and renewal handling
+- [ ] Offline grace period handling
+
+### Cloud Providers to Consider
+- AWS RDS / DynamoDB
+- Azure SQL / Cosmos DB
+- Google Cloud SQL
+- Supabase (PostgreSQL + Auth)
+- PlanetScale (MySQL)
+
+---
+
 ## Architecture Overview
 
 ```

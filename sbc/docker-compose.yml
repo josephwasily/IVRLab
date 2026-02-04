@@ -9,7 +9,7 @@ services:
     ports:
       - "2223:2223/udp"        # rtpengine control port
       - "12000-12100:12000-12100/udp" # RTP ports for proxying
-    command: rtpengine --interface=0.0.0.0 --port-min=12000 --port-max=12100 --log-level=5 --api-addr=0.0.0.0 --api-port=2223 --external-ip=192.168.2.31
+    command: rtpengine --interface=0.0.0.0 --port-min=12000 --port-max=12100 --log-level=5 --api-addr=0.0.0.0 --api-port=2223 --external-ip=192.168.1.208
     restart: unless-stopped
 
   kamailio:

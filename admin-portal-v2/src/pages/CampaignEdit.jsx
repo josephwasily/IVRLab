@@ -141,6 +141,7 @@ export default function CampaignEdit() {
     mutationFn: (data) => isNew ? createCampaign(data) : updateCampaign(id, data),
     onSuccess: (data) => {
       queryClient.invalidateQueries(['campaigns'])
+      queryClient.invalidateQueries(['campaign', id])
       if (isNew) {
         navigate(`/campaigns/${data.id}`)
       }
