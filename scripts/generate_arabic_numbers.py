@@ -13,7 +13,8 @@ from pathlib import Path
 ELEVENLABS_API_KEY = os.environ.get('ELEVENLABS_API_KEY', 'sk_09d0cc298b338bb94a4c36bcae48dc0c1a8beeae7747f21c')
 VOICE_ID = "IKne3meq5aSn9XLyUdCD"  # Arabic voice
 
-OUTPUT_DIR = Path("../prompts/ar/numbers")
+SCRIPT_DIR = Path(__file__).parent.absolute()
+OUTPUT_DIR = SCRIPT_DIR.parent / "prompts" / "ar" / "digits"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # Arabic number words for TTS

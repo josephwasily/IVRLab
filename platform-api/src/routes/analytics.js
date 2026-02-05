@@ -78,7 +78,8 @@ router.get('/calls', (req, res) => {
             ...call,
             flow_path: JSON.parse(call.flow_path || '[]'),
             dtmf_inputs: JSON.parse(call.dtmf_inputs || '[]'),
-            api_calls: JSON.parse(call.api_calls || '[]')
+            api_calls: JSON.parse(call.api_calls || '[]'),
+            variables: JSON.parse(call.variables || '{}')
         })));
     } catch (error) {
         console.error('Call logs error:', error);

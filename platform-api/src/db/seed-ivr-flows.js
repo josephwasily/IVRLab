@@ -87,16 +87,28 @@ const BILLING_FLOW = {
                 type: 'api_call',
                 label: 'Fetch Invoice',
                 method: 'GET',
-                url: '{{BILLING_API_URL}}/invoice/{{account_number}}',
-                resultVariable: 'invoice_result',
-                next: 'check_invoice',
+                url: 'http://41.179.255.204:8070/api/query-bills?id={{account_number}}',
+                headers: {
+                    'Authorization': 'Basic QXZheWE6QVZpc0AyMDI1Pw=='
+                },
+                resultVariable: 'bills_result',
+                next: 'extract_total',
                 onError: 'api_error'
             },
-            check_invoice: {
-                id: 'check_invoice',
+            extract_total: {
+                id: 'extract_total',
+                type: 'set_variable',
+                label: 'Extract Total',
+                variable: 'total_amount',
+                // Find the item where inh_id === "0" and get its inh_tot1
+                expression: 'bills_result.find(b => b.inh_id === "0")?.inh_tot1 || 0',
+                next: 'check_total'
+            },
+            check_total: {
+                id: 'check_total',
                 type: 'branch',
-                label: 'Check Invoice Result',
-                condition: 'invoice_result.success === true',
+                label: 'Check Total',
+                condition: 'total_amount > 0',
                 branches: {
                     'true': 'announce_amount',
                     'false': 'invalid_account'
@@ -108,7 +120,7 @@ const BILLING_FLOW = {
                 label: 'Announce Amount',
                 sequence: [
                     { type: 'prompt', value: 'balance_is' },
-                    { type: 'number', variable: 'invoice_result.amount' },
+                    { type: 'number', variable: 'total_amount' },
                     { type: 'prompt', value: 'currency_egp' }
                 ],
                 next: 'goodbye'
@@ -388,10 +400,16 @@ async function seedIvrFlows() {
         'customer-survey-flow': path.join(NEW_SOUNDS_DIR, 'surveys')
     };
     
-    // Target folders for already-converted files
+    // Target folders for already-converted files and for DB filename prefix
     const CONVERTED_FOLDERS = {
         'billing-inquiry-flow': path.join(PROMPTS_DIR, 'billing'),
         'customer-survey-flow': path.join(PROMPTS_DIR, 'survey')
+    };
+    
+    // Folder name prefix for database filename field
+    const FOLDER_NAMES = {
+        'billing-inquiry-flow': 'billing',
+        'customer-survey-flow': 'survey'
     };
     
     // Seed each flow
@@ -402,7 +420,8 @@ async function seedIvrFlows() {
         
         const sourceFolder = SOURCE_FOLDERS[flow.id];
         const convertedFolder = CONVERTED_FOLDERS[flow.id];
-        const targetFolder = path.join(PROMPTS_DIR, flow.id.replace('-inquiry-flow', '').replace('-survey-flow', ''));
+        const targetFolder = convertedFolder;  // Use the explicitly mapped folder
+        const folderName = FOLDER_NAMES[flow.id];
         
         // Create target folder if it doesn't exist
         if (!fs.existsSync(targetFolder)) {
@@ -416,12 +435,12 @@ async function seedIvrFlows() {
         
         for (const prompt of flow.prompts) {
             const targetFilename = `${prompt.name}.ulaw`;
-            const relativeFilename = path.basename(targetFolder) + '/' + targetFilename;
+            const relativeFilename = folderName + '/' + targetFilename;
             
             let targetPath = path.join(targetFolder, targetFilename);
             let fileExists = fs.existsSync(targetPath);
             
-            // Also check in converted folders
+            // Also check in converted folders (should be same as targetFolder now)
             if (!fileExists && fs.existsSync(convertedFolder)) {
                 const convertedPath = path.join(convertedFolder, targetFilename);
                 if (fs.existsSync(convertedPath)) {

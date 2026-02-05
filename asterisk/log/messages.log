@@ -5424,3 +5424,79 @@
 [Feb  4 15:26:52] WARNING[63228][C-00000005] file.c: File ar/welcome does not exist in any format
 [Feb  4 15:26:52] WARNING[63228][C-00000005] file.c: Unable to open ar/welcome (format (ulaw)): No such file or directory
 [Feb  4 15:26:52] WARNING[63228][C-00000005] res_stasis_playback.c: 1770218811.8: Playback failed for sound:ar/welcome
+[Feb  4 16:33:37] WARNING[41672] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.21.0.1:50886) to AOR '1001' will exceed max contacts of 1
+[Feb  4 17:23:30] WARNING[69516][C-00000007] file.c: File ar/billing_welcome does not exist in any format
+[Feb  4 17:23:30] WARNING[69516][C-00000007] file.c: Unable to open ar/billing_welcome (format (ulaw)): No such file or directory
+[Feb  4 17:23:30] WARNING[69516][C-00000007] res_stasis_playback.c: 1770225804.12: Playback failed for sound:ar/billing_welcome
+[Feb  4 17:23:30] WARNING[69516][C-00000007] file.c: File ar/billing_enter_account does not exist in any format
+[Feb  4 17:23:30] WARNING[69516][C-00000007] file.c: Unable to open ar/billing_enter_account (format (ulaw)): No such file or directory
+[Feb  4 17:23:30] WARNING[69516][C-00000007] res_stasis_playback.c: 1770225804.12: Playback failed for sound:ar/billing_enter_account
+[Feb  4 17:23:40] WARNING[69516][C-00000007] file.c: File ar/billing_incorrect_number does not exist in any format
+[Feb  4 17:23:40] WARNING[69516][C-00000007] file.c: Unable to open ar/billing_incorrect_number (format (ulaw)): No such file or directory
+[Feb  4 17:23:40] WARNING[69516][C-00000007] res_stasis_playback.c: 1770225804.12: Playback failed for sound:ar/billing_incorrect_number
+[Feb  4 17:23:40] WARNING[69516][C-00000007] file.c: File ar/billing_enter_account does not exist in any format
+[Feb  4 17:23:40] WARNING[69516][C-00000007] file.c: Unable to open ar/billing_enter_account (format (ulaw)): No such file or directory
+[Feb  4 17:23:40] WARNING[69516][C-00000007] res_stasis_playback.c: 1770225804.12: Playback failed for sound:ar/billing_enter_account
+[Feb  4 17:23:52] WARNING[69552][C-00000008] file.c: File ar/billing_welcome does not exist in any format
+[Feb  4 17:23:52] WARNING[69552][C-00000008] file.c: Unable to open ar/billing_welcome (format (ulaw)): No such file or directory
+[Feb  4 17:23:52] WARNING[69552][C-00000008] res_stasis_playback.c: 1770225831.14: Playback failed for sound:ar/billing_welcome
+[Feb  4 17:23:52] WARNING[69552][C-00000008] file.c: File ar/billing_enter_account does not exist in any format
+[Feb  4 17:23:52] WARNING[69552][C-00000008] file.c: Unable to open ar/billing_enter_account (format (ulaw)): No such file or directory
+[Feb  4 17:23:52] WARNING[69552][C-00000008] res_stasis_playback.c: 1770225831.14: Playback failed for sound:ar/billing_enter_account
+[Feb  4 17:24:16] WARNING[69554][C-00000009] file.c: File ar/survey_q1_satisfaction does not exist in any format
+[Feb  4 17:24:16] WARNING[69554][C-00000009] file.c: Unable to open ar/survey_q1_satisfaction (format (ulaw)): No such file or directory
+[Feb  4 17:24:16] WARNING[69554][C-00000009] res_stasis_playback.c: 1770225851.16: Playback failed for sound:ar/survey_q1_satisfaction
+[Feb  4 17:25:40] WARNING[69663][C-0000000a] file.c: File ar/survey_q1_satisfaction does not exist in any format
+[Feb  4 17:25:40] WARNING[69663][C-0000000a] file.c: Unable to open ar/survey_q1_satisfaction (format (ulaw)): No such file or directory
+[Feb  4 17:25:40] WARNING[69663][C-0000000a] res_stasis_playback.c: 1770225935.18: Playback failed for sound:ar/survey_q1_satisfaction
+[Feb  4 17:25:50] WARNING[69663][C-0000000a] file.c: File ar/survey_q1_satisfaction does not exist in any format
+[Feb  4 17:25:50] WARNING[69663][C-0000000a] file.c: Unable to open ar/survey_q1_satisfaction (format (ulaw)): No such file or directory
+[Feb  4 17:25:50] WARNING[69663][C-0000000a] res_stasis_playback.c: 1770225935.18: Playback failed for sound:ar/survey_q1_satisfaction
+[Feb  4 17:25:50] WARNING[69663][C-0000000a] file.c: File ar/survey_q1_satisfaction does not exist in any format
+[Feb  4 17:25:50] WARNING[69663][C-0000000a] file.c: Unable to open ar/survey_q1_satisfaction (format (ulaw)): No such file or directory
+[Feb  4 17:25:50] WARNING[69663][C-0000000a] res_stasis_playback.c: 1770225935.18: Playback failed for sound:ar/survey_q1_satisfaction
+[Feb  4 17:32:50] WARNING[85] res_http_websocket.c: Web socket closed abruptly
+[Feb  4 17:32:50] WARNING[85] ari/ari_websockets.c: WebSocket read error: Success
+[Feb  4 17:47:37] WARNING[70240] res_http_websocket.c: Web socket closed abruptly
+[Feb  4 17:47:37] WARNING[70240] ari/ari_websockets.c: WebSocket read error: Success
+[Feb  4 17:53:24] Asterisk 20.17.0 built by root @ buildkitsandbox on a x86_64 running Linux on 2025-12-31 08:05:35 UTC
+[Feb  4 17:53:24] NOTICE[1] loader.c: 338 modules will be loaded.
+[Feb  4 17:53:24] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database user found, using 'asterisk' as default.
+[Feb  4 17:53:24] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database password found, using 'asterisk' as default.
+[Feb  4 17:53:24] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database host found, using localhost via socket.
+[Feb  4 17:53:24] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database name found, using 'asterisk' as default.
+[Feb  4 17:53:24] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database port found, using 5432 as default.
+[Feb  4 17:53:24] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database socket found, using '/tmp/.s.PGSQL.5432' as default.
+[Feb  4 17:53:24] ERROR[1] res_config_pgsql.c: PostgreSQL RealTime: Failed to connect database asterisk on : 
+[Feb  4 17:53:24] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: Couldn't establish connection. Check debug.
+[Feb  4 17:53:24] NOTICE[1] res_config_ldap.c: No directory user found, anonymous binding as default.
+[Feb  4 17:53:24] ERROR[1] res_config_ldap.c: No directory URL or host found.
+[Feb  4 17:53:24] ERROR[1] res_config_ldap.c: Cannot load LDAP RealTime driver.
+[Feb  4 17:53:24] NOTICE[1] cdr.c: CDR simple logging enabled.
+[Feb  4 17:53:24] NOTICE[1] indications.c: Default country for indication tones: us
+[Feb  4 17:53:24] NOTICE[1] indications.c: Setting default indication country to 'us'
+[Feb  4 17:53:25] ERROR[1] netsock2.c: getnameinfo(): ai_family not supported
+[Feb  4 17:53:25] ERROR[1] res_rtp_asterisk.c: Failed to setup recurring DNS resolution of stunaddr ''
+[Feb  4 17:53:25] WARNING[1] res_phoneprov.c: Unable to find a valid server address or name.
+[Feb  4 17:53:25] WARNING[1] res_musiconhold.c: No music on hold classes configured, disabling music on hold.
+[Feb  4 17:53:25] NOTICE[1] res_smdi.c: No SMDI interfaces are available to listen on, not starting SMDI listener.
+[Feb  4 17:53:25] NOTICE[1] confbridge/conf_config_parser.c: Adding default_menu menu to app_confbridge
+[Feb  4 17:53:25] NOTICE[1] cel_custom.c: No mappings found in cel_custom.conf. Not logging CEL to custom CSVs.
+[Feb  4 17:53:25] NOTICE[1] cdr_pgsql.c: cdr_pgsql configuration contains no global section, skipping module load.
+[Feb  4 17:53:25] WARNING[1] cel_pgsql.c: CEL pgsql config file missing global section.
+[Feb  4 17:53:25] WARNING[1] res_hep_rtcp.c: res_hep is disabled; declining module load
+[Feb  4 17:53:25] WARNING[1] res_hep_pjsip.c: res_hep is disabled; declining module load
+[Feb  4 17:53:25] WARNING[1] loader.c: Some non-required modules failed to load.
+[Feb  4 17:53:25] WARNING[1] loader.c: Module 'res_adsi' has been loaded but may be removed in a future release.
+[Feb  4 17:53:25] WARNING[1] loader.c: Module 'app_getcpeid' has been loaded but may be removed in a future release.
+[Feb  4 17:53:25] WARNING[1] loader.c: Module 'app_adsiprog' has been loaded but may be removed in a future release.
+[Feb  4 17:53:25] ERROR[1] loader.c: Error loading module 'format_ogg_vorbis.so': libvorbisenc.so.2: cannot open shared object file: No such file or directory
+[Feb  4 17:53:25] ERROR[1] loader.c: cel_sqlite3_custom declined to load.
+[Feb  4 17:53:25] ERROR[1] loader.c: cdr_pgsql declined to load.
+[Feb  4 17:53:25] ERROR[1] loader.c: cdr_sqlite3_custom declined to load.
+[Feb  4 17:53:25] ERROR[1] loader.c: res_hep_rtcp declined to load.
+[Feb  4 17:53:25] ERROR[1] loader.c: res_hep_pjsip declined to load.
+[Feb  4 17:53:31] WARNING[37] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.21.0.1:59838) to AOR '1001' will exceed max contacts of 1
+[Feb  4 17:53:35] WARNING[37] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.21.0.1:59838) to AOR '1001' will exceed max contacts of 1
+[Feb  4 17:54:17] WARNING[85] res_http_websocket.c: Web socket closed abruptly
+[Feb  4 17:54:17] WARNING[85] ari/ari_websockets.c: WebSocket read error: Success

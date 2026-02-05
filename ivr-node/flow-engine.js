@@ -30,8 +30,13 @@ class FlowEngine {
         
         // Configuration
         this.soundBasePath = options.soundBasePath || `/var/lib/asterisk/sounds/${this.language}`;
+        this.customSoundPath = '/var/lib/asterisk/sounds/custom';
         this.balanceApiUrl = options.balanceApiUrl || 'http://balance-api:3000';
+        this.platformApiUrl = options.platformApiUrl || 'http://platform-api:3001';
         this.maxRetries = options.maxRetries || 3;
+        
+        // Prompt cache: maps prompt names to file paths
+        this.promptCache = options.promptCache || {};
         
         // Bind methods
         this.execute = this.execute.bind(this);
@@ -347,6 +352,16 @@ class FlowEngine {
     
     // Helper methods
     getSoundPath(prompt) {
+        // Check if prompt is in cache (loaded from database)
+        if (this.promptCache[prompt]) {
+            const cachedPath = this.promptCache[prompt];
+            // Remove .ulaw extension as Asterisk adds it automatically
+            const pathWithoutExt = cachedPath.replace(/\.ulaw$/, '');
+            this.log(`Using cached prompt path: ${this.customSoundPath}/${pathWithoutExt}`);
+            return `${this.customSoundPath}/${pathWithoutExt}`;
+        }
+        
+        // Fallback to language-based path for built-in prompts
         return `${this.soundBasePath}/${prompt}`;
     }
     

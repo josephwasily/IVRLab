@@ -53,6 +53,9 @@ class DynamicFlowEngine {
     this.ivrName = flowConfig.name;
     this.extension = flowConfig.extension;
     
+    // Prompt cache: maps prompt names to file paths (from database)
+    this.promptCache = flowConfig.promptCache || {};
+    
     // Runtime state
     this.variables = {
       caller_id: channel.caller ? channel.caller.number : 'unknown',
@@ -72,6 +75,25 @@ class DynamicFlowEngine {
   
   log(message, data = {}) {
     console.log(`[DynamicIVR][${this.extension}][${this.ivrName}] ${message}`, JSON.stringify(data));
+  }
+  
+  /**
+   * Get sound path for a prompt
+   * Checks promptCache first (database prompts), then falls back to language paths
+   */
+  getPromptPath(promptName) {
+    // Check if prompt is in cache (loaded from database)
+    if (this.promptCache[promptName]) {
+      const cachedPath = this.promptCache[promptName];
+      // Remove .ulaw extension as Asterisk adds it automatically
+      const pathWithoutExt = cachedPath.replace(/\.ulaw$/, '');
+      this.log(`Using cached prompt: custom/${pathWithoutExt}`);
+      return `custom/${pathWithoutExt}`;
+    }
+    
+    // Fallback to language-based path for built-in prompts
+    const paths = SOUND_PATHS[this.language] || SOUND_PATHS.en;
+    return `${paths.prompts}/${promptName}`;
   }
   
   getSoundPath(type) {
@@ -159,7 +181,7 @@ class DynamicFlowEngine {
   }
   
   async handlePlay(node) {
-    const promptPath = `${this.getSoundPath('prompts')}/${node.prompt}`;
+    const promptPath = this.getPromptPath(node.prompt);
     await this.playSound(promptPath);
     
     if (node.maxRetries && node.next !== 'hangup') {
@@ -174,7 +196,7 @@ class DynamicFlowEngine {
   
   async handlePlayDigits(node) {
     if (node.prefix) {
-      await this.playSound(`${this.getSoundPath('prompts')}/${node.prefix}`);
+      await this.playSound(this.getPromptPath(node.prefix));
     }
     
     const digits = this.getVariable(node.variable) || '';
@@ -185,7 +207,7 @@ class DynamicFlowEngine {
     }
     
     if (node.suffix) {
-      await this.playSound(`${this.getSoundPath('prompts')}/${node.suffix}`);
+      await this.playSound(this.getPromptPath(node.suffix));
     }
     
     if (node.next) await this.executeNode(node.next);
@@ -194,8 +216,14 @@ class DynamicFlowEngine {
   async handlePlaySequence(node) {
     for (const item of node.sequence) {
       if (item.type === 'prompt') {
-        await this.playSound(`${this.getSoundPath('prompts')}/${item.value}`);
-      } else if (item.type === 'number' || item.type === 'digits') {
+        await this.playSound(this.getPromptPath(item.value));
+      } else if (item.type === 'number') {
+        // Say the number as a spoken word (e.g., "three hundred fifty three")
+        const value = this.getVariable(item.variable);
+        this.log(`Saying number: ${value}`);
+        await this.sayNumber(value);
+      } else if (item.type === 'digits') {
+        // Say each digit individually (e.g., "3-5-3")
         const value = this.getVariable(item.variable);
         for (const digit of value.toString()) {
           if (/[0-9]/.test(digit)) {
@@ -210,7 +238,7 @@ class DynamicFlowEngine {
   
   async handleCollect(node) {
     if (node.prompt) {
-      await this.playSound(`${this.getSoundPath('prompts')}/${node.prompt}`);
+      await this.playSound(this.getPromptPath(node.prompt));
     }
     
     try {
@@ -273,9 +301,33 @@ class DynamicFlowEngine {
     this.log(`API call`, { method, url });
     
     try {
+      // Build headers - start with default Content-Type
+      const headers = { 'Content-Type': 'application/json' };
+      
+      // Add custom headers from node config
+      if (node.headers) {
+        for (const [key, value] of Object.entries(node.headers)) {
+          headers[key] = this.interpolate(value);
+        }
+      }
+      
+      // Support shorthand authorization config
+      if (node.authorization) {
+        if (node.authorization.type === 'basic') {
+          // Basic auth: encode credentials
+          const credentials = this.interpolate(node.authorization.credentials);
+          headers['Authorization'] = `Basic ${Buffer.from(credentials).toString('base64')}`;
+        } else if (node.authorization.type === 'bearer') {
+          headers['Authorization'] = `Bearer ${this.interpolate(node.authorization.token)}`;
+        } else if (node.authorization.value) {
+          // Direct value: "Basic <base64>" or any custom format
+          headers['Authorization'] = this.interpolate(node.authorization.value);
+        }
+      }
+      
       const options = {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         timeout: 10000
       };
       
@@ -396,6 +448,85 @@ class DynamicFlowEngine {
     }
   }
   
+  /**
+   * Say a number in Arabic using custom sound file composition
+   * Decomposes the number into components and plays appropriate sound files
+   * e.g., 353 = "ثلاثمائة و ثلاثة و خمسون" (three hundred and three and fifty)
+   */
+  async sayNumber(number) {
+    const num = parseInt(number, 10);
+    if (isNaN(num) || num < 0) {
+      this.log(`Invalid number for sayNumber: ${number}`);
+      return;
+    }
+    
+    this.log(`Saying Arabic number: ${num}`);
+    
+    // Get the sound files to play for this number
+    const soundFiles = this.decomposeArabicNumber(num);
+    this.log(`Number decomposed to: ${soundFiles.join(', ')}`);
+    
+    // Play each sound file in sequence
+    for (const soundFile of soundFiles) {
+      await this.playSound(soundFile);
+    }
+  }
+  
+  /**
+   * Decompose a number into Arabic sound file names
+   * Arabic number pronunciation follows specific rules:
+   * - For compound numbers, use "و" (wa) as connector
+   * - Order: thousands, hundreds, tens, units
+   */
+  decomposeArabicNumber(num) {
+    const basePath = 'ar/digits';
+    const sounds = [];
+    
+    if (num === 0) {
+      return [`${basePath}/0`];
+    }
+    
+    let remaining = num;
+    
+    // Thousands (1000-9999)
+    if (remaining >= 1000) {
+      const thousands = Math.floor(remaining / 1000) * 1000;
+      sounds.push(`${basePath}/${thousands}`);
+      remaining = remaining % 1000;
+      if (remaining > 0) sounds.push(`${basePath}/wa`);
+    }
+    
+    // Hundreds (100-999)
+    if (remaining >= 100) {
+      const hundreds = Math.floor(remaining / 100) * 100;
+      sounds.push(`${basePath}/${hundreds}`);
+      remaining = remaining % 100;
+      if (remaining > 0) sounds.push(`${basePath}/wa`);
+    }
+    
+    // Handle 1-99
+    if (remaining > 0) {
+      if (remaining <= 19) {
+        // Direct pronunciation for 1-19
+        sounds.push(`${basePath}/${remaining}`);
+      } else {
+        // Tens and units (20-99)
+        const tens = Math.floor(remaining / 10) * 10;
+        const units = remaining % 10;
+        
+        // In Arabic: units come before tens for 21-99
+        // e.g., 53 = "ثلاثة و خمسون" (three and fifty)
+        if (units > 0) {
+          sounds.push(`${basePath}/${units}`);
+          sounds.push(`${basePath}/wa`);
+        }
+        sounds.push(`${basePath}/${tens}`);
+      }
+    }
+    
+    return sounds;
+  }
+
   async playSound(soundPath) {
     return new Promise((resolve, reject) => {
       let resolved = false;
@@ -514,7 +645,8 @@ class DynamicFlowEngine {
           status: 'completed',
           nodeHistory: summary.nodeHistory,
           dtmfInputs: summary.dtmfInputs,
-          apiCalls: summary.apiCalls
+          apiCalls: summary.apiCalls,
+          variables: summary.variables  // Send all variables for filtering on server
         })
       });
       if (response.ok) {

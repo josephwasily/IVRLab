@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS call_logs (
     flow_path TEXT,  -- JSON array of nodes visited
     dtmf_inputs TEXT,  -- JSON array of inputs
     api_calls TEXT,  -- JSON array of API calls made
+    variables TEXT,  -- JSON object of captured variables (user inputs, API results, etc.)
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (ivr_id) REFERENCES ivr_flows(id),
     FOREIGN KEY (tenant_id) REFERENCES tenants(id)

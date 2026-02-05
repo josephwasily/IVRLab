@@ -56,13 +56,25 @@ app.get('/api/engine/flow/:extension', async (req, res) => {
             return res.status(404).json({ error: 'IVR not found for extension' });
         }
         
+        // Also fetch all prompts to build a name -> path mapping
+        const prompts = db.prepare(`
+            SELECT name, filename FROM prompts WHERE tenant_id = ?
+        `).all(ivr.tenant_id);
+        
+        // Build prompt cache: { prompt_name: relative_file_path }
+        const promptCache = {};
+        for (const p of prompts) {
+            promptCache[p.name] = p.filename;
+        }
+        
         res.json({
             id: ivr.id,
             name: ivr.name,
             extension: ivr.extension,
             language: ivr.language,
             flow: JSON.parse(ivr.flow_data),
-            settings: JSON.parse(ivr.settings || '{}')
+            settings: JSON.parse(ivr.settings || '{}'),
+            promptCache: promptCache
         });
     } catch (error) {
         console.error('Error fetching IVR flow:', error);
@@ -85,12 +97,45 @@ app.post('/api/engine/call-log', async (req, res) => {
             status, 
             nodeHistory, 
             dtmfInputs, 
-            apiCalls 
+            apiCalls,
+            variables  // Captured variables from the call
         } = req.body;
         
-        // Get tenant_id from the IVR
-        const ivr = db.prepare('SELECT tenant_id FROM ivr_flows WHERE id = ?').get(ivrId);
+        // Get tenant_id and captureVariables config from the IVR
+        const ivr = db.prepare('SELECT tenant_id, flow_data FROM ivr_flows WHERE id = ?').get(ivrId);
         const tenantId = ivr?.tenant_id || null;
+        
+        // Filter variables to only include those configured in captureVariables
+        let capturedVars = {};
+        if (variables && ivr?.flow_data) {
+            try {
+                const flowData = JSON.parse(ivr.flow_data);
+                const captureList = flowData.settings?.captureVariables || flowData.captureVariables || [];
+                
+                if (captureList.length > 0) {
+                    // Only capture specified variables
+                    for (const varConfig of captureList) {
+                        const varName = typeof varConfig === 'string' ? varConfig : varConfig.name;
+                        if (variables[varName] !== undefined) {
+                            capturedVars[varName] = {
+                                value: variables[varName],
+                                label: typeof varConfig === 'object' ? varConfig.label : varName
+                            };
+                        }
+                    }
+                } else {
+                    // If no capture list defined, capture common useful variables (excluding internal ones)
+                    const excludeVars = ['caller_id', 'channel_id', 'extension', 'language', 'dtmf_input'];
+                    for (const [key, value] of Object.entries(variables)) {
+                        if (!excludeVars.includes(key) && !key.startsWith('_')) {
+                            capturedVars[key] = { value, label: key };
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Error parsing flow_data for captureVariables:', e);
+            }
+        }
         
         // Calculate duration in seconds
         const duration = startTime && endTime 
@@ -99,8 +144,8 @@ app.post('/api/engine/call-log', async (req, res) => {
         
         const id = uuidv4();
         db.prepare(`
-            INSERT INTO call_logs (id, ivr_id, tenant_id, caller_id, extension, start_time, end_time, duration, status, flow_path, dtmf_inputs, api_calls)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO call_logs (id, ivr_id, tenant_id, caller_id, extension, start_time, end_time, duration, status, flow_path, dtmf_inputs, api_calls, variables)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
             id,
             ivrId,
@@ -113,7 +158,8 @@ app.post('/api/engine/call-log', async (req, res) => {
             status || 'completed',
             JSON.stringify(nodeHistory || []),
             JSON.stringify(dtmfInputs || []),
-            JSON.stringify(apiCalls || [])
+            JSON.stringify(apiCalls || []),
+            JSON.stringify(capturedVars)
         );
         
         console.log(`Call logged: ${id} - IVR ${ivrId}, extension ${extension}, duration ${duration}s`);
