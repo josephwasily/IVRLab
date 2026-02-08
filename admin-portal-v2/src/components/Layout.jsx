@@ -87,6 +87,12 @@ export default function Layout() {
 
           {/* User info */}
           <div className="p-4 border-t border-gray-800">
+            {/* Trial Account Badge */}
+            <div className="mb-3 flex justify-center">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+                🔬 Trial Account
+              </span>
+            </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-white">{user?.name}</p>
