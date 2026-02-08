@@ -5500,3 +5500,11 @@
 [Feb  4 17:53:35] WARNING[37] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.21.0.1:59838) to AOR '1001' will exceed max contacts of 1
 [Feb  4 17:54:17] WARNING[85] res_http_websocket.c: Web socket closed abruptly
 [Feb  4 17:54:17] WARNING[85] ari/ari_websockets.c: WebSocket read error: Success
+[Feb  4 17:57:21] WARNING[173] res_http_websocket.c: Web socket closed abruptly
+[Feb  4 17:57:21] WARNING[173] ari/ari_websockets.c: WebSocket read error: Success
+[Feb  4 18:34:39] WARNING[404] res_http_websocket.c: Web socket closed abruptly
+[Feb  4 18:34:39] WARNING[404] ari/ari_websockets.c: WebSocket read error: Success
+[Feb  4 23:16:47] WARNING[37] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.21.0.1:43708) to AOR '1001' will exceed max contacts of 1
+[Feb  4 23:16:47] WARNING[37] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.21.0.1:43708) to AOR '1001' will exceed max contacts of 1
+[Feb  4 23:16:47] WARNING[37] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.21.0.1:43708) to AOR '1001' will exceed max contacts of 1
+[Feb  5 11:13:49] WARNING[5692] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.21.0.1:42681) to AOR '1001' will exceed max contacts of 1
