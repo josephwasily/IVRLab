@@ -83,11 +83,6 @@ export default function Login() {
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
-
-          <div className="mt-6 text-center text-sm text-gray-500">
-            <p>Demo credentials:</p>
-            <p className="font-mono">admin@demo.com / admin123</p>
-          </div>
         </div>
 
         {/* Partner Logos Footer */}
@@ -104,6 +99,11 @@ export default function Login() {
               alt="EPlus" 
               className="h-12 object-contain"
             />
+          </div>
+          <div className="mt-4 text-center">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-200">
+              🔬 Trial Account
+            </span>
           </div>
         </div>
       </div>
