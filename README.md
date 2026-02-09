@@ -1,5 +1,25 @@
 # IVR-Lab: Programmable Communications Platform
 
+## Competitors
+
+The IVR-Lab platform competes with several established solutions in the programmable communications and IVR automation space. Notable competitors include:
+
+- **Plum Voice (PlumFuse)** ([plumvoice.com](https://www.plumvoice.com/))
+   - PlumFuse is a cloud-based visual IVR builder and automation platform.
+   - Key features (from [ProductSheet-PlumFuse-2022.1.pdf](https://www.plumvoice.com/wp-content/uploads/2022/09/ProductSheet-PlumFuse-2022.1.pdf)):
+      - Drag-and-drop visual designer for IVR and voice workflows
+      - Omnichannel support: voice, SMS, web, chat
+      - Built-in speech recognition and text-to-speech
+      - API integration for backend data access
+      - Secure PCI/HIPAA-compliant hosting
+      - Real-time analytics and reporting
+      - No-code and low-code options for rapid deployment
+      - Cloud and on-premises deployment options
+      - Designed for enterprise and SMB use cases
+   - Differentiators: Focus on compliance, ease of use, and rapid deployment for business users.
+
+Other competitors include Twilio Studio, Genesys Cloud, Avaya Orchestration Designer, and Cisco Contact Center solutions.
+
 ## Overview
 
 This platform is a low-code programmable communications automation system designed to enable organizations to build, deploy, and operate automated voice, IVR, and messaging experiences without the need to develop custom telephony infrastructure from scratch. It provides a visual flow-based design environment where users can create communication workflows that define how calls and messages are initiated, how users are interacted with, how data is collected, and how decisions are made in real time during an interaction. These workflows can be used for both outbound and inbound communication scenarios, including automated phone surveys, appointment reminders, payment notifications, customer satisfaction collection, and interactive IVR systems that dynamically respond to callers based on backend data.
@@ -194,6 +214,11 @@ cd IVR-Lab
 # Create and configure .env file (see Configuration above)
 cp .env.example .env
 # Edit .env with your IP address
+
+# Update the connecting party (IP Office) IP address
+# If you are connecting to an Avaya IP Office or similar PBX, update the 'ipoffice' SIP trunk IP in Asterisk:
+python scripts/update-ipoffice-endpoint.py <IPO_IP_ADDRESS>
+# Replace <IPO_IP_ADDRESS> with the actual IP address of the IP Office system.
 
 # Start all services
 docker-compose up -d --build
