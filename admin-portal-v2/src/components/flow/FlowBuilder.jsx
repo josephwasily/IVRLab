@@ -15,14 +15,14 @@ import { nodeTypes } from './FlowNodes'
 import NodePalette from './NodePalette'
 import NodeProperties from './NodeProperties'
 import { flowToReactFlow, reactFlowToFlow } from '../../lib/flowUtils'
-import { Save, Undo, ZoomIn, ZoomOut, Maximize } from 'lucide-react'
+import { Maximize } from 'lucide-react'
 
 const defaultEdgeOptions = {
   type: 'smoothstep',
   animated: false
 }
 
-const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow, onSave, isSaving }, ref) {
+const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow }, ref) {
   const reactFlowWrapper = useRef(null)
   const [reactFlowInstance, setReactFlowInstance] = useState(null)
   const [nodes, setNodes, onNodesChange] = useNodesState([])
@@ -31,13 +31,8 @@ const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow, onSave, isSav
   const [startNode, setStartNode] = useState('welcome')
 
   useImperativeHandle(ref, () => ({
-    getFlowData: () => reactFlowToFlow(nodes, edges, startNode),
-    saveFlow: () => {
-      const flowData = reactFlowToFlow(nodes, edges, startNode)
-      if (onSave) onSave(flowData)
-      return flowData
-    }
-  }), [nodes, edges, startNode, onSave])
+    getFlowData: () => reactFlowToFlow(nodes, edges, startNode)
+  }), [nodes, edges, startNode])
 
   // Load initial flow
   useEffect(() => {
@@ -143,11 +138,6 @@ const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow, onSave, isSav
     [setNodes]
   )
 
-  const handleSave = useCallback(() => {
-    const flowData = reactFlowToFlow(nodes, edges, startNode)
-    if (onSave) onSave(flowData)
-  }, [nodes, edges, startNode, onSave])
-
   const handleFitView = useCallback(() => {
     reactFlowInstance?.fitView({ padding: 0.2 })
   }, [reactFlowInstance])
@@ -192,14 +182,6 @@ const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow, onSave, isSav
               title="Fit View"
             >
               <Maximize size={18} />
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="px-4 py-2 bg-blue-600 text-white rounded shadow hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-            >
-              <Save size={18} />
-              {isSaving ? 'Saving...' : 'Save Flow'}
             </button>
           </Panel>
           

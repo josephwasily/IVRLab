@@ -161,8 +161,12 @@ export default function IVREdit() {
 
   const handleSave = () => {
     if (!formData) return
-    const latestFlow = flowBuilderRef.current?.getFlowData?.()
-    const flowDataToSave = latestFlow || formData.flow_data
+    let flowDataToSave = formData.flow_data
+    if (activeTab === 'visual') {
+      const latestFlow = flowBuilderRef.current?.getFlowData?.()
+      if (latestFlow) flowDataToSave = latestFlow
+    }
+    setFormData(prev => (prev ? { ...prev, flow_data: flowDataToSave } : prev))
     updateMutation.mutate({
       name: formData.name,
       description: formData.description,
@@ -253,16 +257,6 @@ export default function IVREdit() {
         <FlowBuilder
           ref={flowBuilderRef}
           initialFlow={formData.flow_data}
-          onSave={(flowData) => {
-            setFormData(prev => ({ ...prev, flow_data: flowData }))
-            updateMutation.mutate({
-              name: formData.name,
-              description: formData.description,
-              language: formData.language,
-              flowData: flowData
-            })
-          }}
-          isSaving={updateMutation.isPending}
         />
       )}
 
