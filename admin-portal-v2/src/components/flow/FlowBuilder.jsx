@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, useEffect } from 'react'
+import { useCallback, useRef, useState, useEffect, useImperativeHandle, forwardRef } from 'react'
 import {
   ReactFlow,
   Background,
@@ -22,13 +22,22 @@ const defaultEdgeOptions = {
   animated: false
 }
 
-export default function FlowBuilder({ initialFlow, onSave, isSaving }) {
+const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow, onSave, isSaving }, ref) {
   const reactFlowWrapper = useRef(null)
   const [reactFlowInstance, setReactFlowInstance] = useState(null)
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [selectedNode, setSelectedNode] = useState(null)
   const [startNode, setStartNode] = useState('welcome')
+
+  useImperativeHandle(ref, () => ({
+    getFlowData: () => reactFlowToFlow(nodes, edges, startNode),
+    saveFlow: () => {
+      const flowData = reactFlowToFlow(nodes, edges, startNode)
+      if (onSave) onSave(flowData)
+      return flowData
+    }
+  }), [nodes, edges, startNode, onSave])
 
   // Load initial flow
   useEffect(() => {
@@ -136,7 +145,7 @@ export default function FlowBuilder({ initialFlow, onSave, isSaving }) {
 
   const handleSave = useCallback(() => {
     const flowData = reactFlowToFlow(nodes, edges, startNode)
-    onSave(flowData)
+    if (onSave) onSave(flowData)
   }, [nodes, edges, startNode, onSave])
 
   const handleFitView = useCallback(() => {
@@ -221,7 +230,9 @@ export default function FlowBuilder({ initialFlow, onSave, isSaving }) {
       />
     </div>
   )
-}
+})
+
+export default FlowBuilder
 
 function getReactFlowNodeType(ivrType) {
   const map = {

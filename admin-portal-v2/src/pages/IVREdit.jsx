@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getIVR, updateIVR, getIVRStats } from '../lib/api'
@@ -128,6 +128,7 @@ export default function IVREdit() {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('visual')
   const [selectedNode, setSelectedNode] = useState(null)
+  const flowBuilderRef = useRef(null)
 
   const { data: ivr, isLoading } = useQuery({
     queryKey: ['ivr', id],
@@ -160,11 +161,13 @@ export default function IVREdit() {
 
   const handleSave = () => {
     if (!formData) return
+    const latestFlow = flowBuilderRef.current?.getFlowData?.()
+    const flowDataToSave = latestFlow || formData.flow_data
     updateMutation.mutate({
       name: formData.name,
       description: formData.description,
       language: formData.language,
-      flowData: formData.flow_data
+      flowData: flowDataToSave
     })
   }
 
@@ -248,6 +251,7 @@ export default function IVREdit() {
       {/* Visual Flow Builder Tab */}
       {activeTab === 'visual' && (
         <FlowBuilder
+          ref={flowBuilderRef}
           initialFlow={formData.flow_data}
           onSave={(flowData) => {
             setFormData(prev => ({ ...prev, flow_data: flowData }))
