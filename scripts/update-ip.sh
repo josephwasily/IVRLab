@@ -22,20 +22,20 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # Get new IP from argument or auto-detect
 NEW_IP="$1"
 
+# Auto-detect host IP (exclude loopback, docker, and link-local)
+HOST_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | grep -v '^172\.17\.' | grep -v '^169\.254\.' | head -1)
+if [ -z "$HOST_IP" ]; then
+    HOST_IP=$(hostname -I | awk '{print $1}')
+fi
+
 if [ -z "$NEW_IP" ]; then
-    # Auto-detect IP address (exclude loopback, docker, and link-local)
-    NEW_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)\d+(\.\d+){3}' | grep -v '^127\.' | grep -v '^172\.17\.' | grep -v '^169\.254\.' | head -1)
-    
-    if [ -z "$NEW_IP" ]; then
-        # Fallback: try hostname -I
-        NEW_IP=$(hostname -I | awk '{print $1}')
-    fi
-    
-    if [ -z "$NEW_IP" ]; then
-        echo -e "${RED}Could not auto-detect IP address. Please provide IP as argument.${NC}"
-        echo "Usage: $0 <IP_ADDRESS>"
-        exit 1
-    fi
+    NEW_IP="$HOST_IP"
+fi
+
+if [ -z "$NEW_IP" ]; then
+    echo -e "${RED}Could not auto-detect IP address. Please provide IP as argument.${NC}"
+    echo "Usage: $0 <IP_ADDRESS>"
+    exit 1
 fi
 
 echo -e "${CYAN}========================================${NC}"
@@ -43,6 +43,9 @@ echo -e "${CYAN}IVR-Lab IP Address Update Script${NC}"
 echo -e "${CYAN}========================================${NC}"
 echo ""
 echo -e "New IP Address: ${GREEN}$NEW_IP${NC}"
+if [ -n "$HOST_IP" ] && [ "$HOST_IP" != "$NEW_IP" ]; then
+    echo -e "${YELLOW}Warning:${NC} detected host IP is ${YELLOW}$HOST_IP${NC} (differs from requested ${YELLOW}$NEW_IP${NC})"
+fi
 echo ""
 
 # Get current IP from pjsip.conf
@@ -78,6 +81,7 @@ declare -a FILES=(
     "sbc/docker-compose.yml:SBC Docker Compose"
     "sbc/opensips/opensips.cfg:OpenSIPS Configuration"
     "sbc/opensips/kamailio.cfg:Kamailio Configuration"
+    ".env:Environment File"
 )
 
 UPDATED_COUNT=0

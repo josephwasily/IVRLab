@@ -680,8 +680,17 @@ async function fetchIVRFlow(extension) {
 async function main() {
   console.log("Connecting to Asterisk ARI (Dynamic IVR Engine)...");
   console.log(`Platform API: ${PLATFORM_API_URL}`);
-  
-  const client = await ari.connect(ARI_URL, ARI_USER, ARI_PASS);
+
+  // Retry ARI connection until Asterisk/ARI is ready (handles 503 on startup)
+  let client;
+  while (!client) {
+    try {
+      client = await ari.connect(ARI_URL, ARI_USER, ARI_PASS);
+    } catch (err) {
+      console.error("ARI connection failed, retrying in 3s:", err && err.message || err);
+      await sleep(3000);
+    }
+  }
   console.log("Connected to ARI");
 
   const activeChannels = new Map();

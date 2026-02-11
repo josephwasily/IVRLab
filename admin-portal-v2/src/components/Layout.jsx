@@ -41,6 +41,7 @@ export default function Layout() {
     refetchInterval: 5000,
     retry: false
   })
+  const asteriskWarnings = asteriskStatus?.warnings || []
 
   const handleLogout = () => {
     logout()
@@ -134,6 +135,21 @@ export default function Layout() {
 
         {/* Page content */}
         <main className="flex-1 p-6 overflow-auto">
+          {asteriskWarnings.length > 0 && (
+            <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-4 text-amber-900">
+              <div className="font-semibold">Asterisk Network Warning</div>
+              <div className="mt-1 text-sm">
+                {asteriskWarnings[0]}
+              </div>
+              <div className="mt-2 text-sm">
+                Current `EXTERNAL_IP`: {asteriskStatus?.externalIp || 'unknown'} ·
+                `external_media_address`: {asteriskStatus?.asteriskExternalMediaAddress || 'unknown'}
+              </div>
+              <div className="mt-2 text-sm">
+                Fix: run `bash scripts/update-ip.sh &lt;EXTERNAL_IP&gt;` and then `docker compose restart asterisk`.
+              </div>
+            </div>
+          )}
           <Outlet />
         </main>
 

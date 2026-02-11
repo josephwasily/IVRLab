@@ -11,6 +11,7 @@ services:
     volumes:
       - ./asterisk/pjsip.conf:/etc/asterisk/pjsip.conf:ro
       - ./asterisk/extensions.conf:/etc/asterisk/extensions.conf:ro
+      - ./asterisk/asterisk.conf:/etc/asterisk/asterisk.conf:ro
       - ./asterisk/http.conf:/etc/asterisk/http.conf:ro
       - ./asterisk/ari.conf:/etc/asterisk/ari.conf:ro
       - ./asterisk/modules.conf:/etc/asterisk/modules.conf:ro
@@ -23,7 +24,9 @@ services:
       - ./asterisk/log:/var/log/asterisk:rw
       # Outbound call spool directory
       - asterisk-spool:/var/spool/asterisk
-    networks: [ ivrnet ]
+    networks:
+      ivrnet:
+        ipv4_address: 172.30.0.10
 
   ivr-node:
     build: ./ivr-node
@@ -39,18 +42,7 @@ services:
       IVR_LANGUAGE: "ar"
       # IVR Mode: "dynamic" uses Platform API flows, "legacy" uses hardcoded balance-ivr
       IVR_MODE: "dynamic"
-    depends_on: [ asterisk, balance-api, platform-api ]
-    networks: [ ivrnet ]
-
-  balance-api:
-    build: ./balance-api
-    container_name: balance-api
-    ports:
-      - "3000:3000"
-    volumes:
-      - ivr-data:/data
-    environment:
-      DB_PATH: "/data/ivr_calls.db"
+    depends_on: [ asterisk, platform-api ]
     networks: [ ivrnet ]
 
   platform-api:
@@ -62,6 +54,7 @@ services:
       - platform-data:/app/data
       - ./prompts:/app/prompts
       - ./asterisk/log:/app/asterisk-log:ro
+      - ./asterisk/pjsip.conf:/app/asterisk-pjsip.conf:ro
       # Shared spool directory for outbound calls
       - asterisk-spool:/asterisk-spool
       # New sounds folder for IVR flow seeding (read-only)
@@ -70,6 +63,8 @@ services:
       PORT: "3001"
       DB_PATH: "/app/data/platform.db"
       PROMPTS_PATH: "/app/prompts"
+      EXTERNAL_IP: "${EXTERNAL_IP}"
+      ASTERISK_PJSIP_PATH: "/app/asterisk-pjsip.conf"
       JWT_SECRET: "change-this-in-production-use-strong-secret"
       # ElevenLabs API key for text-to-speech generation
       ELEVENLABS_API_KEY: "sk_09d0cc298b338bb94a4c36bcae48dc0c1a8beeae7747f21c"
@@ -94,7 +89,6 @@ services:
     environment:
       DB_PATH: "/data/ivr_calls.db"
       PORT: "8080"
-    depends_on: [ balance-api ]
     networks: [ ivrnet ]
 
   admin-portal-v2:
@@ -127,6 +121,9 @@ services:
 networks:
   ivrnet:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
 
 volumes:
   ivr-data:
