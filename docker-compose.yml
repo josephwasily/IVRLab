@@ -72,6 +72,8 @@ services:
       JWT_SECRET: "change-this-in-production-use-strong-secret"
       # ElevenLabs API key for text-to-speech generation
       ELEVENLABS_API_KEY: "sk_09d0cc298b338bb94a4c36bcae48dc0c1a8beeae7747f21c"
+      # Disable prompt upload/TTS generation to avoid ffmpeg/sox runtime dependency
+      PROMPT_UPLOAD_ENABLED: "false"
       # Asterisk spool directory for outbound calls
       ASTERISK_SPOOL_DIR: "/asterisk-spool"
       # New sounds directory for IVR flow seeding
@@ -99,24 +101,24 @@ services:
     depends_on: [ platform-api ]
     networks: [ ivrnet ]
 
-  # -- RTP Engine for media anchoring --
-  rtpengine:
-    build: ./sbc/rtpengine
-    container_name: rtpengine
-    networks: [ ivrnet ]
-    ports:
-      - "2223:2223/udp"
-      - "12000-12100:12000-12100/udp"
-    command: ["rtpengine", "--foreground", "--interface=eth0", "--port-min=12000", "--port-max=12100", "--log-level=5", "--listen-ng=0.0.0.0:2223"]
+  # SBC stack intentionally disabled to reduce build time.
+  # Re-enable these services if you need signaling/media proxying via :5062.
+  # rtpengine:
+  #   build: ./sbc/rtpengine
+  #   container_name: rtpengine
+  #   networks: [ ivrnet ]
+  #   ports:
+  #     - "2223:2223/udp"
+  #     - "12000-12100:12000-12100/udp"
+  #   command: ["rtpengine", "--foreground", "--interface=eth0", "--port-min=12000", "--port-max=12100", "--log-level=5", "--listen-ng=0.0.0.0:2223"]
 
-  # -- SBC for SDP rewriting --
-  kamailio:
-    build: ./sbc/opensips
-    container_name: kamailio
-    depends_on: [ asterisk, rtpengine ]
-    networks: [ ivrnet ]
-    ports:
-      - "5062:5060/udp"   # host 5062 -> kamailio 5060
+  # kamailio:
+  #   build: ./sbc/opensips
+  #   container_name: kamailio
+  #   depends_on: [ asterisk, rtpengine ]
+  #   networks: [ ivrnet ]
+  #   ports:
+  #     - "5062:5060/udp"   # host 5062 -> kamailio 5060
 
 networks:
   ivrnet:

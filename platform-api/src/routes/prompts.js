@@ -15,6 +15,7 @@ const execPromise = util.promisify(exec);
 const PROMPTS_PATH = process.env.PROMPTS_PATH || '/app/prompts';
 const UPLOADS_PATH = '/app/uploads';
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
+const PROMPT_UPLOAD_ENABLED = process.env.PROMPT_UPLOAD_ENABLED === 'true';
 
 // ElevenLabs voice IDs - common voices
 const ELEVENLABS_VOICES = {
@@ -182,6 +183,14 @@ async function generateSpeechElevenLabs(text, voiceId, outputPath) {
 
 // Get available TTS voices
 router.get('/voices', (req, res) => {
+    if (!PROMPT_UPLOAD_ENABLED) {
+        return res.json({
+            available: false,
+            voices: [],
+            reason: 'Prompt upload/TTS generation is disabled'
+        });
+    }
+
     const voices = Object.entries(ELEVENLABS_VOICES).map(([name, id]) => ({
         id,
         name: name.charAt(0).toUpperCase() + name.slice(1),
@@ -196,6 +205,12 @@ router.get('/voices', (req, res) => {
 
 // Generate prompt from text using TTS
 router.post('/generate', async (req, res) => {
+    if (!PROMPT_UPLOAD_ENABLED) {
+        return res.status(503).json({
+            error: 'Prompt upload and TTS generation are disabled'
+        });
+    }
+
     try {
         const { text, name, description, language = 'ar', category = 'custom', voice = 'adam' } = req.body;
         
@@ -336,6 +351,15 @@ router.get('/:id', (req, res) => {
 
 // Upload and convert a new prompt
 router.post('/', upload.single('audio'), async (req, res) => {
+    if (!PROMPT_UPLOAD_ENABLED) {
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        return res.status(503).json({
+            error: 'Prompt upload and conversion are disabled'
+        });
+    }
+
     const uploadedFile = req.file;
     
     try {

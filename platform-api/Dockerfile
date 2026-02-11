@@ -2,8 +2,10 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install build dependencies for better-sqlite3 and ffmpeg for audio conversion
-RUN apk add --no-cache python3 make g++ ffmpeg sox
+# Install only build dependencies required for better-sqlite3.
+# ffmpeg/sox installation intentionally disabled to reduce image build time.
+RUN apk add --no-cache python3 make g++
+# RUN apk add --no-cache python3 make g++ ffmpeg sox
 
 COPY package*.json ./
 RUN npm install --production
