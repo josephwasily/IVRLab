@@ -11,10 +11,13 @@ import {
   Music,
   Server,
   PhoneOutgoing,
-  PhoneForwarded
+  PhoneForwarded,
+  TerminalSquare
 } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
+import { useQuery } from '@tanstack/react-query'
+import { getAsteriskStatus } from '../lib/api'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -23,6 +26,7 @@ const navItems = [
   { to: '/templates', icon: FileText, label: 'Templates' },
   { to: '/campaigns', icon: PhoneOutgoing, label: 'Campaigns' },
   { to: '/outbound-calls', icon: PhoneForwarded, label: 'Call History' },
+  { to: '/logs', icon: TerminalSquare, label: 'Asterisk Logs' },
   { to: '/trunks', icon: Server, label: 'SIP Trunks' },
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
 ]
@@ -31,6 +35,12 @@ export default function Layout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const { data: asteriskStatus, isFetching: isAsteriskRefreshing } = useQuery({
+    queryKey: ['asterisk-status'],
+    queryFn: getAsteriskStatus,
+    refetchInterval: 5000,
+    retry: false
+  })
 
   const handleLogout = () => {
     logout()
@@ -126,6 +136,27 @@ export default function Layout() {
         <main className="flex-1 p-6 overflow-auto">
           <Outlet />
         </main>
+
+        {/* Footer status */}
+        <footer className="h-12 px-6 border-t bg-white flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2">
+            <span
+              className={clsx(
+                "inline-block w-2.5 h-2.5 rounded-full",
+                asteriskStatus?.running ? "bg-green-500" : "bg-red-500"
+              )}
+            />
+            <span className="text-gray-700">
+              Asterisk: {asteriskStatus?.running ? 'Running' : 'Offline'}
+            </span>
+            <span className="text-gray-400">
+              {asteriskStatus?.host}:{asteriskStatus?.port}
+            </span>
+          </div>
+          <div className="text-gray-500">
+            {isAsteriskRefreshing ? 'Refreshing...' : `Updated ${asteriskStatus?.checkedAt ? new Date(asteriskStatus.checkedAt).toLocaleTimeString() : '-'}`}
+          </div>
+        </footer>
       </div>
     </div>
   )

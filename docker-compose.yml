@@ -61,6 +61,7 @@ services:
     volumes:
       - platform-data:/app/data
       - ./prompts:/app/prompts
+      - ./asterisk/log:/app/asterisk-log:ro
       # Shared spool directory for outbound calls
       - asterisk-spool:/asterisk-spool
       # New sounds folder for IVR flow seeding (read-only)
@@ -78,6 +79,9 @@ services:
       ASTERISK_SPOOL_DIR: "/asterisk-spool"
       # New sounds directory for IVR flow seeding
       NEW_SOUNDS_DIR: "/app/new-sounds"
+      ASTERISK_LOG_PATH: "/app/asterisk-log/messages.log"
+      ASTERISK_HOST: "asterisk"
+      ASTERISK_AMI_PORT: "5038"
     networks: [ ivrnet ]
 
   admin-portal:

@@ -13,6 +13,7 @@ const promptsRoutes = require('./routes/prompts');
 const trunksRoutes = require('./routes/trunks');
 const campaignsRoutes = require('./routes/campaigns');
 const triggersRoutes = require('./routes/triggers');
+const systemRoutes = require('./routes/system');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -38,6 +39,7 @@ app.use('/api/prompts', promptsRoutes);
 app.use('/api/trunks', trunksRoutes);
 app.use('/api/campaigns', campaignsRoutes);
 app.use('/api/triggers', triggersRoutes);
+app.use('/api/system', systemRoutes);
 
 // IVR Engine endpoint - called by Asterisk ARI
 app.get('/api/engine/flow/:extension', async (req, res) => {

@@ -13,6 +13,7 @@ import Trunks from './pages/Trunks'
 import Campaigns from './pages/Campaigns'
 import CampaignEdit from './pages/CampaignEdit'
 import OutboundCalls from './pages/OutboundCalls'
+import Logs from './pages/Logs'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -53,6 +54,7 @@ function App() {
           <Route path="campaigns" element={<Campaigns />} />
           <Route path="campaigns/:id" element={<CampaignEdit />} />
           <Route path="outbound-calls" element={<OutboundCalls />} />
+          <Route path="logs" element={<Logs />} />
         </Route>
       </Routes>
     </AuthProvider>

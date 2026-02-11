@@ -125,6 +125,17 @@ export const getIVRStats = async (id) => {
   return response.data
 }
 
+// System / Asterisk
+export const getAsteriskStatus = async () => {
+  const response = await api.get('/system/asterisk/status')
+  return response.data
+}
+
+export const getAsteriskLogs = async (lines = 200) => {
+  const response = await api.get('/system/asterisk/logs', { params: { lines } })
+  return response.data
+}
+
 // Prompts
 export const getPrompts = async (params = {}) => {
   const response = await api.get('/prompts', { params })
