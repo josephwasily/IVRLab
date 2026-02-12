@@ -13,6 +13,35 @@ const AMI_PORT = parseInt(process.env.AMI_PORT || '5038');
 const AMI_USER = process.env.AMI_USER || 'admin';
 const AMI_SECRET = process.env.AMI_SECRET || 'amipass';
 
+function parseTrunkSettings(trunk) {
+    if (!trunk || !trunk.settings) return {};
+    if (typeof trunk.settings === 'object') return trunk.settings;
+    try {
+        return JSON.parse(trunk.settings);
+    } catch (e) {
+        return {};
+    }
+}
+
+function resolveTrunkEndpointName(trunk) {
+    const settings = parseTrunkSettings(trunk);
+    if (settings.endpoint) return String(settings.endpoint).trim();
+    if (settings.endpoint_name) return String(settings.endpoint_name).trim();
+    if (settings.asterisk_endpoint) return String(settings.asterisk_endpoint).trim();
+    const trunkName = String(trunk?.name || '').toLowerCase();
+    if (trunkName.includes('ip office') || trunkName.includes('ipoffice')) return 'ipoffice';
+    return null;
+}
+
+function buildPjsipChannel(trunk, phoneNumber) {
+    const target = String(phoneNumber || '').trim();
+    const endpoint = resolveTrunkEndpointName(trunk);
+    if (endpoint) {
+        return `PJSIP/${target}@${endpoint}`;
+    }
+    return `PJSIP/${target}`;
+}
+
 /**
  * Send AMI command to Asterisk
  */
@@ -995,19 +1024,7 @@ async function processCampaignContacts(campaignId, runId, options) {
             VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', CURRENT_TIMESTAMP)
         `).run(callId, campaignId, contact.id, runId, trunk.id, contact.phone_number, callerId);
         
-        // Build dial string for trunk - always use PJSIP
-        // Use endpoint name if it matches a PJSIP endpoint, otherwise use host directly
-        let dialString;
-        const trunkNameLower = trunk.name.toLowerCase().replace(/\s+/g, '');
-        
-        // Check if this is the IP Office trunk (192.168.2.211)
-        if (trunk.host === '192.168.2.211') {
-            dialString = `PJSIP/${contact.phone_number}@ipoffice`;
-        } else {
-            // Default to PJSIP with the phone number routed through the endpoint
-            // For local asterisk, dial the extension directly
-            dialString = `PJSIP/${contact.phone_number}`;
-        }
+        const dialString = buildPjsipChannel(trunk, contact.phone_number);
         
         // Determine extension to call when answered
         const extension = ivrExtension || '1000';

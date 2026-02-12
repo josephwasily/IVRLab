@@ -14,6 +14,35 @@ const AMI_PORT = parseInt(process.env.AMI_PORT || '5038');
 const AMI_USER = process.env.AMI_USER || 'admin';
 const AMI_SECRET = process.env.AMI_SECRET || 'amipass';
 
+function parseTrunkSettings(trunk) {
+    if (!trunk || !trunk.settings) return {};
+    if (typeof trunk.settings === 'object') return trunk.settings;
+    try {
+        return JSON.parse(trunk.settings);
+    } catch (e) {
+        return {};
+    }
+}
+
+function resolveTrunkEndpointName(trunk) {
+    const settings = parseTrunkSettings(trunk);
+    if (settings.endpoint) return String(settings.endpoint).trim();
+    if (settings.endpoint_name) return String(settings.endpoint_name).trim();
+    if (settings.asterisk_endpoint) return String(settings.asterisk_endpoint).trim();
+    const trunkName = String(trunk?.name || '').toLowerCase();
+    if (trunkName.includes('ip office') || trunkName.includes('ipoffice')) return 'ipoffice';
+    return null;
+}
+
+function buildPjsipChannel(trunk, phoneNumber) {
+    const target = String(phoneNumber || '').trim();
+    const endpoint = resolveTrunkEndpointName(trunk);
+    if (endpoint) {
+        return `PJSIP/${target}@${endpoint}`;
+    }
+    return `PJSIP/${target}`;
+}
+
 /**
  * Send AMI command to Asterisk
  */
@@ -130,9 +159,10 @@ router.post('/call', async (req, res) => {
         if (ivrExtension) {
             try {
                 console.log(`Originating call to ${phone_number} with IVR extension ${ivrExtension}`);
+                const channel = buildPjsipChannel(trunk, phone_number);
                 
                 await sendAMICommand('Originate', {
-                    Channel: `PJSIP/${phone_number}`,
+                    Channel: channel,
                     Context: 'outbound-ivr',
                     Exten: 's',
                     Priority: '1',
@@ -351,14 +381,7 @@ async function processCampaignContacts(campaignId, runId, options) {
         // Originate the call
         try {
             console.log(`[Campaign ${campaignId}] Calling ${contact.phone_number} via ${trunk.name}`);
-            
-            // Build dial string based on trunk type
-            let dialString;
-            if (trunk.protocol === 'SIP' || trunk.protocol === 'sip') {
-                dialString = `PJSIP/${contact.phone_number}@${trunk.host}`;
-            } else {
-                dialString = `PJSIP/${contact.phone_number}`;
-            }
+            const dialString = buildPjsipChannel(trunk, contact.phone_number);
             
             await sendAMICommand('Originate', {
                 Channel: dialString,
