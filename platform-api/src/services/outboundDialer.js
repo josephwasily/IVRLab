@@ -9,6 +9,35 @@ const AriClient = require('ari-client');
 const db = require('../db');
 const { v4: uuidv4 } = require('uuid');
 
+function parseTrunkSettings(trunk) {
+    if (!trunk || !trunk.settings) return {};
+    if (typeof trunk.settings === 'object') return trunk.settings;
+    try {
+        return JSON.parse(trunk.settings);
+    } catch (e) {
+        return {};
+    }
+}
+
+function resolveTrunkEndpointName(trunk) {
+    const settings = parseTrunkSettings(trunk);
+    if (settings.endpoint) return String(settings.endpoint).trim();
+    if (settings.endpoint_name) return String(settings.endpoint_name).trim();
+    if (settings.asterisk_endpoint) return String(settings.asterisk_endpoint).trim();
+    const trunkName = String(trunk?.name || '').toLowerCase();
+    if (trunkName.includes('ip office') || trunkName.includes('ipoffice')) return 'ipoffice';
+    return null;
+}
+
+function buildPjsipDialString(trunk, phoneNumber) {
+    const target = String(phoneNumber || '').trim();
+    const endpoint = resolveTrunkEndpointName(trunk);
+    if (endpoint) {
+        return `PJSIP/${target}@${endpoint}`;
+    }
+    return `PJSIP/${target}`;
+}
+
 class OutboundDialer {
     constructor() {
         this.ari = null;
@@ -356,7 +385,7 @@ class OutboundDialer {
         const callId = uuidv4();
         
         // Build dial string
-        const dialString = `PJSIP/${phoneNumber}@${trunk.host}`;
+        const dialString = buildPjsipDialString(trunk, phoneNumber);
         
         console.log(`[Dialer] Originating call: ${dialString}`);
 
