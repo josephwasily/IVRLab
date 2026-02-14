@@ -7,6 +7,7 @@ const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../data/platform
 const db = new Database(DB_PATH);
 
 console.log('Seeding database with sample data...');
+const { seedNewSounds2Template } = require('./seed-new-sounds-2-template');
 
 // Check if already seeded
 const existingTenant = db.prepare('SELECT id FROM tenants WHERE slug = ?').get('demo');
@@ -17,6 +18,8 @@ if (existingTenant) {
     // Still try to run IVR flow seeding (it has its own check)
     const { seedIvrFlows } = require('./seed-ivr-flows');
     seedIvrFlows().then(() => {
+        return seedNewSounds2Template();
+    }).then(() => {
         console.log('\nLogin credentials:');
         console.log('  Email: admin@demo.com');
         console.log('  Password: admin123');
@@ -267,6 +270,8 @@ db.close();
 const { seedIvrFlows } = require('./seed-ivr-flows');
 console.log('\nChecking for IVR flow seeding...');
 seedIvrFlows().then(() => {
+    return seedNewSounds2Template();
+}).then(() => {
     console.log('\n✅ All seeding completed!');
 }).catch(err => {
     console.log('\nNote: IVR flow seeding skipped (source files may not be available)');

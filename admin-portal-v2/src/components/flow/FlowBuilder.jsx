@@ -138,6 +138,21 @@ const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow }, ref) {
     [setNodes]
   )
 
+  const handleDeleteNode = useCallback(
+    (nodeId) => {
+      setNodes((nds) => {
+        const remaining = nds.filter((n) => n.id !== nodeId)
+        if (startNode === nodeId) {
+          setStartNode(remaining[0]?.id || 'welcome')
+        }
+        return remaining
+      })
+      setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId))
+      setSelectedNode(null)
+    },
+    [setNodes, setEdges, startNode]
+  )
+
   const handleFitView = useCallback(() => {
     reactFlowInstance?.fitView({ padding: 0.2 })
   }, [reactFlowInstance])
@@ -208,6 +223,7 @@ const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow }, ref) {
       <NodeProperties
         node={selectedNode}
         onChange={handleNodeDataChange}
+        onDelete={handleDeleteNode}
         onClose={() => setSelectedNode(null)}
       />
     </div>

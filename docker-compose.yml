@@ -59,6 +59,8 @@ services:
       - asterisk-spool:/asterisk-spool
       # New sounds folder for IVR flow seeding (read-only)
       - "./new sounds:/app/new-sounds:ro"
+      # New sounds 2 folder for additional template seeding (read-only)
+      - "./new sounds 2:/app/new-sounds-2:ro"
     environment:
       PORT: "3001"
       DB_PATH: "/app/data/platform.db"
@@ -74,6 +76,8 @@ services:
       ASTERISK_SPOOL_DIR: "/asterisk-spool"
       # New sounds directory for IVR flow seeding
       NEW_SOUNDS_DIR: "/app/new-sounds"
+      # New sounds 2 directory for complaint template seeding
+      NEW_SOUNDS_2_DIR: "/app/new-sounds-2"
       ASTERISK_LOG_PATH: "/app/asterisk-log/messages.log"
       ASTERISK_HOST: "asterisk"
       ASTERISK_AMI_PORT: "5038"

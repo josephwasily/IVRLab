@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { X, Volume2 } from 'lucide-react'
+import { X, Volume2, Trash2 } from 'lucide-react'
 import { getPrompts, getFilesystemPrompts, getPromptAudioUrl, getFilesystemAudioUrl } from '../../lib/api'
 
-export default function NodeProperties({ node, onChange, onClose }) {
+export default function NodeProperties({ node, onChange, onClose, onDelete }) {
   const [formData, setFormData] = useState(node?.data || {})
   const [playingPrompt, setPlayingPrompt] = useState(null)
   const audioRef = useState(null)
@@ -344,12 +344,26 @@ export default function NodeProperties({ node, onChange, onClose }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Value</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Expression</label>
               <input
                 type="text"
-                value={formData.value || ''}
+                value={formData.expression ?? ''}
+                onChange={(e) => handleChange('expression', e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg text-sm font-mono"
+                placeholder={'e.g., bills_result.find(b => b.inh_id === "0")?.inh_tot1 || 0'}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Optional JavaScript expression. If set, it is used instead of Value.
+              </p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Value (Fallback)</label>
+              <input
+                type="text"
+                value={formData.value ?? ''}
                 onChange={(e) => handleChange('value', e.target.value)}
                 className="w-full px-3 py-2 border rounded-lg text-sm"
+                placeholder="Static value when Expression is empty"
               />
             </div>
           </>
@@ -393,6 +407,19 @@ export default function NodeProperties({ node, onChange, onClose }) {
               className="w-full px-3 py-2 border rounded-lg text-sm"
               placeholder="error handler node"
             />
+          </div>
+        )}
+
+        {onDelete && (
+          <div className="pt-2 border-t">
+            <button
+              type="button"
+              onClick={() => onDelete(node.id)}
+              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-red-300 text-red-600 hover:bg-red-50"
+            >
+              <Trash2 size={16} />
+              Delete Node
+            </button>
           </div>
         )}
       </div>
