@@ -1,6 +1,6 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getCallLogs, getCallLogsCsv, getHourlyCalls, getIVRs } from '../lib/api'
+import { getCallLogs, getCallLogsCsv, getCallSummary, getHourlyCalls, getIVRs } from '../lib/api'
 import { Phone, ChevronDown, ChevronUp, Filter, Download } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -11,9 +11,61 @@ const statusColors = {
   no_answer: 'bg-yellow-100 text-yellow-800'
 }
 
+function toDateTimeLocalValue(date) {
+  const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000
+  const localDate = new Date(date.getTime() - timezoneOffsetMs)
+  return localDate.toISOString().slice(0, 16)
+}
+
+function localDateTimeToIso(value) {
+  if (!value) return undefined
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return undefined
+  return date.toISOString()
+}
+
+function formatHourKey(date) {
+  const y = date.getUTCFullYear()
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(date.getUTCDate()).padStart(2, '0')
+  const h = String(date.getUTCHours()).padStart(2, '0')
+  return `${y}-${m}-${d} ${h}:00`
+}
+
+function buildHourlySeries(hourly, fromIso, toIso) {
+  if (!fromIso || !toIso) return hourly || []
+  const from = new Date(fromIso)
+  const to = new Date(toIso)
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) {
+    return hourly || []
+  }
+
+  const countsByHour = new Map((hourly || []).map((entry) => [entry.hour, Number(entry.count || 0)]))
+  const cursor = new Date(from)
+  cursor.setUTCMinutes(0, 0, 0)
+
+  const end = new Date(to)
+  end.setUTCMinutes(0, 0, 0)
+
+  const series = []
+  while (cursor <= end) {
+    const key = formatHourKey(cursor)
+    series.push({
+      hour: key,
+      count: countsByHour.get(key) || 0
+    })
+    cursor.setUTCHours(cursor.getUTCHours() + 1)
+  }
+  return series
+}
+
 export default function Analytics() {
   const [expandedRows, setExpandedRows] = useState(new Set())
   const [selectedIvrId, setSelectedIvrId] = useState('')
+  const [fromDateTime, setFromDateTime] = useState(() => (
+    toDateTimeLocalValue(new Date(Date.now() - (24 * 60 * 60 * 1000)))
+  ))
+  const [toDateTime, setToDateTime] = useState(() => toDateTimeLocalValue(new Date()))
   const [isExporting, setIsExporting] = useState(false)
   const defaultIvrApplied = useRef(false)
   
@@ -23,14 +75,25 @@ export default function Analytics() {
     queryFn: getIVRs
   })
 
+  const filterParams = useMemo(() => ({
+    ivrId: selectedIvrId || undefined,
+    from: localDateTimeToIso(fromDateTime),
+    to: localDateTimeToIso(toDateTime)
+  }), [selectedIvrId, fromDateTime, toDateTime])
+
   const { data: calls, isLoading } = useQuery({
-    queryKey: ['call-logs', selectedIvrId],
-    queryFn: () => getCallLogs({ limit: 50, ivrId: selectedIvrId || undefined })
+    queryKey: ['call-logs', filterParams.ivrId, filterParams.from, filterParams.to],
+    queryFn: () => getCallLogs({ limit: 200, ...filterParams })
   })
 
   const { data: hourly } = useQuery({
-    queryKey: ['hourly-calls'],
-    queryFn: () => getHourlyCalls(24)
+    queryKey: ['hourly-calls', filterParams.ivrId, filterParams.from, filterParams.to],
+    queryFn: () => getHourlyCalls(filterParams)
+  })
+
+  const { data: summary } = useQuery({
+    queryKey: ['calls-summary', filterParams.ivrId, filterParams.from, filterParams.to],
+    queryFn: () => getCallSummary(filterParams)
   })
 
   useEffect(() => {
@@ -93,7 +156,7 @@ export default function Analytics() {
   const handleExportCsv = async () => {
     try {
       setIsExporting(true)
-      const blob = await getCallLogsCsv({ ivrId: selectedIvrId || undefined })
+      const blob = await getCallLogsCsv(filterParams)
       const dateStamp = new Date().toISOString().slice(0, 10)
       const filename = `analytics-calls-${selectedIvrId || 'all'}-${dateStamp}.csv`
       const url = window.URL.createObjectURL(blob)
@@ -112,60 +175,67 @@ export default function Analytics() {
     }
   }
 
+  const hourlySeries = useMemo(() => {
+    return buildHourlySeries(hourly || [], filterParams.from, filterParams.to)
+  }, [hourly, filterParams.from, filterParams.to])
+
+  const maxHourlyCount = Math.max(1, ...hourlySeries.map((item) => Number(item.count || 0)))
+  const totalCalls = summary?.totalCalls || 0
+  const totalChartHeight = totalCalls > 0
+    ? Math.min(100, 20 + (Math.log10(totalCalls + 1) * 35))
+    : 0
+
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Analytics</h1>
 
-      {/* Hourly chart placeholder */}
-      {hourly && hourly.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Calls Last 24 Hours</h2>
-          <div className="h-32 flex items-end space-x-2">
-            {hourly.map((item, i) => {
-              const maxCount = Math.max(...hourly.map(h => h.count))
-              const height = maxCount > 0 ? (item.count / maxCount) * 100 : 0
-              return (
-                <div
-                  key={i}
-                  className="flex-1 bg-blue-500 rounded-t"
-                  style={{ height: `${height}%`, minHeight: item.count > 0 ? '4px' : '0' }}
-                  title={`${item.hour}: ${item.count} calls`}
-                />
-              )
-            })}
+      <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex items-center gap-2 min-w-[220px]">
+            <Filter className="w-4 h-4 text-gray-500" />
+            <select
+              value={selectedIvrId}
+              onChange={(e) => setSelectedIvrId(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All IVR Flows</option>
+              {ivrs?.map((ivr) => (
+                <option key={ivr.id} value={ivr.id}>
+                  {ivr.name} ({ivr.extension})
+                </option>
+              ))}
+            </select>
           </div>
-        </div>
-      )}
 
-      {/* Call logs table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Calls</h2>
-          
-          <div className="flex items-center gap-2">
-            {/* IVR Filter */}
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-gray-500" />
-              <select
-                value={selectedIvrId}
-                onChange={(e) => setSelectedIvrId(e.target.value)}
-                className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">All IVR Flows</option>
-                {ivrs?.map((ivr) => (
-                  <option key={ivr.id} value={ivr.id}>
-                    {ivr.name} ({ivr.extension})
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="min-w-[220px]">
+            <label className="block text-xs font-medium text-gray-500 mb-1">From</label>
+            <input
+              type="datetime-local"
+              value={fromDateTime}
+              onChange={(e) => setFromDateTime(e.target.value)}
+              max={toDateTime}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
 
+          <div className="min-w-[220px]">
+            <label className="block text-xs font-medium text-gray-500 mb-1">To</label>
+            <input
+              type="datetime-local"
+              value={toDateTime}
+              onChange={(e) => setToDateTime(e.target.value)}
+              min={fromDateTime}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div className="ml-auto">
             <button
               type="button"
               onClick={handleExportCsv}
               disabled={isExporting}
               className={clsx(
-                'inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                'inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                 isExporting
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
@@ -175,6 +245,45 @@ export default function Analytics() {
               {isExporting ? 'Exporting...' : 'Export CSV'}
             </button>
           </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Total Calls</h2>
+          <div className="h-40 flex items-end justify-center">
+            <div className="w-24 bg-blue-500 rounded-t transition-all" style={{ height: `${totalChartHeight}%` }} />
+          </div>
+          <p className="text-center text-3xl font-bold text-gray-900 mt-4">{totalCalls}</p>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Hourly Call Count</h2>
+          <div className="h-40 flex items-end gap-1">
+            {hourlySeries.length === 0 ? (
+              <div className="w-full text-center text-sm text-gray-500 py-10">No data in selected range</div>
+            ) : (
+              hourlySeries.map((item, index) => {
+                const height = maxHourlyCount > 0 ? (item.count / maxHourlyCount) * 100 : 0
+                return (
+                  <div
+                    key={`${item.hour}-${index}`}
+                    className="flex-1 bg-blue-500 rounded-t"
+                    style={{ height: `${height}%`, minHeight: item.count > 0 ? '4px' : '0' }}
+                    title={`${item.hour}: ${item.count} calls`}
+                  />
+                )
+              })
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Call logs table */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="px-6 py-4 border-b flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-gray-900">Recent Calls</h2>
+          <span className="text-sm text-gray-500">{calls?.length || 0} rows</span>
         </div>
 
         {isLoading ? (

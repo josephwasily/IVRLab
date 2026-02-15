@@ -29,6 +29,25 @@ function csvEscape(value) {
     return stringValue;
 }
 
+function normalizeDateInput(input, fallbackIso) {
+    if (!input) return fallbackIso;
+    const date = new Date(input);
+    if (Number.isNaN(date.getTime())) return fallbackIso;
+    return date.toISOString();
+}
+
+function resolveDateRange(query, defaultHours = 24) {
+    const now = new Date();
+    const requestedHours = parseInt(query.hours, 10);
+    const hours = Number.isNaN(requestedHours) ? defaultHours : requestedHours;
+    const defaultFrom = new Date(now.getTime() - (hours * 60 * 60 * 1000));
+
+    const fromIso = normalizeDateInput(query.from, defaultFrom.toISOString());
+    const toIso = normalizeDateInput(query.to, now.toISOString());
+
+    return { fromIso, toIso };
+}
+
 // Dashboard stats
 router.get('/dashboard', (req, res) => {
     try {
@@ -79,6 +98,7 @@ router.get('/dashboard', (req, res) => {
 router.get('/calls/export', (req, res) => {
     try {
         const { ivrId } = req.query;
+        const { fromIso, toIso } = resolveDateRange(req.query, 24);
 
         let query = `
             SELECT c.*, f.name as ivr_name
@@ -87,6 +107,9 @@ router.get('/calls/export', (req, res) => {
             WHERE c.tenant_id = ?
         `;
         const params = [req.user.tenantId];
+
+        query += ' AND julianday(c.start_time) >= julianday(?) AND julianday(c.start_time) <= julianday(?)';
+        params.push(fromIso, toIso);
 
         if (ivrId) {
             query += ' AND c.ivr_id = ?';
@@ -193,6 +216,7 @@ router.get('/calls/export', (req, res) => {
 router.get('/calls', (req, res) => {
     try {
         const { ivrId, limit = 50, offset = 0 } = req.query;
+        const { fromIso, toIso } = resolveDateRange(req.query, 24);
         
         let query = `
             SELECT c.*, f.name as ivr_name
@@ -201,6 +225,9 @@ router.get('/calls', (req, res) => {
             WHERE c.tenant_id = ?
         `;
         const params = [req.user.tenantId];
+
+        query += ' AND julianday(c.start_time) >= julianday(?) AND julianday(c.start_time) <= julianday(?)';
+        params.push(fromIso, toIso);
         
         if (ivrId) {
             query += ' AND c.ivr_id = ?';
@@ -225,20 +252,72 @@ router.get('/calls', (req, res) => {
     }
 });
 
+// Calls summary (for total count chart)
+router.get('/calls/summary', (req, res) => {
+    try {
+        const { ivrId } = req.query;
+        const { fromIso, toIso } = resolveDateRange(req.query, 24);
+
+        let query = `
+            SELECT
+                COUNT(*) as total_calls,
+                SUM(CASE WHEN c.status = 'completed' THEN 1 ELSE 0 END) as completed_calls,
+                SUM(CASE WHEN c.status = 'failed' THEN 1 ELSE 0 END) as failed_calls,
+                AVG(c.duration) as avg_duration
+            FROM call_logs c
+            WHERE c.tenant_id = ?
+              AND julianday(c.start_time) >= julianday(?)
+              AND julianday(c.start_time) <= julianday(?)
+        `;
+        const params = [req.user.tenantId, fromIso, toIso];
+
+        if (ivrId) {
+            query += ' AND c.ivr_id = ?';
+            params.push(ivrId);
+        }
+
+        const summary = db.prepare(query).get(...params);
+
+        res.json({
+            totalCalls: summary?.total_calls || 0,
+            completedCalls: summary?.completed_calls || 0,
+            failedCalls: summary?.failed_calls || 0,
+            avgDuration: Math.round(summary?.avg_duration || 0)
+        });
+    } catch (error) {
+        console.error('Call summary error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Calls by hour (for charts)
 router.get('/calls/hourly', (req, res) => {
     try {
-        const { hours = 24 } = req.query;
-        
-        const data = db.prepare(`
+        const { ivrId } = req.query;
+        const { fromIso, toIso } = resolveDateRange(req.query, 24);
+
+        let query = `
             SELECT 
                 strftime('%Y-%m-%d %H:00', start_time) as hour,
                 COUNT(*) as count
             FROM call_logs
-            WHERE tenant_id = ? AND start_time >= datetime('now', '-' || ? || ' hours')
+            WHERE tenant_id = ?
+              AND julianday(start_time) >= julianday(?)
+              AND julianday(start_time) <= julianday(?)
+        `;
+        const params = [req.user.tenantId, fromIso, toIso];
+
+        if (ivrId) {
+            query += ' AND ivr_id = ?';
+            params.push(ivrId);
+        }
+
+        query += `
             GROUP BY hour
             ORDER BY hour
-        `).all(req.user.tenantId, parseInt(hours));
+        `;
+
+        const data = db.prepare(query).all(...params);
         
         res.json(data);
     } catch (error) {

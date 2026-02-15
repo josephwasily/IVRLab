@@ -115,6 +115,11 @@ export const getCallLogs = async (params = {}) => {
   return response.data
 }
 
+export const getCallSummary = async (params = {}) => {
+  const response = await api.get('/analytics/calls/summary', { params })
+  return response.data
+}
+
 export const getCallLogsCsv = async (params = {}) => {
   const response = await api.get('/analytics/calls/export', {
     params,
@@ -123,8 +128,8 @@ export const getCallLogsCsv = async (params = {}) => {
   return response.data
 }
 
-export const getHourlyCalls = async (hours = 24) => {
-  const response = await api.get('/analytics/calls/hourly', { params: { hours } })
+export const getHourlyCalls = async (params = {}) => {
+  const response = await api.get('/analytics/calls/hourly', { params })
   return response.data
 }
 
