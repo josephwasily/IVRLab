@@ -115,6 +115,14 @@ export const getCallLogs = async (params = {}) => {
   return response.data
 }
 
+export const getCallLogsCsv = async (params = {}) => {
+  const response = await api.get('/analytics/calls/export', {
+    params,
+    responseType: 'blob'
+  })
+  return response.data
+}
+
 export const getHourlyCalls = async (hours = 24) => {
   const response = await api.get('/analytics/calls/hourly', { params: { hours } })
   return response.data

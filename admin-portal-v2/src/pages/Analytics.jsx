@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getCallLogs, getHourlyCalls, getIVRs } from '../lib/api'
-import { Phone, PhoneOff, Clock, ChevronDown, ChevronUp, Filter } from 'lucide-react'
+import { getCallLogs, getCallLogsCsv, getHourlyCalls, getIVRs } from '../lib/api'
+import { Phone, ChevronDown, ChevronUp, Filter, Download } from 'lucide-react'
 import clsx from 'clsx'
 
 const statusColors = {
@@ -14,6 +14,8 @@ const statusColors = {
 export default function Analytics() {
   const [expandedRows, setExpandedRows] = useState(new Set())
   const [selectedIvrId, setSelectedIvrId] = useState('')
+  const [isExporting, setIsExporting] = useState(false)
+  const defaultIvrApplied = useRef(false)
   
   // Fetch IVR list for filter dropdown
   const { data: ivrs } = useQuery({
@@ -31,6 +33,21 @@ export default function Analytics() {
     queryFn: () => getHourlyCalls(24)
   })
 
+  useEffect(() => {
+    if (!ivrs?.length || defaultIvrApplied.current) return
+
+    const billingFlow = ivrs.find((ivr) => (
+      ivr.id === 'billing-inquiry-flow'
+      || ivr.extension === '2010'
+      || (ivr.name || '').toLowerCase().includes('billing invoice inquiry')
+    ))
+
+    if (billingFlow) {
+      setSelectedIvrId(billingFlow.id)
+    }
+    defaultIvrApplied.current = true
+  }, [ivrs])
+
   const toggleRow = (id) => {
     setExpandedRows(prev => {
       const next = new Set(prev)
@@ -45,6 +62,54 @@ export default function Analytics() {
 
   const hasVariables = (call) => {
     return call.variables && Object.keys(call.variables).length > 0
+  }
+
+  const getVariableValue = (call, key) => {
+    const variable = call?.variables?.[key]
+    if (variable && typeof variable === 'object' && variable.value !== undefined) {
+      return variable.value
+    }
+    return variable
+  }
+
+  const formatCellValue = (value) => {
+    if (value === null || value === undefined || value === '') return '-'
+    if (typeof value === 'object') return JSON.stringify(value)
+    return String(value)
+  }
+
+  const getAccountNumber = (call) => {
+    return getVariableValue(call, 'account_number')
+  }
+
+  const getBalance = (call) => {
+    return (
+      getVariableValue(call, 'total_amount')
+      ?? getVariableValue(call, 'balance')
+      ?? getVariableValue(call, 'balance_amount')
+    )
+  }
+
+  const handleExportCsv = async () => {
+    try {
+      setIsExporting(true)
+      const blob = await getCallLogsCsv({ ivrId: selectedIvrId || undefined })
+      const dateStamp = new Date().toISOString().slice(0, 10)
+      const filename = `analytics-calls-${selectedIvrId || 'all'}-${dateStamp}.csv`
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      // Keep UI non-blocking; errors are logged for debugging.
+      console.error('Failed to export analytics CSV:', error)
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   return (
@@ -77,21 +142,38 @@ export default function Analytics() {
         <div className="px-6 py-4 border-b flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900">Recent Calls</h2>
           
-          {/* IVR Filter */}
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-500" />
-            <select
-              value={selectedIvrId}
-              onChange={(e) => setSelectedIvrId(e.target.value)}
-              className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            {/* IVR Filter */}
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-gray-500" />
+              <select
+                value={selectedIvrId}
+                onChange={(e) => setSelectedIvrId(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All IVR Flows</option>
+                {ivrs?.map((ivr) => (
+                  <option key={ivr.id} value={ivr.id}>
+                    {ivr.name} ({ivr.extension})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              disabled={isExporting}
+              className={clsx(
+                'inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors',
+                isExporting
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              )}
             >
-              <option value="">All IVR Flows</option>
-              {ivrs?.map((ivr) => (
-                <option key={ivr.id} value={ivr.id}>
-                  {ivr.name} ({ivr.extension})
-                </option>
-              ))}
-            </select>
+              <Download className="w-4 h-4" />
+              {isExporting ? 'Exporting...' : 'Export CSV'}
+            </button>
           </div>
         </div>
 
@@ -110,6 +192,8 @@ export default function Analytics() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-8"></th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Caller</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account Number</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Balance</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">IVR</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Extension</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
@@ -119,9 +203,8 @@ export default function Analytics() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {calls?.map((call) => (
-                <>
+                <Fragment key={call.id}>
                   <tr 
-                    key={call.id} 
                     className={clsx(
                       'hover:bg-gray-50',
                       hasVariables(call) && 'cursor-pointer'
@@ -136,6 +219,8 @@ export default function Analytics() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">{call.caller_id || 'Unknown'}</td>
+                    <td className="px-6 py-4 text-sm font-mono text-gray-700">{formatCellValue(getAccountNumber(call))}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900">{formatCellValue(getBalance(call))}</td>
                     <td className="px-6 py-4 text-sm text-gray-900">{call.ivr_name || '-'}</td>
                     <td className="px-6 py-4 text-sm font-mono text-gray-600">{call.extension}</td>
                     <td className="px-6 py-4">
@@ -154,8 +239,8 @@ export default function Analytics() {
                     </td>
                   </tr>
                   {expandedRows.has(call.id) && hasVariables(call) && (
-                    <tr key={`${call.id}-vars`} className="bg-gray-50">
-                      <td colSpan={7} className="px-6 py-4">
+                    <tr className="bg-gray-50">
+                      <td colSpan={9} className="px-6 py-4">
                         <div className="text-sm">
                           <h4 className="font-medium text-gray-700 mb-2">Call Variables</h4>
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -176,7 +261,7 @@ export default function Analytics() {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>

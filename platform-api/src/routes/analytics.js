@@ -5,6 +5,30 @@ const { authMiddleware } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
+function parseJsonSafe(value, fallback) {
+    try {
+        return JSON.parse(value || JSON.stringify(fallback));
+    } catch (_error) {
+        return fallback;
+    }
+}
+
+function getVariableValue(variableEntry) {
+    if (variableEntry && typeof variableEntry === 'object' && variableEntry.value !== undefined) {
+        return variableEntry.value;
+    }
+    return variableEntry;
+}
+
+function csvEscape(value) {
+    if (value === null || value === undefined) return '';
+    const stringValue = String(value);
+    if (/[",\n\r]/.test(stringValue)) {
+        return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+}
+
 // Dashboard stats
 router.get('/dashboard', (req, res) => {
     try {
@@ -51,6 +75,120 @@ router.get('/dashboard', (req, res) => {
     }
 });
 
+// Export call logs CSV
+router.get('/calls/export', (req, res) => {
+    try {
+        const { ivrId } = req.query;
+
+        let query = `
+            SELECT c.*, f.name as ivr_name
+            FROM call_logs c
+            LEFT JOIN ivr_flows f ON c.ivr_id = f.id
+            WHERE c.tenant_id = ?
+        `;
+        const params = [req.user.tenantId];
+
+        if (ivrId) {
+            query += ' AND c.ivr_id = ?';
+            params.push(ivrId);
+        }
+
+        query += ' ORDER BY c.start_time DESC';
+
+        const calls = db.prepare(query).all(...params);
+
+        const parsedCalls = calls.map((call) => {
+            const variables = parseJsonSafe(call.variables, {});
+            return {
+                ...call,
+                flow_path: parseJsonSafe(call.flow_path, []),
+                dtmf_inputs: parseJsonSafe(call.dtmf_inputs, []),
+                api_calls: parseJsonSafe(call.api_calls, []),
+                variables
+            };
+        });
+
+        const variableKeys = new Set();
+        for (const call of parsedCalls) {
+            for (const key of Object.keys(call.variables || {})) {
+                variableKeys.add(key);
+            }
+        }
+
+        const dynamicVariableColumns = Array.from(variableKeys)
+            .sort()
+            .map((key) => `variable.${key}`);
+
+        const headers = [
+            'id',
+            'ivr_id',
+            'ivr_name',
+            'tenant_id',
+            'caller_id',
+            'extension',
+            'start_time',
+            'end_time',
+            'duration',
+            'status',
+            'created_at',
+            'account_number',
+            'balance',
+            'flow_path',
+            'dtmf_inputs',
+            'api_calls',
+            'variables',
+            ...dynamicVariableColumns
+        ];
+
+        const rows = parsedCalls.map((call) => {
+            const accountNumber = getVariableValue(call.variables?.account_number);
+            const balance =
+                getVariableValue(call.variables?.total_amount) ??
+                getVariableValue(call.variables?.balance) ??
+                getVariableValue(call.variables?.balance_amount);
+
+            const row = {
+                id: call.id,
+                ivr_id: call.ivr_id,
+                ivr_name: call.ivr_name,
+                tenant_id: call.tenant_id,
+                caller_id: call.caller_id,
+                extension: call.extension,
+                start_time: call.start_time,
+                end_time: call.end_time,
+                duration: call.duration,
+                status: call.status,
+                created_at: call.created_at,
+                account_number: accountNumber,
+                balance: balance,
+                flow_path: JSON.stringify(call.flow_path || []),
+                dtmf_inputs: JSON.stringify(call.dtmf_inputs || []),
+                api_calls: JSON.stringify(call.api_calls || []),
+                variables: JSON.stringify(call.variables || {})
+            };
+
+            for (const column of dynamicVariableColumns) {
+                const key = column.replace('variable.', '');
+                const value = getVariableValue(call.variables?.[key]);
+                row[column] = value === undefined ? '' : value;
+            }
+
+            return headers.map((header) => csvEscape(row[header])).join(',');
+        });
+
+        const csv = [headers.join(','), ...rows].join('\n');
+        const dateStamp = new Date().toISOString().slice(0, 10);
+        const suffix = ivrId ? `-${ivrId}` : '';
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="analytics-calls${suffix}-${dateStamp}.csv"`);
+        res.send(csv);
+    } catch (error) {
+        console.error('Call logs export error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Call logs
 router.get('/calls', (req, res) => {
     try {
@@ -76,10 +214,10 @@ router.get('/calls', (req, res) => {
         
         res.json(calls.map(call => ({
             ...call,
-            flow_path: JSON.parse(call.flow_path || '[]'),
-            dtmf_inputs: JSON.parse(call.dtmf_inputs || '[]'),
-            api_calls: JSON.parse(call.api_calls || '[]'),
-            variables: JSON.parse(call.variables || '{}')
+            flow_path: parseJsonSafe(call.flow_path, []),
+            dtmf_inputs: parseJsonSafe(call.dtmf_inputs, []),
+            api_calls: parseJsonSafe(call.api_calls, []),
+            variables: parseJsonSafe(call.variables, {})
         })));
     } catch (error) {
         console.error('Call logs error:', error);
