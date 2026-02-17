@@ -22,6 +22,25 @@ const defaultEdgeOptions = {
   animated: false
 }
 
+function getDefaultNodeData(type, nodeId) {
+  const base = { id: nodeId, type, label: nodeId }
+
+  if (type === 'play') {
+    return { ...base, prompt: '', bargeIn: true }
+  }
+  if (type === 'play_digits') {
+    return { ...base, bargeIn: true }
+  }
+  if (type === 'play_sequence') {
+    return { ...base, sequence: [], bargeIn: true }
+  }
+  if (type === 'collect') {
+    return { ...base, maxDigits: 10, timeout: 10, terminators: '#', bargeIn: true }
+  }
+
+  return base
+}
+
 const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow }, ref) {
   const reactFlowWrapper = useRef(null)
   const [reactFlowInstance, setReactFlowInstance] = useState(null)
@@ -86,11 +105,7 @@ const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow }, ref) {
         id: nodeId,
         type: getReactFlowNodeType(type),
         position,
-        data: {
-          id: nodeId,
-          type: type,
-          label: nodeId
-        }
+        data: getDefaultNodeData(type, nodeId)
       }
 
       setNodes((nds) => [...nds, newNode])
@@ -106,11 +121,7 @@ const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow }, ref) {
         id: nodeId,
         type: getReactFlowNodeType(type),
         position: { x: 250, y: nodes.length * 100 },
-        data: {
-          id: nodeId,
-          type: type,
-          label: nodeId
-        }
+        data: getDefaultNodeData(type, nodeId)
       }
       setNodes((nds) => [...nds, newNode])
       setSelectedNode(newNode)

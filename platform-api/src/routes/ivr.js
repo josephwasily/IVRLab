@@ -4,6 +4,25 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../db');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 
+const BARGE_IN_DEFAULT_NODE_TYPES = new Set(['play', 'play_digits', 'play_sequence', 'collect']);
+
+function applyBargeInDefaults(flow) {
+    if (!flow || typeof flow !== 'object' || !flow.nodes || typeof flow.nodes !== 'object') {
+        return flow;
+    }
+
+    const normalized = JSON.parse(JSON.stringify(flow));
+    Object.values(normalized.nodes).forEach((node) => {
+        if (!node || typeof node !== 'object') return;
+        if (!BARGE_IN_DEFAULT_NODE_TYPES.has(node.type)) return;
+        if (typeof node.bargeIn !== 'boolean') {
+            node.bargeIn = true;
+        }
+    });
+
+    return normalized;
+}
+
 // Apply auth middleware to all routes
 router.use(authMiddleware);
 
@@ -100,6 +119,8 @@ router.post('/', requireRole('admin', 'editor'), (req, res) => {
                 }
             };
         }
+
+        flow = applyBargeInDefaults(flow);
         
         // Create IVR first (before assigning extension due to foreign key)
         db.prepare(`
@@ -156,8 +177,9 @@ router.put('/:id', requireRole('admin', 'editor'), (req, res) => {
             params.push(language);
         }
         if (flowData !== undefined) {
+            const normalizedFlow = applyBargeInDefaults(flowData);
             updates.push('flow_data = ?');
-            params.push(JSON.stringify(flowData));
+            params.push(JSON.stringify(normalizedFlow));
             updates.push('version = version + 1');
         }
         if (settings !== undefined) {
@@ -272,6 +294,7 @@ router.post('/:id/clone', requireRole('admin', 'editor'), (req, res) => {
         const ivrId = uuidv4();
         const extension = availableExt.extension;
         const newName = name || `${source.name} (Copy)`;
+        const sourceFlow = applyBargeInDefaults(JSON.parse(source.flow_data));
         
         // Assign extension
         db.prepare(`
@@ -284,7 +307,7 @@ router.post('/:id/clone', requireRole('admin', 'editor'), (req, res) => {
         db.prepare(`
             INSERT INTO ivr_flows (id, tenant_id, name, description, extension, language, flow_data, settings, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(ivrId, req.user.tenantId, newName, source.description, extension, source.language, source.flow_data, source.settings, req.user.userId);
+        `).run(ivrId, req.user.tenantId, newName, source.description, extension, source.language, JSON.stringify(sourceFlow), source.settings, req.user.userId);
         
         const ivr = db.prepare('SELECT * FROM ivr_flows WHERE id = ?').get(ivrId);
         

@@ -248,6 +248,24 @@ These flows include Arabic audio prompts located in `prompts/billing/` and `prom
 3. The script converts audio to Asterisk-compatible ulaw format (8kHz mono)
 4. Restart platform-api to seed the prompts: `docker compose restart platform-api`
 
+### Water and Sewage Template (2009-Compatible)
+
+To seed/update the Water and Sewage template used by extension `2009` behavior:
+
+```bash
+docker compose exec platform-api npm run seed:new-sounds-2
+```
+
+To verify the template is identical to the tested `2009` flow:
+
+```bash
+docker compose exec platform-api npm run verify:new-sounds-2-parity
+```
+
+Detailed notes (including DTMF barge-in behavior) are documented in:
+
+- `docs/WATER_SEWAGE_TEMPLATE_AND_BARGEIN.md`
+
 ### Access the Admin Portal
 
 Open **http://localhost:8082** in your browser.

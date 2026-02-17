@@ -39,7 +39,7 @@ const FLOW_DATA = {
                 { type: 'prompt', value: 'ns2_east_sewage' },
                 { type: 'prompt', value: 'ns2_west_sewage' }
             ],
-            next: 'collect_service_option'
+            next: 'branch_service_option'
         },
         collect_service_option: {
             id: 'collect_service_option',
@@ -81,13 +81,16 @@ const FLOW_DATA = {
             timeout: 10,
             terminators: '#',
             next: 'ack_account',
-            onError: 'collect_account'
+            onError: 'collect_account',
+            minDigits: 6,
+            onInvalid: 'collect_account'
         },
         ack_account: {
             id: 'ack_account',
-            type: 'play',
-            prompt: 'ns2_acknowledge_number',
-            next: 'confirm_or_repeat'
+            type: 'play_digits',
+            next: 'confirm_or_repeat',
+            prefix: 'ns2_acknowledge_number',
+            variable: 'account_number'
         },
         confirm_or_repeat: {
             id: 'confirm_or_repeat',

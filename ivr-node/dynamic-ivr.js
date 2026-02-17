@@ -69,6 +69,7 @@ class DynamicFlowEngine {
     this.nodeHistory = [];
     this.dtmfInputs = [];
     this.apiCalls = [];
+    this.pendingDtmf = [];
     this.retryCount = {};
     this.startTime = new Date().toISOString();
   }
@@ -182,7 +183,18 @@ class DynamicFlowEngine {
   
   async handlePlay(node) {
     const promptPath = this.getPromptPath(node.prompt);
-    await this.playSound(promptPath);
+    const bargeInConfig = this.getBargeInConfig(node);
+    const playbackResult = await this.playSound(promptPath, {
+      bargeIn: bargeInConfig.enabled,
+      queueDtmf: bargeInConfig.queueDtmf
+    });
+    
+    if (bargeInConfig.enabled && playbackResult?.interrupted) {
+      this.log('Prompt interrupted by DTMF', {
+        queued: this.pendingDtmf.join(''),
+        carry: bargeInConfig.queueDtmf
+      });
+    }
     
     if (node.maxRetries && node.next !== 'hangup') {
       this.retryCount[node.id] = (this.retryCount[node.id] || 0) + 1;
@@ -195,28 +207,62 @@ class DynamicFlowEngine {
   }
   
   async handlePlayDigits(node) {
+    const bargeInConfig = this.getBargeInConfig(node);
+    let interrupted = false;
+    
     if (node.prefix) {
-      await this.playSound(this.getPromptPath(node.prefix));
+      const r = await this.playSound(this.getPromptPath(node.prefix), {
+        bargeIn: bargeInConfig.enabled,
+        queueDtmf: bargeInConfig.queueDtmf
+      });
+      interrupted = !!r?.interrupted;
     }
     
-    const digits = this.getVariable(node.variable) || '';
-    for (const digit of digits.toString()) {
-      if (/[0-9]/.test(digit)) {
-        await this.playSound(`${this.getSoundPath('digits')}/${digit}`);
+    if (!interrupted) {
+      const digits = this.getVariable(node.variable) || '';
+      for (const digit of digits.toString()) {
+        if (interrupted) break;
+        if (/[0-9]/.test(digit)) {
+          const r = await this.playSound(`${this.getSoundPath('digits')}/${digit}`, {
+            bargeIn: bargeInConfig.enabled,
+            queueDtmf: bargeInConfig.queueDtmf
+          });
+          interrupted = !!r?.interrupted;
+        }
       }
     }
     
-    if (node.suffix) {
-      await this.playSound(this.getPromptPath(node.suffix));
+    if (!interrupted && node.suffix) {
+      const r = await this.playSound(this.getPromptPath(node.suffix), {
+        bargeIn: bargeInConfig.enabled,
+        queueDtmf: bargeInConfig.queueDtmf
+      });
+      interrupted = !!r?.interrupted;
+    }
+    
+    if (bargeInConfig.enabled && interrupted) {
+      this.log('Play digits interrupted by DTMF', {
+        queued: this.pendingDtmf.join(''),
+        carry: bargeInConfig.queueDtmf
+      });
     }
     
     if (node.next) await this.executeNode(node.next);
   }
   
   async handlePlaySequence(node) {
+    const bargeInConfig = this.getBargeInConfig(node);
+    let interrupted = false;
+    
     for (const item of node.sequence) {
+      if (interrupted) break;
+      
       if (item.type === 'prompt') {
-        await this.playSound(this.getPromptPath(item.value));
+        const r = await this.playSound(this.getPromptPath(item.value), {
+          bargeIn: bargeInConfig.enabled,
+          queueDtmf: bargeInConfig.queueDtmf
+        });
+        interrupted = !!r?.interrupted;
       } else if (item.type === 'number') {
         // Say the number as a spoken word (e.g., "three hundred fifty three")
         const value = this.getVariable(item.variable);
@@ -226,32 +272,71 @@ class DynamicFlowEngine {
         // Say each digit individually (e.g., "3-5-3")
         const value = this.getVariable(item.variable);
         for (const digit of value.toString()) {
+          if (interrupted) break;
           if (/[0-9]/.test(digit)) {
-            await this.playSound(`${this.getSoundPath('digits')}/${digit}`);
+            const r = await this.playSound(`${this.getSoundPath('digits')}/${digit}`, {
+              bargeIn: bargeInConfig.enabled,
+              queueDtmf: bargeInConfig.queueDtmf
+            });
+            interrupted = !!r?.interrupted;
           }
         }
       }
+    }
+    
+    if (bargeInConfig.enabled && interrupted) {
+      this.log('Play sequence interrupted by DTMF', {
+        queued: this.pendingDtmf.join(''),
+        carry: bargeInConfig.queueDtmf
+      });
     }
     
     if (node.next) await this.executeNode(node.next);
   }
   
   async handleCollect(node) {
-    if (node.prompt) {
-      await this.playSound(this.getPromptPath(node.prompt));
-    }
-    
     try {
       const digits = await this.collectDigits({
         maxDigits: node.maxDigits || 10,
         timeout: node.timeout || 10,
-        terminators: node.terminators || '#'
+        terminators: node.terminators || '#',
+        // Collect nodes are interruptible by default: first DTMF stops
+        // the current prompt so callers can proceed immediately.
+        bargeIn: node.bargeIn !== false,
+        promptPath: node.prompt ? this.getPromptPath(node.prompt) : null
       });
       
-      if (!digits || digits.length === 0) {
-        if (node.onEmpty) return this.executeNode(node.onEmpty);
-        if (node.onTimeout) return this.executeNode(node.onTimeout);
+      const minDigits = Number.isInteger(node.minDigits) ? node.minDigits : 1;
+      const isEmpty = !digits || digits.length === 0;
+      const isTooShort = !isEmpty && digits.length < minDigits;
+      
+      if (isEmpty || isTooShort) {
+        this.retryCount[node.id] = (this.retryCount[node.id] || 0) + 1;
+        
+        if (isEmpty && node.onEmpty) return this.executeNode(node.onEmpty);
+        if (isEmpty && node.onTimeout) return this.executeNode(node.onTimeout);
+        if (isTooShort && node.onInvalid) return this.executeNode(node.onInvalid);
+        
+        // Default safe behavior: do not advance on empty input.
+        // Retry the same collect node unless maxRetries is reached.
+        const maxRetries = Number.isInteger(node.maxRetries) ? node.maxRetries : null;
+        if (maxRetries !== null && this.retryCount[node.id] >= maxRetries) {
+          if (node.onMaxRetries) return this.executeNode(node.onMaxRetries);
+          return this.hangup();
+        }
+        
+        this.log('Collect input invalid, retrying same node', {
+          nodeId: node.id,
+          retries: this.retryCount[node.id],
+          reason: isEmpty ? 'empty' : 'too_short',
+          minDigits,
+          got: digits?.length || 0
+        });
+        return this.executeNode(node.id);
       }
+      
+      // Reset retry counter on successful input.
+      this.retryCount[node.id] = 0;
       
       this.variables.dtmf_input = digits;
       if (node.variable) {
@@ -286,7 +371,19 @@ class DynamicFlowEngine {
         this.log('Condition error', { error: error.message });
       }
     } else if (node.variable) {
-      const value = this.getVariable(node.variable);
+      let value = this.getVariable(node.variable);
+      
+      // If caller barged-in during prior playback, branch can consume the
+      // queued digit without forcing an extra collect prompt.
+      if ((value === undefined || value === null || value === '') && this.pendingDtmf.length > 0) {
+        value = this.pendingDtmf.shift();
+        this.variables[node.variable] = value;
+        if (node.variable !== 'dtmf_input') {
+          this.variables.dtmf_input = value;
+        }
+        this.log(`Using queued DTMF for branch ${node.variable}: ${value}`);
+      }
+      
       nextNode = node.branches[value] || node.default;
     }
     
@@ -527,18 +624,97 @@ class DynamicFlowEngine {
     return sounds;
   }
 
-  async playSound(soundPath) {
+  getBargeInConfig(node) {
+    if (!node) return { enabled: false, queueDtmf: false };
+    
+    // Explicit node-level override.
+    if (node.bargeIn === false) return { enabled: false, queueDtmf: false };
+    
+    const nextNode = this.flow.nodes?.[node.next];
+    // Global default: prompt-playing nodes are interruptible unless disabled.
+    let enabled = true;
+    let queueDtmf = false;
+    
+    // If next is a branch, queued DTMF should drive branch selection.
+    if (nextNode?.type === 'branch') {
+      queueDtmf = true;
+    }
+    
+    // If next is collect:
+    // - always allow interrupt
+    // - carry digits only when collect has no prompt (play is acting as prompt)
+    if (nextNode?.type === 'collect') {
+      enabled = true;
+      queueDtmf = !nextNode.prompt;
+    }
+    
+    // Force-enable if explicitly requested.
+    if (node.bargeIn === true) {
+      enabled = true;
+    }
+    
+    // Optional per-node override for carry behavior.
+    if (typeof node.queueDtmf === 'boolean') {
+      queueDtmf = node.queueDtmf;
+    }
+    
+    if (!enabled) queueDtmf = false;
+    return { enabled, queueDtmf };
+  }
+  
+  async playSound(soundPath, options = {}) {
+    const { bargeIn = false, queueDtmf = false } = options;
+    
     return new Promise((resolve, reject) => {
       let resolved = false;
+      let playback = null;
+      let onFinished = null;
+      let onDtmf = null;
+      let shouldStopPlayback = false;
+      let interrupted = false;
+      let stopping = false;
+      let timeoutHandle = null;
+      
       const done = (err) => {
         if (!resolved) {
           resolved = true;
+          clearTimeout(timeoutHandle);
+          if (onDtmf) {
+            this.channel.removeListener('ChannelDtmfReceived', onDtmf);
+          }
+          if (playback && onFinished) {
+            playback.removeListener('PlaybackFinished', onFinished);
+          }
           if (err) reject(err);
-          else resolve();
+          else resolve({ interrupted });
         }
       };
       
-      this.channel.play({ media: `sound:${soundPath}` }, (err, playback) => {
+      const stopPlayback = () => {
+        if (!playback || stopping) return;
+        stopping = true;
+        const pb = playback;
+        try {
+          pb.stop(() => done());
+        } catch (e) {
+          done();
+        }
+      };
+      
+      if (bargeIn) {
+        onDtmf = (event) => {
+          const digit = event.digit;
+          if (queueDtmf) {
+            this.pendingDtmf.push(digit);
+          }
+          interrupted = true;
+          shouldStopPlayback = true;
+          stopPlayback();
+        };
+        this.channel.on('ChannelDtmfReceived', onDtmf);
+      }
+      
+      this.channel.play({ media: `sound:${soundPath}` }, (err, pb) => {
         if (err) {
           if (err.message && err.message.includes("not found")) {
             return done(new Error("Channel gone"));
@@ -546,17 +722,20 @@ class DynamicFlowEngine {
           return done();
         }
         
-        const playbackId = playback.id;
-        const onFinished = (event, pb) => {
+        playback = pb;
+        const playbackId = pb.id;
+        onFinished = (event, pb) => {
           if (pb && pb.id === playbackId) {
-            playback.removeListener('PlaybackFinished', onFinished);
             done();
           }
         };
-        playback.on('PlaybackFinished', onFinished);
+        pb.on('PlaybackFinished', onFinished);
         
-        setTimeout(() => {
-          playback.removeListener('PlaybackFinished', onFinished);
+        if (bargeIn && shouldStopPlayback) {
+          stopPlayback();
+        }
+        
+        timeoutHandle = setTimeout(() => {
           done();
         }, 15000);
       });
@@ -564,45 +743,108 @@ class DynamicFlowEngine {
   }
   
   async collectDigits(options) {
-    const { maxDigits, timeout, terminators } = options;
+    const { maxDigits, timeout, terminators, bargeIn = true, promptPath = null } = options;
     
     return new Promise((resolve) => {
       let digits = '';
       let timeoutHandle;
+      let done = false;
+      let playback = null;
+      let onPlaybackFinished = null;
+      let shouldStopPrompt = false;
+      
+      const stopPrompt = () => {
+        if (!playback) return;
+        const pb = playback;
+        playback = null;
+        if (onPlaybackFinished) {
+          pb.removeListener('PlaybackFinished', onPlaybackFinished);
+        }
+        try {
+          pb.stop(() => {});
+        } catch (e) {
+          // Ignore stop errors (already finished/channel gone)
+        }
+      };
+      
+      const finish = () => {
+        if (done) return;
+        done = true;
+        cleanup();
+        resolve(digits);
+      };
+      
+      const applyDigit = (digit) => {
+        if (terminators && terminators.includes(digit)) {
+          finish();
+          return true;
+        }
+        
+        digits += digit;
+        
+        if (digits.length >= maxDigits) {
+          finish();
+          return true;
+        }
+        
+        return false;
+      };
       
       const cleanup = () => {
         clearTimeout(timeoutHandle);
-        this.channel.removeAllListeners('ChannelDtmfReceived');
+        this.channel.removeListener('ChannelDtmfReceived', onDtmf);
+        stopPrompt();
       };
       
       const resetTimeout = () => {
         clearTimeout(timeoutHandle);
         timeoutHandle = setTimeout(() => {
-          cleanup();
-          resolve(digits);
+          finish();
         }, timeout * 1000);
       };
       
-      resetTimeout();
-      
-      this.channel.on('ChannelDtmfReceived', (event) => {
+      const onDtmf = (event) => {
         const digit = event.digit;
         this.log(`DTMF received: ${digit}`);
         
-        if (terminators && terminators.includes(digit)) {
-          cleanup();
-          resolve(digits);
-          return;
+        if (bargeIn) {
+          shouldStopPrompt = true;
+          stopPrompt();
         }
         
-        digits += digit;
+        if (applyDigit(digit)) return;
         resetTimeout();
-        
-        if (digits.length >= maxDigits) {
-          cleanup();
-          resolve(digits);
-        }
-      });
+      };
+      
+      // Consume digits pressed during previous barged-in playback.
+      while (!done && this.pendingDtmf.length > 0) {
+        const queuedDigit = this.pendingDtmf.shift();
+        this.log(`Using queued DTMF: ${queuedDigit}`);
+        if (applyDigit(queuedDigit)) break;
+      }
+      
+      if (done) return;
+      
+      this.channel.on('ChannelDtmfReceived', onDtmf);
+      resetTimeout();
+      
+      // Play collect prompt while already listening for DTMF.
+      const shouldPlayPrompt = !!promptPath && !(bargeIn && digits.length > 0);
+      if (shouldPlayPrompt) {
+        this.channel.play({ media: `sound:${promptPath}` }, (err, pb) => {
+          if (err || done) return;
+          playback = pb;
+          onPlaybackFinished = () => {
+            playback = null;
+          };
+          pb.on('PlaybackFinished', onPlaybackFinished);
+          
+          // If a digit arrived before playback object was available.
+          if (bargeIn && shouldStopPrompt) {
+            stopPrompt();
+          }
+        });
+      }
     });
   }
   

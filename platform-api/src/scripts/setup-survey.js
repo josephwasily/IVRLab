@@ -114,7 +114,7 @@ db.prepare(`
   trunkId,
   tenantId,
   'Local Asterisk',
-  '192.168.2.31',
+  '192.168.64.1',
   5060,
   'udp',
   '',
