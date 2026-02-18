@@ -6231,3 +6231,85 @@
 [Feb 17 02:41:02] WARNING[11170] ari/ari_websockets.c: WebSocket read error: Success
 [Feb 17 02:45:00] WARNING[38] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.30.0.1:34658) to AOR '1001' will exceed max contacts of 1
 [Feb 17 02:45:00] WARNING[38] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.30.0.1:34658) to AOR '1001' will exceed max contacts of 1
+[Feb 17 15:22:34] WARNING[38] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.30.0.1:57385) to AOR '1001' will exceed max contacts of 1
+[Feb 17 17:55:23] WARNING[13155] res_http_websocket.c: Web socket closed abruptly
+[Feb 17 17:55:23] WARNING[13155] ari/ari_websockets.c: WebSocket read error: Success
+[Feb 17 18:04:41] Asterisk 20.17.0 built by root @ buildkitsandbox on a x86_64 running Linux on 2025-12-31 08:05:35 UTC
+[Feb 17 18:04:41] NOTICE[1] loader.c: 338 modules will be loaded.
+[Feb 17 18:04:42] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database user found, using 'asterisk' as default.
+[Feb 17 18:04:42] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database password found, using 'asterisk' as default.
+[Feb 17 18:04:42] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database host found, using localhost via socket.
+[Feb 17 18:04:42] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database name found, using 'asterisk' as default.
+[Feb 17 18:04:42] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database port found, using 5432 as default.
+[Feb 17 18:04:42] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database socket found, using '/tmp/.s.PGSQL.5432' as default.
+[Feb 17 18:04:42] ERROR[1] res_config_pgsql.c: PostgreSQL RealTime: Failed to connect database asterisk on : 
+[Feb 17 18:04:42] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: Couldn't establish connection. Check debug.
+[Feb 17 18:04:42] NOTICE[1] res_config_ldap.c: No directory user found, anonymous binding as default.
+[Feb 17 18:04:42] ERROR[1] res_config_ldap.c: No directory URL or host found.
+[Feb 17 18:04:42] ERROR[1] res_config_ldap.c: Cannot load LDAP RealTime driver.
+[Feb 17 18:04:42] NOTICE[1] cdr.c: CDR simple logging enabled.
+[Feb 17 18:04:42] NOTICE[1] indications.c: Default country for indication tones: us
+[Feb 17 18:04:42] NOTICE[1] indications.c: Setting default indication country to 'us'
+[Feb 17 18:04:42] ERROR[1] netsock2.c: getnameinfo(): ai_family not supported
+[Feb 17 18:04:42] ERROR[1] res_rtp_asterisk.c: Failed to setup recurring DNS resolution of stunaddr ''
+[Feb 17 18:04:42] WARNING[1] res_phoneprov.c: Unable to find a valid server address or name.
+[Feb 17 18:04:42] WARNING[1] res_musiconhold.c: No music on hold classes configured, disabling music on hold.
+[Feb 17 18:04:42] NOTICE[1] res_smdi.c: No SMDI interfaces are available to listen on, not starting SMDI listener.
+[Feb 17 18:04:42] NOTICE[1] confbridge/conf_config_parser.c: Adding default_menu menu to app_confbridge
+[Feb 17 18:04:42] NOTICE[1] cel_custom.c: No mappings found in cel_custom.conf. Not logging CEL to custom CSVs.
+[Feb 17 18:04:42] NOTICE[1] cdr_pgsql.c: cdr_pgsql configuration contains no global section, skipping module load.
+[Feb 17 18:04:42] WARNING[1] cel_pgsql.c: CEL pgsql config file missing global section.
+[Feb 17 18:04:43] WARNING[1] res_hep_rtcp.c: res_hep is disabled; declining module load
+[Feb 17 18:04:43] WARNING[1] res_hep_pjsip.c: res_hep is disabled; declining module load
+[Feb 17 18:04:43] WARNING[1] loader.c: Some non-required modules failed to load.
+[Feb 17 18:04:43] WARNING[1] loader.c: Module 'res_adsi' has been loaded but may be removed in a future release.
+[Feb 17 18:04:43] WARNING[1] loader.c: Module 'app_getcpeid' has been loaded but may be removed in a future release.
+[Feb 17 18:04:43] WARNING[1] loader.c: Module 'app_adsiprog' has been loaded but may be removed in a future release.
+[Feb 17 18:04:43] ERROR[1] loader.c: Error loading module 'format_ogg_vorbis.so': libvorbisenc.so.2: cannot open shared object file: No such file or directory
+[Feb 17 18:04:43] ERROR[1] loader.c: cel_sqlite3_custom declined to load.
+[Feb 17 18:04:43] ERROR[1] loader.c: cdr_pgsql declined to load.
+[Feb 17 18:04:43] ERROR[1] loader.c: cdr_sqlite3_custom declined to load.
+[Feb 17 18:04:43] ERROR[1] loader.c: res_hep_rtcp declined to load.
+[Feb 17 18:04:43] ERROR[1] loader.c: res_hep_pjsip declined to load.
+[Feb 17 18:06:10] WARNING[98] res_http_websocket.c: Web socket closed abruptly
+[Feb 17 18:06:10] WARNING[98] ari/ari_websockets.c: WebSocket read error: Success
+[Feb 17 18:06:57] Asterisk 20.17.0 built by root @ buildkitsandbox on a x86_64 running Linux on 2025-12-31 08:05:35 UTC
+[Feb 17 18:06:57] NOTICE[1] loader.c: 338 modules will be loaded.
+[Feb 17 18:06:58] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database user found, using 'asterisk' as default.
+[Feb 17 18:06:58] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database password found, using 'asterisk' as default.
+[Feb 17 18:06:58] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database host found, using localhost via socket.
+[Feb 17 18:06:58] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database name found, using 'asterisk' as default.
+[Feb 17 18:06:58] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database port found, using 5432 as default.
+[Feb 17 18:06:58] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database socket found, using '/tmp/.s.PGSQL.5432' as default.
+[Feb 17 18:06:58] ERROR[1] res_config_pgsql.c: PostgreSQL RealTime: Failed to connect database asterisk on : 
+[Feb 17 18:06:58] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: Couldn't establish connection. Check debug.
+[Feb 17 18:06:58] NOTICE[1] res_config_ldap.c: No directory user found, anonymous binding as default.
+[Feb 17 18:06:58] ERROR[1] res_config_ldap.c: No directory URL or host found.
+[Feb 17 18:06:58] ERROR[1] res_config_ldap.c: Cannot load LDAP RealTime driver.
+[Feb 17 18:06:58] NOTICE[1] cdr.c: CDR simple logging enabled.
+[Feb 17 18:06:58] NOTICE[1] indications.c: Default country for indication tones: us
+[Feb 17 18:06:58] NOTICE[1] indications.c: Setting default indication country to 'us'
+[Feb 17 18:06:59] ERROR[1] netsock2.c: getnameinfo(): ai_family not supported
+[Feb 17 18:06:59] ERROR[1] res_rtp_asterisk.c: Failed to setup recurring DNS resolution of stunaddr ''
+[Feb 17 18:06:59] WARNING[1] res_phoneprov.c: Unable to find a valid server address or name.
+[Feb 17 18:06:59] WARNING[1] res_musiconhold.c: No music on hold classes configured, disabling music on hold.
+[Feb 17 18:06:59] NOTICE[1] res_smdi.c: No SMDI interfaces are available to listen on, not starting SMDI listener.
+[Feb 17 18:06:59] NOTICE[1] confbridge/conf_config_parser.c: Adding default_menu menu to app_confbridge
+[Feb 17 18:06:59] NOTICE[1] cel_custom.c: No mappings found in cel_custom.conf. Not logging CEL to custom CSVs.
+[Feb 17 18:06:59] NOTICE[1] cdr_pgsql.c: cdr_pgsql configuration contains no global section, skipping module load.
+[Feb 17 18:06:59] WARNING[1] cel_pgsql.c: CEL pgsql config file missing global section.
+[Feb 17 18:06:59] WARNING[1] res_hep_rtcp.c: res_hep is disabled; declining module load
+[Feb 17 18:06:59] WARNING[1] res_hep_pjsip.c: res_hep is disabled; declining module load
+[Feb 17 18:06:59] WARNING[1] loader.c: Some non-required modules failed to load.
+[Feb 17 18:07:00] WARNING[1] loader.c: Module 'res_adsi' has been loaded but may be removed in a future release.
+[Feb 17 18:07:00] WARNING[1] loader.c: Module 'app_getcpeid' has been loaded but may be removed in a future release.
+[Feb 17 18:07:00] WARNING[1] loader.c: Module 'app_adsiprog' has been loaded but may be removed in a future release.
+[Feb 17 18:07:00] ERROR[1] loader.c: Error loading module 'format_ogg_vorbis.so': libvorbisenc.so.2: cannot open shared object file: No such file or directory
+[Feb 17 18:07:00] ERROR[1] loader.c: cel_sqlite3_custom declined to load.
+[Feb 17 18:07:00] ERROR[1] loader.c: cdr_pgsql declined to load.
+[Feb 17 18:07:00] ERROR[1] loader.c: cdr_sqlite3_custom declined to load.
+[Feb 17 18:07:00] ERROR[1] loader.c: res_hep_rtcp declined to load.
+[Feb 17 18:07:00] ERROR[1] loader.c: res_hep_pjsip declined to load.
+[Feb 18 12:13:52] NOTICE[34908][C-00000001] res_stasis_playback.c: 1771416825.0: Playback stopped for sound:custom/ns2/ns2_west_water
+[Feb 18 12:13:57] NOTICE[34908][C-00000001] res_stasis_playback.c: 1771416825.0: Playback stopped for sound:custom/ns2/ns2_location_for_1_or_3
+[Feb 18 12:14:36] NOTICE[34908][C-00000001] res_stasis_playback.c: 1771416825.0: Playback stopped for sound:custom/ns2/ns2_close_or_working_or_no_issues

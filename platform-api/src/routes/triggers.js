@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { v4: uuidv4 } = require('uuid');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, requireRole } = require('../middleware/auth');
 const net = require('net');
 
 // Apply auth middleware
@@ -115,7 +115,7 @@ function sendAMICommand(action, params = {}) {
  * - caller_id: Caller ID to display (optional)
  * - variables: Object with variables to pass to IVR (optional)
  */
-router.post('/call', async (req, res) => {
+router.post('/call', requireRole('admin', 'editor'), async (req, res) => {
     try {
         const { phone_number, trunk_id, ivr_id, caller_id, variables = {} } = req.body;
         
@@ -200,7 +200,7 @@ router.post('/call', async (req, res) => {
  * Trigger a campaign to start (creates a new run instance)
  * POST /api/triggers/campaign/:id
  */
-router.post('/campaign/:id', async (req, res) => {
+router.post('/campaign/:id', requireRole('admin', 'editor'), async (req, res) => {
     try {
         const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?')
             .get(req.params.id, req.user.tenantId);
@@ -466,10 +466,11 @@ router.get('/calls', (req, res) => {
         const { status, limit = 50, campaign_id } = req.query;
         
         let query = `
-            SELECT oc.*, st.name as trunk_name, iv.name as ivr_name
+            SELECT oc.*, st.name as trunk_name, iv.name as ivr_name, cc.attempts as contact_attempts
             FROM outbound_calls oc
             JOIN sip_trunks st ON oc.trunk_id = st.id
             LEFT JOIN ivr_flows iv ON oc.ivr_id = iv.id
+            LEFT JOIN campaign_contacts cc ON oc.contact_id = cc.id
             WHERE st.tenant_id = ?
         `;
         const params = [req.user.tenantId];
@@ -530,13 +531,16 @@ router.get('/analytics', (req, res) => {
         // Get call outcome breakdown
         const outcomeStats = db.prepare(`
             SELECT 
-                oc.status,
+                CASE
+                    WHEN oc.status = 'failed' AND oc.hangup_cause = 'caller_hangup_early' THEN 'abrupt_end'
+                    ELSE oc.status
+                END as status,
                 COUNT(*) as count,
                 AVG(CASE WHEN oc.duration > 0 THEN oc.duration ELSE NULL END) as avg_duration
             FROM outbound_calls oc
             JOIN sip_trunks st ON oc.trunk_id = st.id
             WHERE ${baseWhere}
-            GROUP BY oc.status
+            GROUP BY 1
         `).all(...params);
         
         // Get totals
@@ -549,6 +553,8 @@ router.get('/analytics', (req, res) => {
                 SUM(CASE WHEN oc.status = 'busy' THEN 1 ELSE 0 END) as busy,
                 SUM(CASE WHEN oc.status = 'failed' THEN 1 ELSE 0 END) as failed,
                 SUM(CASE WHEN oc.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled,
+                SUM(CASE WHEN oc.status = 'failed' AND oc.hangup_cause = 'caller_hangup_early' THEN 1 ELSE 0 END) as abrupt_ended,
+                SUM(CASE WHEN oc.attempt_number > 1 THEN 1 ELSE 0 END) as retried_calls,
                 SUM(CASE WHEN oc.status IN ('queued', 'dialing', 'ringing') THEN 1 ELSE 0 END) as in_progress,
                 AVG(CASE WHEN oc.duration > 0 THEN oc.duration ELSE NULL END) as avg_duration,
                 SUM(COALESCE(oc.duration, 0)) as total_duration
@@ -599,7 +605,7 @@ router.get('/analytics', (req, res) => {
  * PUT /api/triggers/call/:id/status
  * Note: This endpoint has relaxed auth for internal IVR callbacks
  */
-router.put('/call/:id/status', (req, res) => {
+router.put('/call/:id/status', requireRole('admin', 'editor'), (req, res) => {
     try {
         const { 
             status, 

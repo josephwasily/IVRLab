@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { v4: uuidv4 } = require('uuid');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, requireRole } = require('../middleware/auth');
 
 // Apply auth middleware
 router.use(authMiddleware);
@@ -61,7 +61,7 @@ router.get('/:id', (req, res) => {
 });
 
 // Create new SIP trunk
-router.post('/', (req, res) => {
+router.post('/', requireRole('admin', 'editor'), (req, res) => {
     try {
         const { 
             name, host, port = 5060, transport = 'udp',
@@ -89,7 +89,7 @@ router.post('/', (req, res) => {
 });
 
 // Update SIP trunk
-router.put('/:id', (req, res) => {
+router.put('/:id', requireRole('admin', 'editor'), (req, res) => {
     try {
         const existing = db.prepare('SELECT id FROM sip_trunks WHERE id = ? AND tenant_id = ?')
             .get(req.params.id, req.user.tenantId);
@@ -132,7 +132,7 @@ router.put('/:id', (req, res) => {
 });
 
 // Delete SIP trunk
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireRole('admin', 'editor'), (req, res) => {
     try {
         const existing = db.prepare('SELECT id FROM sip_trunks WHERE id = ? AND tenant_id = ?')
             .get(req.params.id, req.user.tenantId);
@@ -158,7 +158,7 @@ router.delete('/:id', (req, res) => {
 });
 
 // Test SIP trunk connectivity
-router.post('/:id/test', async (req, res) => {
+router.post('/:id/test', requireRole('admin', 'editor'), async (req, res) => {
     try {
         const trunk = db.prepare('SELECT * FROM sip_trunks WHERE id = ? AND tenant_id = ?')
             .get(req.params.id, req.user.tenantId);

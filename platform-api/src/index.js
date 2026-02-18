@@ -17,6 +17,70 @@ const systemRoutes = require('./routes/system');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const TERMINAL_OUTBOUND_STATUSES = new Set(['completed', 'busy', 'no_answer', 'failed', 'cancelled']);
+const RETRYABLE_OUTBOUND_STATUSES = new Set(['no_answer', 'busy']);
+
+function parseJsonSafe(value, fallback = {}) {
+    if (value === null || value === undefined || value === '') {
+        return fallback;
+    }
+    if (typeof value === 'object') {
+        return value;
+    }
+    try {
+        return JSON.parse(value);
+    } catch (_error) {
+        return fallback;
+    }
+}
+
+function buildBranchDisplayMap(flowData) {
+    const mapByVariable = {};
+    if (!flowData || typeof flowData !== 'object' || !flowData.nodes || typeof flowData.nodes !== 'object') {
+        return mapByVariable;
+    }
+
+    for (const node of Object.values(flowData.nodes)) {
+        if (!node || node.type !== 'branch' || !node.variable) continue;
+        const displayMap = node.branchDisplayNames || node.branchDisplayMap || {};
+        if (!displayMap || typeof displayMap !== 'object') continue;
+
+        const variableName = String(node.variable);
+        if (!mapByVariable[variableName]) {
+            mapByVariable[variableName] = {};
+        }
+
+        for (const [key, label] of Object.entries(displayMap)) {
+            mapByVariable[variableName][String(key)] = String(label);
+        }
+    }
+
+    return mapByVariable;
+}
+
+function normalizeVariableValue(value, valueMap = {}) {
+    if (value === null || value === undefined) return value;
+    const key = String(value);
+    if (Object.prototype.hasOwnProperty.call(valueMap, key)) {
+        return valueMap[key];
+    }
+    return value;
+}
+
+function normalizeResultVariables(resultObject, branchDisplayMap) {
+    if (!resultObject || typeof resultObject !== 'object') return resultObject;
+    const normalized = { ...resultObject };
+    for (const [variableName, valueMap] of Object.entries(branchDisplayMap || {})) {
+        if (!Object.prototype.hasOwnProperty.call(normalized, variableName)) continue;
+        const rawValue = normalized[variableName];
+        const mapped = normalizeVariableValue(rawValue, valueMap);
+        if (mapped !== rawValue) {
+            normalized[variableName] = mapped;
+            normalized[`${variableName}_raw`] = rawValue;
+        }
+    }
+    return normalized;
+}
 
 // Middleware
 app.use(helmet());
@@ -111,27 +175,37 @@ app.post('/api/engine/call-log', async (req, res) => {
         let capturedVars = {};
         if (variables && ivr?.flow_data) {
             try {
-                const flowData = JSON.parse(ivr.flow_data);
+                const flowData = parseJsonSafe(ivr.flow_data, {});
                 const captureList = flowData.settings?.captureVariables || flowData.captureVariables || [];
-                
+                const branchDisplayMap = buildBranchDisplayMap(flowData);
+
                 if (captureList.length > 0) {
                     // Only capture specified variables
                     for (const varConfig of captureList) {
-                        const varName = typeof varConfig === 'string' ? varConfig : varConfig.name;
-                        if (variables[varName] !== undefined) {
-                            capturedVars[varName] = {
-                                value: variables[varName],
-                                label: typeof varConfig === 'object' ? varConfig.label : varName
-                            };
-                        }
+                        const config = typeof varConfig === 'string' ? { name: varConfig } : varConfig;
+                        const varName = config?.name;
+                        if (!varName || variables[varName] === undefined) continue;
+
+                        const rawValue = variables[varName];
+                        const valueMap = {
+                            ...(branchDisplayMap[varName] || {}),
+                            ...((config && typeof config.valueMap === 'object') ? config.valueMap : {})
+                        };
+                        const normalizedValue = normalizeVariableValue(rawValue, valueMap);
+
+                        capturedVars[varName] = {
+                            value: normalizedValue,
+                            rawValue,
+                            label: config?.label || varName
+                        };
                     }
                 } else {
                     // If no capture list defined, capture common useful variables (excluding internal ones)
                     const excludeVars = ['caller_id', 'channel_id', 'extension', 'language', 'dtmf_input'];
                     for (const [key, value] of Object.entries(variables)) {
-                        if (!excludeVars.includes(key) && !key.startsWith('_')) {
-                            capturedVars[key] = { value, label: key };
-                        }
+                        if (excludeVars.includes(key) || key.startsWith('_')) continue;
+                        const normalizedValue = normalizeVariableValue(value, branchDisplayMap[key] || {});
+                        capturedVars[key] = { value: normalizedValue, rawValue: value, label: key };
                     }
                 }
             } catch (e) {
@@ -192,18 +266,53 @@ app.put('/api/engine/outbound-call/:id', async (req, res) => {
         if (!call) {
             return res.status(404).json({ error: 'Call not found' });
         }
-        
+
+        const parsedIncomingResult = parseJsonSafe(result, null);
+        let nextStatus = status || call.status;
+        let nextHangupCause = hangup_cause || call.hangup_cause;
+        let nextResult = parsedIncomingResult;
+
+        // Classify abrupt caller hangup separately from successful completion.
+        const isAbruptHangup = nextHangupCause === 'caller_hangup_early'
+            || parsedIncomingResult?.call_outcome === 'abrupt_end';
+        if (nextStatus === 'completed' && isAbruptHangup) {
+            nextStatus = 'failed';
+        }
+
+        // Normalize outbound result payload with branch display-name mapping.
+        if (parsedIncomingResult && typeof parsedIncomingResult === 'object' && call.ivr_id) {
+            const ivr = db.prepare('SELECT flow_data FROM ivr_flows WHERE id = ?').get(call.ivr_id);
+            if (ivr?.flow_data) {
+                const flowData = parseJsonSafe(ivr.flow_data, {});
+                const branchDisplayMap = buildBranchDisplayMap(flowData);
+                nextResult = normalizeResultVariables(parsedIncomingResult, branchDisplayMap);
+            }
+        }
+
+        if (nextResult && typeof nextResult === 'object') {
+            if (!nextResult.call_outcome) {
+                if (nextStatus === 'completed') nextResult.call_outcome = 'finished';
+                else if (nextStatus === 'no_answer') nextResult.call_outcome = 'no_answer';
+                else if (nextStatus === 'cancelled') nextResult.call_outcome = 'cancelled';
+                else if (nextStatus === 'busy') nextResult.call_outcome = 'busy';
+                else if (nextStatus === 'failed' && nextHangupCause === 'caller_hangup_early') nextResult.call_outcome = 'abrupt_end';
+                else if (nextStatus === 'failed') nextResult.call_outcome = 'failed';
+            }
+            nextResult.attempt_number = call.attempt_number || 1;
+            nextResult.retry_count = Math.max(0, (call.attempt_number || 1) - 1);
+        }
+
         const updates = [];
         const values = [];
         
-        if (status) {
+        if (nextStatus) {
             updates.push('status = ?');
-            values.push(status);
+            values.push(nextStatus);
         }
         
-        if (hangup_cause) {
+        if (nextHangupCause) {
             updates.push('hangup_cause = ?');
-            values.push(hangup_cause);
+            values.push(nextHangupCause);
         }
         
         if (duration !== undefined) {
@@ -211,9 +320,9 @@ app.put('/api/engine/outbound-call/:id', async (req, res) => {
             values.push(duration);
         }
         
-        if (result) {
+        if (nextResult) {
             updates.push('result = ?');
-            values.push(typeof result === 'string' ? result : JSON.stringify(result));
+            values.push(typeof nextResult === 'string' ? nextResult : JSON.stringify(nextResult));
         }
         
         if (answer_time) {
@@ -239,7 +348,69 @@ app.put('/api/engine/outbound-call/:id', async (req, res) => {
         if (updates.length > 0) {
             values.push(req.params.id);
             db.prepare(`UPDATE outbound_calls SET ${updates.join(', ')} WHERE id = ?`).run(...values);
-            console.log(`Outbound call ${req.params.id} updated: status=${status}, duration=${duration}`);
+            console.log(`Outbound call ${req.params.id} updated: status=${nextStatus}, duration=${duration}`);
+        }
+
+        const becameAnswered = nextStatus === 'answered' && call.status !== 'answered';
+        const isTerminal = TERMINAL_OUTBOUND_STATUSES.has(nextStatus);
+        const wasTerminal = TERMINAL_OUTBOUND_STATUSES.has(call.status);
+        const becameTerminal = isTerminal && !wasTerminal;
+
+        if (call.run_id && becameAnswered) {
+            db.prepare(`
+                UPDATE campaign_runs
+                SET contacts_answered = contacts_answered + 1
+                WHERE id = ?
+            `).run(call.run_id);
+        }
+
+        if (call.contact_id && becameTerminal) {
+            const campaign = call.campaign_id
+                ? db.prepare('SELECT max_attempts FROM campaigns WHERE id = ?').get(call.campaign_id)
+                : null;
+            const maxAttempts = Math.max(1, parseInt(campaign?.max_attempts || 1, 10));
+            const attemptNumber = Math.max(1, parseInt(call.attempt_number || 1, 10));
+            const retryable = RETRYABLE_OUTBOUND_STATUSES.has(nextStatus);
+            const shouldRetry = retryable && attemptNumber < maxAttempts;
+            const resultJson = nextResult
+                ? (typeof nextResult === 'string' ? nextResult : JSON.stringify(nextResult))
+                : '{}';
+
+            if (shouldRetry) {
+                db.prepare(`
+                    UPDATE campaign_contacts
+                    SET status = 'pending',
+                        last_attempt_at = CURRENT_TIMESTAMP,
+                        result = ?
+                    WHERE id = ?
+                `).run(resultJson, call.contact_id);
+            } else {
+                const contactStatus = nextStatus === 'completed' ? 'completed' : 'failed';
+                db.prepare(`
+                    UPDATE campaign_contacts
+                    SET status = ?,
+                        last_attempt_at = CURRENT_TIMESTAMP,
+                        result = ?
+                    WHERE id = ?
+                `).run(contactStatus, resultJson, call.contact_id);
+
+                if (call.run_id) {
+                    if (contactStatus === 'completed') {
+                        db.prepare('UPDATE campaign_runs SET contacts_completed = contacts_completed + 1 WHERE id = ?')
+                            .run(call.run_id);
+                    } else {
+                        db.prepare('UPDATE campaign_runs SET contacts_failed = contacts_failed + 1 WHERE id = ?')
+                            .run(call.run_id);
+                        if (nextStatus === 'no_answer') {
+                            db.prepare('UPDATE campaign_runs SET contacts_no_answer = contacts_no_answer + 1 WHERE id = ?')
+                                .run(call.run_id);
+                        } else if (nextStatus === 'busy') {
+                            db.prepare('UPDATE campaign_runs SET contacts_busy = contacts_busy + 1 WHERE id = ?')
+                                .run(call.run_id);
+                        }
+                    }
+                }
+            }
         }
         
         res.json({ success: true });

@@ -29,6 +29,12 @@ const PROMPT_MANIFEST = [
 
 const FLOW_DATA = {
     startNode: 'service_menu',
+    captureVariables: [
+        { name: 'service_option', label: 'Service Branch' },
+        { name: 'account_number', label: 'Account Number' },
+        { name: 'confirm_choice', label: 'Confirm Choice' },
+        { name: 'complaint_resolution', label: 'Complaint Resolution' }
+    ],
     nodes: {
         service_menu: {
             id: 'service_menu',
@@ -47,17 +53,24 @@ const FLOW_DATA = {
             prompt: 'ns2_sure_or_repeat',
             maxDigits: 1,
             timeout: 7,
+            variable: 'service_option',
             next: 'branch_service_option'
         },
         branch_service_option: {
             id: 'branch_service_option',
             type: 'branch',
-            variable: 'dtmf_input',
+            variable: 'service_option',
             branches: {
                 '1': 'location_1_or_3',
                 '2': 'location_2_or_4',
                 '3': 'location_1_or_3',
                 '4': 'location_2_or_4'
+            },
+            branchDisplayNames: {
+                '1': 'East Water',
+                '2': 'West Water',
+                '3': 'East Sewage',
+                '4': 'West Sewage'
             },
             default: 'collect_service_option'
         },
@@ -80,6 +93,7 @@ const FLOW_DATA = {
             maxDigits: 20,
             timeout: 10,
             terminators: '#',
+            variable: 'account_number',
             next: 'ack_account',
             onError: 'collect_account',
             minDigits: 6,
@@ -98,15 +112,20 @@ const FLOW_DATA = {
             prompt: 'ns2_sure_or_repeat',
             maxDigits: 1,
             timeout: 7,
+            variable: 'confirm_choice',
             next: 'branch_confirm'
         },
         branch_confirm: {
             id: 'branch_confirm',
             type: 'branch',
-            variable: 'dtmf_input',
+            variable: 'confirm_choice',
             branches: {
                 '1': 'last_option',
                 '2': 'collect_account'
+            },
+            branchDisplayNames: {
+                '1': 'Confirm Account',
+                '2': 'Re-enter Account'
             },
             default: 'collect_account'
         },
@@ -116,16 +135,22 @@ const FLOW_DATA = {
             prompt: 'ns2_close_or_working_or_no_issues',
             maxDigits: 1,
             timeout: 7,
+            variable: 'complaint_resolution',
             next: 'branch_last_option'
         },
         branch_last_option: {
             id: 'branch_last_option',
             type: 'branch',
-            variable: 'dtmf_input',
+            variable: 'complaint_resolution',
             branches: {
                 '1': 'hangup',
                 '2': 'hangup',
                 '3': 'hangup'
+            },
+            branchDisplayNames: {
+                '1': 'Close Complaint',
+                '2': 'Still Working',
+                '3': 'No Issues Found'
             },
             default: 'last_option'
         },

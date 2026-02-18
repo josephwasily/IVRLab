@@ -23,6 +23,25 @@ const SOUND_PATHS = {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
+function buildBranchDisplayMap(flow) {
+  const mapByVariable = {};
+  if (!flow || !flow.nodes) return mapByVariable;
+
+  for (const node of Object.values(flow.nodes)) {
+    if (!node || node.type !== 'branch' || !node.variable) continue;
+    const displayMap = node.branchDisplayNames || node.branchDisplayMap || {};
+    if (!displayMap || typeof displayMap !== 'object') continue;
+    if (!mapByVariable[node.variable]) {
+      mapByVariable[node.variable] = {};
+    }
+    for (const [key, label] of Object.entries(displayMap)) {
+      mapByVariable[node.variable][String(key)] = String(label);
+    }
+  }
+
+  return mapByVariable;
+}
+
 // Update outbound call status in platform API (internal endpoint - no auth required)
 async function updateOutboundCallStatus(callId, data) {
   if (!callId) return;
@@ -72,6 +91,9 @@ class DynamicFlowEngine {
     this.pendingDtmf = [];
     this.retryCount = {};
     this.startTime = new Date().toISOString();
+    this.branchDisplayMap = buildBranchDisplayMap(this.flow);
+    this.completedFlow = false;
+    this.finalStatus = 'in_progress';
   }
   
   log(message, data = {}) {
@@ -110,9 +132,17 @@ class DynamicFlowEngine {
       await sleep(500);
       
       await this.executeNode(this.flow.startNode);
+      if (this.finalStatus === 'in_progress') {
+        this.finalStatus = this.completedFlow ? 'flow_completed' : 'flow_ended';
+      }
     } catch (error) {
       this.log('Flow execution error', { error: error.message });
-      await this.hangup();
+      if (error?.message === 'Channel gone') {
+        this.finalStatus = 'caller_hangup_early';
+      } else {
+        this.finalStatus = 'error';
+        await this.hangup();
+      }
     }
     
     // Log the call to platform API for analytics
@@ -164,6 +194,8 @@ class DynamicFlowEngine {
           await this.handleTransfer(node);
           break;
         case 'hangup':
+          this.completedFlow = true;
+          this.finalStatus = 'flow_completed';
           await this.hangup();
           break;
         default:
@@ -173,9 +205,14 @@ class DynamicFlowEngine {
       }
     } catch (error) {
       this.log(`Node error`, { nodeId, error: error.message });
+      if (error?.message === 'Channel gone') {
+        this.finalStatus = 'caller_hangup_early';
+        return;
+      }
       if (node.onError) {
         await this.executeNode(node.onError);
       } else {
+        this.finalStatus = 'error';
         await this.hangup();
       }
     }
@@ -856,6 +893,20 @@ class DynamicFlowEngine {
       // Already hung up
     }
   }
+
+  getNormalizedVariablesForReporting() {
+    const normalized = { ...this.variables };
+    for (const [variableName, valueMap] of Object.entries(this.branchDisplayMap)) {
+      if (!Object.prototype.hasOwnProperty.call(normalized, variableName)) continue;
+      const rawValue = normalized[variableName];
+      const mappedValue = valueMap[String(rawValue)];
+      if (mappedValue !== undefined) {
+        normalized[`${variableName}_raw`] = rawValue;
+        normalized[variableName] = mappedValue;
+      }
+    }
+    return normalized;
+  }
   
   getSummary() {
     return {
@@ -868,12 +919,17 @@ class DynamicFlowEngine {
       nodeHistory: this.nodeHistory,
       dtmfInputs: this.dtmfInputs,
       apiCalls: this.apiCalls,
-      variables: this.variables
+      variables: this.getNormalizedVariablesForReporting(),
+      finalStatus: this.finalStatus,
+      completedFlow: this.completedFlow
     };
   }
   
   async logCallToAPI() {
     const summary = this.getSummary();
+    const analyticsStatus = (summary.finalStatus === 'flow_completed' || summary.finalStatus === 'flow_ended')
+      ? 'completed'
+      : 'failed';
     try {
       const response = await fetch(`${PLATFORM_API_URL}/api/engine/call-log`, {
         method: 'POST',
@@ -884,7 +940,7 @@ class DynamicFlowEngine {
           callerId: summary.callerId,
           startTime: summary.startTime,
           endTime: summary.endTime,
-          status: 'completed',
+          status: analyticsStatus,
           nodeHistory: summary.nodeHistory,
           dtmfInputs: summary.dtmfInputs,
           apiCalls: summary.apiCalls,
@@ -1041,6 +1097,14 @@ async function main() {
             });
           } catch (e) {}
           await channel.hangup();
+          if (outboundCallId) {
+            await updateOutboundCallStatus(outboundCallId, {
+              status: 'failed',
+              end_time: new Date().toISOString(),
+              hangup_cause: 'ivr_not_found',
+              result: { call_outcome: 'failed', reason: 'ivr_not_found' }
+            });
+          }
           return;
         }
         
@@ -1057,13 +1121,25 @@ async function main() {
       // Update outbound call status if this was an outbound call
       if (outboundCallId) {
         const duration = Math.round((Date.now() - startTime) / 1000);
+        const flowFinalStatus = ivrResult?.finalStatus || 'error';
+        const outboundStatus = (flowFinalStatus === 'flow_completed' || flowFinalStatus === 'flow_ended')
+          ? 'completed'
+          : 'failed';
+        const callOutcome = outboundStatus === 'completed'
+          ? 'finished'
+          : (flowFinalStatus === 'caller_hangup_early' ? 'abrupt_end' : 'failed');
+
         await updateOutboundCallStatus(outboundCallId, {
-          status: 'completed',
+          status: outboundStatus,
           end_time: new Date().toISOString(),
           duration,
-          result: ivrResult?.variables || {},
+          result: {
+            ...(ivrResult?.variables || {}),
+            call_outcome: callOutcome,
+            flow_final_status: flowFinalStatus
+          },
           dtmf_inputs: ivrResult?.dtmfInputs || [],
-          hangup_cause: ivrResult?.finalStatus || 'normal'
+          hangup_cause: flowFinalStatus
         });
       }
       

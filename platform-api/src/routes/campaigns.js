@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { v4: uuidv4 } = require('uuid');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, requireRole } = require('../middleware/auth');
 const multer = require('multer');
 const csv = require('csv-parse/sync');
 const net = require('net');
@@ -12,6 +12,7 @@ const AMI_HOST = process.env.AMI_HOST || 'asterisk';
 const AMI_PORT = parseInt(process.env.AMI_PORT || '5038');
 const AMI_USER = process.env.AMI_USER || 'admin';
 const AMI_SECRET = process.env.AMI_SECRET || 'amipass';
+const CALL_RESULT_TIMEOUT_MS = parseInt(process.env.OUTBOUND_CALL_RESULT_TIMEOUT_MS || '45000', 10);
 
 function parseTrunkSettings(trunk) {
     if (!trunk || !trunk.settings) return {};
@@ -118,6 +119,77 @@ const upload = multer({
 
 // Apply auth middleware
 router.use(authMiddleware);
+router.use(requireRole('admin', 'editor'));
+
+function stringifyResult(result) {
+    try {
+        return JSON.stringify(result || {});
+    } catch (_error) {
+        return '{}';
+    }
+}
+
+function buildAttemptResult({ outcome, attemptNumber, maxAttempts, retryScheduled, details = {} }) {
+    return {
+        call_outcome: outcome,
+        attempt_number: attemptNumber,
+        retry_count: Math.max(0, attemptNumber - 1),
+        max_attempts: maxAttempts,
+        retry_scheduled: !!retryScheduled,
+        ...details
+    };
+}
+
+function finalizeContactAfterAttempt({
+    campaignId,
+    runId,
+    contactId,
+    attemptNumber,
+    maxAttempts,
+    finalStatus,
+    resultPayload
+}) {
+    const retryable = finalStatus === 'no_answer' || finalStatus === 'busy';
+    const shouldRetry = retryable && attemptNumber < maxAttempts;
+    const resultJson = stringifyResult(resultPayload);
+
+    if (shouldRetry) {
+        db.prepare(`
+            UPDATE campaign_contacts
+            SET status = 'pending', result = ?, last_attempt_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `).run(resultJson, contactId);
+        return;
+    }
+
+    const contactStatus = finalStatus === 'completed' ? 'completed' : 'failed';
+    db.prepare(`
+        UPDATE campaign_contacts
+        SET status = ?, result = ?, last_attempt_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `).run(contactStatus, resultJson, contactId);
+
+    if (runId) {
+        if (contactStatus === 'completed') {
+            db.prepare('UPDATE campaign_runs SET contacts_completed = contacts_completed + 1 WHERE id = ?').run(runId);
+        } else {
+            db.prepare('UPDATE campaign_runs SET contacts_failed = contacts_failed + 1 WHERE id = ?').run(runId);
+            if (finalStatus === 'no_answer') {
+                db.prepare('UPDATE campaign_runs SET contacts_no_answer = contacts_no_answer + 1 WHERE id = ?').run(runId);
+            } else if (finalStatus === 'busy') {
+                db.prepare('UPDATE campaign_runs SET contacts_busy = contacts_busy + 1 WHERE id = ?').run(runId);
+            }
+        }
+    }
+
+    if (campaignId) {
+        if (contactStatus === 'completed') {
+            db.prepare('UPDATE campaigns SET contacts_completed = contacts_completed + 1 WHERE id = ?').run(campaignId);
+        } else {
+            db.prepare('UPDATE campaigns SET contacts_failed = contacts_failed + 1 WHERE id = ?').run(campaignId);
+        }
+    }
+}
 
 // List all campaigns for tenant
 router.get('/', (req, res) => {
@@ -811,19 +883,20 @@ router.post('/:id/start', (req, res) => {
         
         // Create new run instance with settings snapshot
         const runId = uuidv4();
+        const maxAttempts = parseInt(campaign.max_attempts || settings.retry_attempts || 3, 10);
         const runSettings = {
             trunk_id: trunkId,
             ivr_id: campaign.ivr_id,
             caller_id: campaign.caller_id || settings.caller_id,
             max_concurrent_calls: campaign.max_concurrent_calls || settings.max_concurrent_calls,
-            retry_attempts: campaign.max_attempts || settings.retry_attempts,
+            retry_attempts: maxAttempts,
             retry_delay_minutes: campaign.retry_delay_minutes || settings.retry_delay_minutes
         };
         
         db.prepare(`
             INSERT INTO campaign_runs (id, campaign_id, run_number, status, total_contacts, started_by, settings)
             VALUES (?, ?, ?, 'running', ?, ?, ?)
-        `).run(runId, req.params.id, runNumber, contactCount, req.user.id, JSON.stringify(runSettings));
+        `).run(runId, req.params.id, runNumber, contactCount, req.user.userId, JSON.stringify(runSettings));
         
         // Reset contact statuses for this new run
         db.prepare(`
@@ -847,9 +920,11 @@ router.post('/:id/start', (req, res) => {
         // Process contacts in the background
         processCampaignContacts(req.params.id, runId, {
             trunk,
+            ivrId: campaign.ivr_id || null,
             ivrExtension,
             callerId: effectiveCallerId,
-            maxConcurrent
+            maxConcurrent,
+            maxAttempts
         });
         
         res.json({ 
@@ -946,6 +1021,28 @@ router.post('/:id/cancel', (req, res) => {
         db.prepare(`
             UPDATE campaign_runs SET status = 'cancelled', completed_at = CURRENT_TIMESTAMP WHERE id = ?
         `).run(activeRun.id);
+
+        db.prepare(`
+            UPDATE campaign_contacts
+            SET status = 'skipped',
+                result = COALESCE(result, ?)
+            WHERE campaign_id = ? AND status = 'pending'
+        `).run(
+            stringifyResult({ call_outcome: 'campaign_cancelled', note: 'Campaign cancelled before dialing' }),
+            req.params.id
+        );
+
+        db.prepare(`
+            UPDATE outbound_calls
+            SET status = 'cancelled',
+                end_time = CURRENT_TIMESTAMP,
+                hangup_cause = 'campaign_cancelled',
+                result = COALESCE(result, ?)
+            WHERE run_id = ? AND status IN ('queued', 'dialing', 'ringing')
+        `).run(
+            stringifyResult({ call_outcome: 'campaign_cancelled', note: 'Campaign cancelled before answer' }),
+            activeRun.id
+        );
         
         res.json({ success: true, message: 'Campaign run cancelled', run_id: activeRun.id });
     } catch (error) {
@@ -961,7 +1058,7 @@ router.post('/:id/cancel', (req, res) => {
  * @param {object} options 
  */
 async function processCampaignContacts(campaignId, runId, options) {
-    const { trunk, ivrExtension, callerId, maxConcurrent } = options;
+    const { trunk, ivrId, ivrExtension, callerId, maxConcurrent, maxAttempts } = options;
     
     console.log(`[Campaign ${campaignId}] Starting to process contacts for run ${runId}`);
     
@@ -1011,18 +1108,19 @@ async function processCampaignContacts(campaignId, runId, options) {
         }
         
         // Mark contact as calling
+        const attemptNumber = (parseInt(contact.attempts, 10) || 0) + 1;
         db.prepare(`
             UPDATE campaign_contacts 
-            SET status = 'calling', attempts = attempts + 1, last_attempt_at = CURRENT_TIMESTAMP
+            SET status = 'calling', attempts = ?, last_attempt_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        `).run(contact.id);
+        `).run(attemptNumber, contact.id);
         
         // Create outbound call record
         const callId = uuidv4();
         db.prepare(`
-            INSERT INTO outbound_calls (id, campaign_id, contact_id, run_id, trunk_id, phone_number, caller_id, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'queued', CURRENT_TIMESTAMP)
-        `).run(callId, campaignId, contact.id, runId, trunk.id, contact.phone_number, callerId);
+            INSERT INTO outbound_calls (id, campaign_id, contact_id, run_id, trunk_id, phone_number, caller_id, ivr_id, status, created_at, attempt_number)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued', CURRENT_TIMESTAMP, ?)
+        `).run(callId, campaignId, contact.id, runId, trunk.id, contact.phone_number, callerId, ivrId, attemptNumber);
         
         const dialString = buildPjsipChannel(trunk, contact.phone_number);
         
@@ -1040,28 +1138,82 @@ async function processCampaignContacts(campaignId, runId, options) {
                 CallerID: `"Campaign" <${callerId}>`,
                 Timeout: '30000',
                 Async: 'true',
-                Variable: `CAMPAIGN_ID=${campaignId},CONTACT_ID=${contact.id},CALL_ID=${callId}`
+                Variable: `CAMPAIGN_ID=${campaignId},CONTACT_ID=${contact.id},OUTBOUND_CALL_ID=${callId}`
             });
             
             // Update call status (use 'dialing' which is valid in CHECK constraint)
-            db.prepare(`UPDATE outbound_calls SET status = 'dialing' WHERE id = ?`).run(callId);
+            db.prepare(`UPDATE outbound_calls SET status = 'dialing', dial_start_time = CURRENT_TIMESTAMP WHERE id = ?`).run(callId);
             db.prepare(`UPDATE campaign_runs SET contacts_called = contacts_called + 1 WHERE id = ?`).run(runId);
             
             console.log(`[Campaign ${campaignId}] Call initiated for ${contact.phone_number}`);
-            
-            // Mark contact as completed after a delay (assuming call will complete)
+
+            // If no engine callback arrives in time, classify as no-answer and retry when allowed.
             setTimeout(() => {
-                db.prepare(`UPDATE campaign_contacts SET status = 'completed' WHERE id = ? AND status = 'calling'`).run(contact.id);
-                db.prepare(`UPDATE outbound_calls SET status = 'completed' WHERE id = ? AND status = 'dialing'`).run(callId);
-            }, 35000);
-            
+                const currentCall = db.prepare(`
+                    SELECT status FROM outbound_calls WHERE id = ?
+                `).get(callId);
+                if (!currentCall || !['queued', 'dialing', 'ringing'].includes(currentCall.status)) {
+                    return;
+                }
+
+                const resultPayload = buildAttemptResult({
+                    outcome: 'no_answer',
+                    attemptNumber,
+                    maxAttempts,
+                    retryScheduled: attemptNumber < maxAttempts,
+                    details: { reason: 'no_engine_callback_timeout' }
+                });
+
+                db.prepare(`
+                    UPDATE outbound_calls
+                    SET status = 'no_answer',
+                        end_time = CURRENT_TIMESTAMP,
+                        duration = COALESCE(duration, 0),
+                        hangup_cause = 'no_answer_timeout',
+                        result = ?
+                    WHERE id = ? AND status IN ('queued', 'dialing', 'ringing')
+                `).run(stringifyResult(resultPayload), callId);
+
+                finalizeContactAfterAttempt({
+                    campaignId,
+                    runId,
+                    contactId: contact.id,
+                    attemptNumber,
+                    maxAttempts,
+                    finalStatus: 'no_answer',
+                    resultPayload
+                });
+            }, CALL_RESULT_TIMEOUT_MS);
         } catch (error) {
             console.error(`[Campaign ${campaignId}] Failed to call ${contact.phone_number}:`, error.message);
-            db.prepare(`UPDATE campaign_contacts SET status = 'failed', result = ? WHERE id = ?`)
-                .run(error.message, contact.id);
             db.prepare(`UPDATE outbound_calls SET status = 'failed' WHERE id = ?`)
                 .run(callId);
-            db.prepare(`UPDATE campaign_runs SET contacts_failed = contacts_failed + 1 WHERE id = ?`).run(runId);
+
+            const resultPayload = buildAttemptResult({
+                outcome: 'originate_failed',
+                attemptNumber,
+                maxAttempts,
+                retryScheduled: attemptNumber < maxAttempts,
+                details: { error: error.message }
+            });
+
+            db.prepare(`
+                UPDATE outbound_calls
+                SET end_time = CURRENT_TIMESTAMP,
+                    hangup_cause = COALESCE(hangup_cause, 'originate_failed'),
+                    result = ?
+                WHERE id = ?
+            `).run(stringifyResult(resultPayload), callId);
+
+            finalizeContactAfterAttempt({
+                campaignId,
+                runId,
+                contactId: contact.id,
+                attemptNumber,
+                maxAttempts,
+                finalStatus: 'failed',
+                resultPayload
+            });
         }
         
         // Process next contact

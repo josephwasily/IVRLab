@@ -33,6 +33,22 @@ function ProtectedRoute({ children }) {
   return children
 }
 
+function HomeRoute() {
+  const { user } = useAuth()
+  if (user?.role === 'viewer') {
+    return <Navigate to="/analytics" replace />
+  }
+  return <Dashboard />
+}
+
+function NonViewerRoute({ children }) {
+  const { user } = useAuth()
+  if (user?.role === 'viewer') {
+    return <Navigate to="/analytics" replace />
+  }
+  return children
+}
+
 function App() {
   return (
     <AuthProvider>
@@ -43,18 +59,18 @@ function App() {
             <Layout />
           </ProtectedRoute>
         }>
-          <Route index element={<Dashboard />} />
-          <Route path="ivr" element={<IVRList />} />
-          <Route path="ivr/create" element={<IVRCreate />} />
-          <Route path="ivr/:id" element={<IVREdit />} />
-          <Route path="templates" element={<Templates />} />
-          <Route path="prompts" element={<Prompts />} />
+          <Route index element={<HomeRoute />} />
+          <Route path="ivr" element={<NonViewerRoute><IVRList /></NonViewerRoute>} />
+          <Route path="ivr/create" element={<NonViewerRoute><IVRCreate /></NonViewerRoute>} />
+          <Route path="ivr/:id" element={<NonViewerRoute><IVREdit /></NonViewerRoute>} />
+          <Route path="templates" element={<NonViewerRoute><Templates /></NonViewerRoute>} />
+          <Route path="prompts" element={<NonViewerRoute><Prompts /></NonViewerRoute>} />
           <Route path="analytics" element={<Analytics />} />
-          <Route path="trunks" element={<Trunks />} />
-          <Route path="campaigns" element={<Campaigns />} />
-          <Route path="campaigns/:id" element={<CampaignEdit />} />
+          <Route path="trunks" element={<NonViewerRoute><Trunks /></NonViewerRoute>} />
+          <Route path="campaigns" element={<NonViewerRoute><Campaigns /></NonViewerRoute>} />
+          <Route path="campaigns/:id" element={<NonViewerRoute><CampaignEdit /></NonViewerRoute>} />
           <Route path="outbound-calls" element={<OutboundCalls />} />
-          <Route path="logs" element={<Logs />} />
+          <Route path="logs" element={<NonViewerRoute><Logs /></NonViewerRoute>} />
         </Route>
       </Routes>
     </AuthProvider>

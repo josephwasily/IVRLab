@@ -2,7 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -196,7 +196,7 @@ router.get('/asterisk/logs', async (req, res) => {
     }
 });
 
-router.post('/asterisk/logging', async (req, res) => {
+router.post('/asterisk/logging', requireRole('admin', 'editor'), async (req, res) => {
     try {
         const enabled = !!req.body?.pjsip;
         await setPjsipLogger(enabled);

@@ -8,6 +8,7 @@
     "dev": "nodemon src/index.js",
     "migrate": "node src/db/migrate.js",
     "seed": "node src/db/seed.js",
+    "seed:reports-user": "node src/db/ensure-reports-user.js",
     "seed:new-sounds-2": "node src/db/seed-new-sounds-2-template.js",
     "verify:new-sounds-2-parity": "node src/db/verify-water-sewage-template-parity.js"
   },

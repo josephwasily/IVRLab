@@ -31,6 +31,8 @@ const navItems = [
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
 ]
 
+const viewerAllowedPaths = new Set(['/analytics', '/outbound-calls'])
+
 export default function Layout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
@@ -42,6 +44,9 @@ export default function Layout() {
     retry: false
   })
   const asteriskWarnings = asteriskStatus?.warnings || []
+  const visibleNavItems = user?.role === 'viewer'
+    ? navItems.filter((item) => viewerAllowedPaths.has(item.to))
+    : navItems
 
   const handleLogout = () => {
     logout()
@@ -77,7 +82,7 @@ export default function Layout() {
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2">
-            {navItems.map(({ to, icon: Icon, label }) => (
+            {visibleNavItems.map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}
                 to={to}

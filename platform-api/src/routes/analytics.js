@@ -20,6 +20,43 @@ function getVariableValue(variableEntry) {
     return variableEntry;
 }
 
+function formatFlowPath(flowPath) {
+    if (!Array.isArray(flowPath) || flowPath.length === 0) return '';
+    return flowPath.join(' > ');
+}
+
+function formatDtmfInputs(dtmfInputs) {
+    if (!Array.isArray(dtmfInputs) || dtmfInputs.length === 0) return '';
+    return dtmfInputs
+        .map((entry) => {
+            if (entry === null || entry === undefined) return '';
+            if (typeof entry === 'string' || typeof entry === 'number') return String(entry);
+            if (typeof entry === 'object') {
+                const node = entry.node ? `${entry.node}:` : '';
+                const digits = entry.digits ?? entry.value ?? '';
+                return `${node}${digits}`;
+            }
+            return '';
+        })
+        .filter(Boolean)
+        .join(' | ');
+}
+
+function formatApiCalls(apiCalls) {
+    if (!Array.isArray(apiCalls) || apiCalls.length === 0) return '';
+    return apiCalls
+        .map((entry) => {
+            if (!entry || typeof entry !== 'object') return '';
+            const method = entry.method || 'CALL';
+            const url = entry.url || '';
+            const status = entry.status ? ` (${entry.status})` : '';
+            const error = entry.error ? ` [${entry.error}]` : '';
+            return `${method} ${url}${status}${error}`.trim();
+        })
+        .filter(Boolean)
+        .join(' | ');
+}
+
 function csvEscape(value) {
     if (value === null || value === undefined) return '';
     const stringValue = String(value);
@@ -159,7 +196,6 @@ router.get('/calls/export', (req, res) => {
             'flow_path',
             'dtmf_inputs',
             'api_calls',
-            'variables',
             ...dynamicVariableColumns
         ];
 
@@ -184,10 +220,9 @@ router.get('/calls/export', (req, res) => {
                 created_at: call.created_at,
                 account_number: accountNumber,
                 balance: balance,
-                flow_path: JSON.stringify(call.flow_path || []),
-                dtmf_inputs: JSON.stringify(call.dtmf_inputs || []),
-                api_calls: JSON.stringify(call.api_calls || []),
-                variables: JSON.stringify(call.variables || {})
+                flow_path: formatFlowPath(call.flow_path || []),
+                dtmf_inputs: formatDtmfInputs(call.dtmf_inputs || []),
+                api_calls: formatApiCalls(call.api_calls || [])
             };
 
             for (const column of dynamicVariableColumns) {

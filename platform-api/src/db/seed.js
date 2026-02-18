@@ -5,14 +5,40 @@ const path = require('path');
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../data/platform.db');
 const db = new Database(DB_PATH);
+const REPORT_VIEWER_EMAIL = 'user@demo.com';
+const REPORT_VIEWER_PASSWORD = 'user123';
 
 console.log('Seeding database with sample data...');
 const { seedNewSounds2Template } = require('./seed-new-sounds-2-template');
+
+function ensureReportViewerUser(tenantId) {
+    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(REPORT_VIEWER_EMAIL);
+    if (existing) {
+        db.prepare(`
+            UPDATE users
+            SET tenant_id = ?, role = 'viewer', status = 'active', name = 'Reports Viewer', updated_at = CURRENT_TIMESTAMP
+            WHERE email = ?
+        `).run(tenantId, REPORT_VIEWER_EMAIL);
+        return false;
+    }
+
+    const userId = uuidv4();
+    const passwordHash = bcrypt.hashSync(REPORT_VIEWER_PASSWORD, 10);
+    db.prepare(`
+        INSERT INTO users (id, tenant_id, email, password_hash, name, role)
+        VALUES (?, ?, ?, ?, ?, 'viewer')
+    `).run(userId, tenantId, REPORT_VIEWER_EMAIL, passwordHash, 'Reports Viewer');
+    return true;
+}
 
 // Check if already seeded
 const existingTenant = db.prepare('SELECT id FROM tenants WHERE slug = ?').get('demo');
 if (existingTenant) {
     console.log('Base database already seeded. Checking IVR flows...');
+    const created = ensureReportViewerUser(existingTenant.id);
+    console.log(created
+        ? `Created reports viewer user: ${REPORT_VIEWER_EMAIL} / ${REPORT_VIEWER_PASSWORD}`
+        : `Reports viewer user ensured: ${REPORT_VIEWER_EMAIL} / ${REPORT_VIEWER_PASSWORD}`);
     db.close();
     
     // Still try to run IVR flow seeding (it has its own check)
@@ -23,11 +49,15 @@ if (existingTenant) {
         console.log('\nLogin credentials:');
         console.log('  Email: admin@demo.com');
         console.log('  Password: admin123');
+        console.log(`  Email: ${REPORT_VIEWER_EMAIL}`);
+        console.log(`  Password: ${REPORT_VIEWER_PASSWORD}`);
     }).catch(err => {
         console.log('IVR flow seeding skipped:', err.message);
         console.log('\nLogin credentials:');
         console.log('  Email: admin@demo.com');
         console.log('  Password: admin123');
+        console.log(`  Email: ${REPORT_VIEWER_EMAIL}`);
+        console.log(`  Password: ${REPORT_VIEWER_PASSWORD}`);
     });
 } else {
 
@@ -50,6 +80,11 @@ db.prepare(`
     VALUES (?, ?, ?, ?, ?, ?)
 `).run(userId, tenantId, 'admin@demo.com', passwordHash, 'Admin User', 'admin');
 console.log('Created admin user: admin@demo.com / admin123');
+
+const reportUserCreated = ensureReportViewerUser(tenantId);
+if (reportUserCreated) {
+    console.log(`Created reports viewer user: ${REPORT_VIEWER_EMAIL} / ${REPORT_VIEWER_PASSWORD}`);
+}
 
 // Balance Inquiry Flow
 const balanceFlowData = {
@@ -262,6 +297,8 @@ console.log('\n✅ Base database seeding completed!');
 console.log('\nLogin credentials:');
 console.log('  Email: admin@demo.com');
 console.log('  Password: admin123');
+console.log(`  Email: ${REPORT_VIEWER_EMAIL}`);
+console.log(`  Password: ${REPORT_VIEWER_PASSWORD}`);
 console.log(`\nSample IVR Extension: ${extension}`);
 
 db.close();

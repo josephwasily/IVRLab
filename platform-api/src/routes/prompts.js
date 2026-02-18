@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, requireRole } = require('../middleware/auth');
 const { v4: uuidv4 } = require('uuid');
 const multer = require('multer');
 const path = require('path');
@@ -204,7 +204,7 @@ router.get('/voices', (req, res) => {
 });
 
 // Generate prompt from text using TTS
-router.post('/generate', async (req, res) => {
+router.post('/generate', requireRole('admin', 'editor'), async (req, res) => {
     if (!PROMPT_UPLOAD_ENABLED) {
         return res.status(503).json({
             error: 'Prompt upload and TTS generation are disabled'
@@ -350,7 +350,7 @@ router.get('/:id', (req, res) => {
 });
 
 // Upload and convert a new prompt
-router.post('/', upload.single('audio'), async (req, res) => {
+router.post('/', requireRole('admin', 'editor'), upload.single('audio'), async (req, res) => {
     if (!PROMPT_UPLOAD_ENABLED) {
         if (req.file && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
@@ -450,7 +450,7 @@ router.post('/', upload.single('audio'), async (req, res) => {
 });
 
 // Update prompt metadata
-router.put('/:id', (req, res) => {
+router.put('/:id', requireRole('admin', 'editor'), (req, res) => {
     try {
         const { name, description, category } = req.body;
         
@@ -480,7 +480,7 @@ router.put('/:id', (req, res) => {
 });
 
 // Delete a prompt
-router.delete('/:id', (req, res) => {
+router.delete('/:id', requireRole('admin', 'editor'), (req, res) => {
     try {
         const prompt = db.prepare(
             'SELECT * FROM prompts WHERE id = ? AND tenant_id = ?'

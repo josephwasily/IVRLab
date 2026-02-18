@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getOutboundCalls, getOutboundAnalytics, getCampaigns } from '../lib/api'
+import { useAuth } from '../contexts/AuthContext'
 import { 
   Phone, PhoneOff, PhoneMissed, Clock, CheckCircle, XCircle, 
-  AlertTriangle, BarChart3, Users, PhoneOutgoing, Loader2
+  AlertTriangle, BarChart3, PhoneOutgoing, Loader2
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -16,28 +17,33 @@ const statusConfig = {
   busy: { color: 'yellow', icon: PhoneOff, label: 'Busy' },
   no_answer: { color: 'orange', icon: PhoneMissed, label: 'No Answer' },
   failed: { color: 'red', icon: XCircle, label: 'Failed' },
-  cancelled: { color: 'gray', icon: AlertTriangle, label: 'Cancelled' }
+  cancelled: { color: 'gray', icon: AlertTriangle, label: 'Cancelled' },
+  abrupt_end: { color: 'rose', icon: AlertTriangle, label: 'Aborted After Answer' }
 }
+const filterStatusOptions = Object.entries(statusConfig).filter(([status]) => status !== 'abrupt_end')
 
 export default function OutboundCalls() {
+  const { user } = useAuth()
+  const isViewer = user?.role === 'viewer'
   const [filterStatus, setFilterStatus] = useState('')
   const [filterCampaign, setFilterCampaign] = useState('')
 
   const { data: campaigns } = useQuery({
     queryKey: ['campaigns'],
-    queryFn: getCampaigns
+    queryFn: getCampaigns,
+    enabled: !isViewer
   })
 
   const { data: calls, isLoading: callsLoading } = useQuery({
     queryKey: ['outbound-calls', filterStatus, filterCampaign],
     queryFn: () => getOutboundCalls({ 
       status: filterStatus || undefined,
-      campaign_id: filterCampaign || undefined
+      campaign_id: !isViewer ? (filterCampaign || undefined) : undefined
     }),
     refetchInterval: 5000 // Refresh every 5 seconds
   })
 
-  const { data: analytics, isLoading: analyticsLoading } = useQuery({
+  const { data: analytics } = useQuery({
     queryKey: ['outbound-analytics', filterCampaign],
     queryFn: () => getOutboundAnalytics({ campaign_id: filterCampaign || undefined }),
     refetchInterval: 10000
@@ -55,6 +61,32 @@ export default function OutboundCalls() {
     return new Date(dateStr).toLocaleString()
   }
 
+  const getOutcomeLabel = (call) => {
+    if (call?.status === 'completed') return 'Finished IVR'
+    if (call?.status === 'cancelled') return 'Cancelled'
+    if (call?.status === 'no_answer') return 'No Answer'
+    if (call?.status === 'busy') return 'Busy'
+    if (call?.hangup_cause === 'caller_hangup_early') return 'Answered then hung up early'
+    if (call?.status === 'failed') return 'Failed'
+    return '-'
+  }
+
+  const getAttemptInfo = (call) => {
+    const attempt = Math.max(1, Number(call?.attempt_number || 1))
+    const totalAttempts = Math.max(attempt, Number(call?.contact_attempts || 0))
+    const retries = Math.max(0, totalAttempts - 1)
+    return { attempt, retries }
+  }
+
+  const formatResultValue = (value) => {
+    if (value === null || value === undefined || value === '') return ''
+    if (typeof value === 'object') {
+      if (value.value !== undefined) return String(value.value)
+      return Object.values(value).map((item) => String(item)).join(' / ')
+    }
+    return String(value)
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -66,7 +98,7 @@ export default function OutboundCalls() {
 
       {/* Analytics Summary */}
       {analytics?.totals && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-4">
             <div className="text-2xl font-bold text-gray-900">{analytics.totals.total_calls || 0}</div>
             <div className="text-sm text-gray-500">Total Calls</div>
@@ -86,6 +118,14 @@ export default function OutboundCalls() {
           <div className="bg-white rounded-lg shadow p-4">
             <div className="text-2xl font-bold text-red-600">{analytics.totals.failed || 0}</div>
             <div className="text-sm text-gray-500">Failed</div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="text-2xl font-bold text-rose-600">{analytics.totals.abrupt_ended || 0}</div>
+            <div className="text-sm text-gray-500">Aborted After Answer</div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <div className="text-2xl font-bold text-gray-600">{analytics.totals.cancelled || 0}</div>
+            <div className="text-sm text-gray-500">Cancelled</div>
           </div>
           <div className="bg-white rounded-lg shadow p-4">
             <div className="text-2xl font-bold text-blue-600">{analytics.totals.answer_rate || 0}%</div>
@@ -143,11 +183,12 @@ export default function OutboundCalls() {
               className="rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Statuses</option>
-              {Object.entries(statusConfig).map(([value, config]) => (
+              {filterStatusOptions.map(([value, config]) => (
                 <option key={value} value={value}>{config.label}</option>
               ))}
             </select>
           </div>
+          {!isViewer && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Campaign</label>
             <select
@@ -162,6 +203,7 @@ export default function OutboundCalls() {
               ))}
             </select>
           </div>
+          )}
         </div>
       </div>
 
@@ -191,6 +233,9 @@ export default function OutboundCalls() {
                   IVR Flow
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Attempt
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Duration
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -206,8 +251,12 @@ export default function OutboundCalls() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {calls?.map((call) => {
-                const config = statusConfig[call.status] || statusConfig.queued
+                const displayStatus = call.status === 'failed' && call.hangup_cause === 'caller_hangup_early'
+                  ? 'abrupt_end'
+                  : call.status
+                const config = statusConfig[displayStatus] || statusConfig.queued
                 const StatusIcon = config.icon
+                const attemptInfo = getAttemptInfo(call)
                 return (
                   <tr key={call.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -232,23 +281,32 @@ export default function OutboundCalls() {
                       {call.ivr_name || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      #{attemptInfo.attempt}
+                      {attemptInfo.retries > 0 && (
+                        <div className="text-xs text-gray-500">
+                          Retries: {attemptInfo.retries}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {formatDuration(call.duration)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {call.hangup_cause || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {call.result && Object.keys(call.result).length > 0 ? (
-                        <div className="max-w-xs overflow-hidden">
-                          {Object.entries(call.result).slice(0, 3).map(([key, value]) => (
-                            <div key={key} className="text-xs">
-                              <span className="font-medium">{key}:</span> {value}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
+                      <div className="max-w-xs overflow-hidden">
+                        <div className="text-xs font-medium text-gray-700">{getOutcomeLabel(call)}</div>
+                        {call.result && typeof call.result === 'object' && Object.keys(call.result).length > 0 && (
+                          <div className="text-xs text-gray-500">
+                            {Object.entries(call.result)
+                              .filter(([key]) => !['call_outcome', 'flow_final_status'].includes(key))
+                              .slice(0, 2)
+                              .map(([key, value]) => `${key}: ${formatResultValue(value)}`)
+                              .join(' | ')}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatTime(call.created_at)}

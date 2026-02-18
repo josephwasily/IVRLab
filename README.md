@@ -226,6 +226,8 @@ docker-compose up -d --build
 # Initialize database with seed data
 docker exec platform-api node src/db/migrate.js
 docker exec platform-api node src/db/seed.js
+# Ensure analytics/report-only demo user exists
+docker exec platform-api npm run seed:reports-user
 
 # Check status
 docker ps
@@ -273,6 +275,7 @@ Open **http://localhost:8082** in your browser.
 Login with:
 - **Email:** `admin@demo.com`
 - **Password:** `admin123`
+- **Reports User:** `user@demo.com` / `user123` (analytics + reports pages only)
 
 ### Connect a Softphone
 

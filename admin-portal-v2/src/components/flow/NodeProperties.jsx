@@ -49,6 +49,11 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
     handleChange('branches', branches)
   }
 
+  const handleBranchDisplayNameChange = (key, value) => {
+    const branchDisplayNames = { ...(formData.branchDisplayNames || {}), [key]: value }
+    handleChange('branchDisplayNames', branchDisplayNames)
+  }
+
   const addBranch = () => {
     const key = prompt('Enter branch key (e.g., "1", "2", "yes"):')
     if (key) {
@@ -60,6 +65,12 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
     const branches = { ...formData.branches }
     delete branches[key]
     handleChange('branches', branches)
+
+    if (formData.branchDisplayNames?.[key] !== undefined) {
+      const branchDisplayNames = { ...formData.branchDisplayNames }
+      delete branchDisplayNames[key]
+      handleChange('branchDisplayNames', branchDisplayNames)
+    }
   }
 
   // Build combined prompt list
@@ -260,22 +271,31 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
               </div>
               <div className="space-y-2">
                 {Object.entries(formData.branches || {}).map(([key, value]) => (
-                  <div key={key} className="flex items-center gap-2">
-                    <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">{key}</span>
-                    <span className="text-gray-400">→</span>
+                  <div key={key} className="border rounded p-2 bg-gray-50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">{key}</span>
+                      <span className="text-gray-400">→</span>
+                      <input
+                        type="text"
+                        value={value}
+                        onChange={(e) => handleBranchChange(key, e.target.value)}
+                        className="flex-1 px-2 py-1 border rounded text-sm"
+                        placeholder="target node"
+                      />
+                      <button
+                        onClick={() => removeBranch(key)}
+                        className="text-red-500 hover:text-red-600"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
                     <input
                       type="text"
-                      value={value}
-                      onChange={(e) => handleBranchChange(key, e.target.value)}
-                      className="flex-1 px-2 py-1 border rounded text-sm"
-                      placeholder="target node"
+                      value={formData.branchDisplayNames?.[key] || ''}
+                      onChange={(e) => handleBranchDisplayNameChange(key, e.target.value)}
+                      className="w-full px-2 py-1 border rounded text-sm"
+                      placeholder="Display name for reports (optional)"
                     />
-                    <button
-                      onClick={() => removeBranch(key)}
-                      className="text-red-500 hover:text-red-600"
-                    >
-                      <X size={16} />
-                    </button>
                   </div>
                 ))}
               </div>

@@ -137,7 +137,13 @@ export default function Analytics() {
 
   const formatCellValue = (value) => {
     if (value === null || value === undefined || value === '') return '-'
-    if (typeof value === 'object') return JSON.stringify(value)
+    if (typeof value === 'object') {
+      if (value.value !== undefined) return String(value.value)
+      if (Array.isArray(value)) return value.map((item) => String(item)).join(', ')
+      const flattened = Object.values(value).filter((item) => item !== null && item !== undefined && item !== '')
+      if (flattened.length === 0) return '-'
+      return flattened.map((item) => String(item)).join(' | ')
+    }
     return String(value)
   }
 
