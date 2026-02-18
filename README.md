@@ -264,6 +264,13 @@ To verify the template is identical to the tested `2009` flow:
 docker compose exec platform-api npm run verify:new-sounds-2-parity
 ```
 
+For any extension (example `2002`), use:
+
+```bash
+docker compose exec platform-api npm run water-sewage:sync -- --extension=2002
+docker compose exec platform-api npm run water-sewage:verify -- --extension=2002
+```
+
 Detailed notes (including DTMF barge-in behavior) are documented in:
 
 - `docs/WATER_SEWAGE_TEMPLATE_AND_BARGEIN.md`

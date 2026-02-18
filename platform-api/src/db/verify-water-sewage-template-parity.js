@@ -1,9 +1,26 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../data/platform.db');
-const TEMPLATE_NAME = process.env.TEMPLATE_NAME || 'Water and Sewage Complaint';
-const FLOW_EXTENSION = process.env.FLOW_EXTENSION || '2009';
+function getArgValue(name) {
+    const exact = `--${name}`;
+    const withEqPrefix = `${exact}=`;
+
+    for (let i = 0; i < process.argv.length; i += 1) {
+        const arg = process.argv[i];
+        if (arg.startsWith(withEqPrefix)) {
+            return arg.slice(withEqPrefix.length);
+        }
+        if (arg === exact && process.argv[i + 1]) {
+            return process.argv[i + 1];
+        }
+    }
+
+    return undefined;
+}
+
+const DB_PATH = getArgValue('db-path') || process.env.DB_PATH || path.join(__dirname, '../../data/platform.db');
+const TEMPLATE_NAME = getArgValue('template') || process.env.TEMPLATE_NAME || 'Water and Sewage Complaint';
+const FLOW_EXTENSION = getArgValue('extension') || process.env.FLOW_EXTENSION || '2009';
 
 function compare(a, b, atPath, diffs) {
     const aType = Object.prototype.toString.call(a);

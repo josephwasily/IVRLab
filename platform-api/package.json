@@ -10,7 +10,9 @@
     "seed": "node src/db/seed.js",
     "seed:reports-user": "node src/db/ensure-reports-user.js",
     "seed:new-sounds-2": "node src/db/seed-new-sounds-2-template.js",
-    "verify:new-sounds-2-parity": "node src/db/verify-water-sewage-template-parity.js"
+    "verify:new-sounds-2-parity": "node src/db/verify-water-sewage-template-parity.js",
+    "water-sewage:sync": "node src/db/sync-water-sewage-flow.js",
+    "water-sewage:verify": "node src/db/verify-water-sewage-template-parity.js"
   },
   "dependencies": {
     "express": "^4.18.2",

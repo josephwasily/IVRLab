@@ -24,6 +24,13 @@ If parity fails, re-seed the template:
 docker compose exec platform-api npm run seed:new-sounds-2
 ```
 
+To sync a specific extension to this template (example `2002`) and verify:
+
+```bash
+docker compose exec platform-api npm run water-sewage:sync -- --extension=2002
+docker compose exec platform-api npm run water-sewage:verify -- --extension=2002
+```
+
 ## 2) Recreate on Another Machine
 
 1. Start the stack and initialize DB.
