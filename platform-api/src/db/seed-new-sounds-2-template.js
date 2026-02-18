@@ -39,22 +39,27 @@ const FLOW_DATA = {
         service_menu: {
             id: 'service_menu',
             type: 'play_sequence',
+            bargeIn: true,
             sequence: [
                 { type: 'prompt', value: 'ns2_east_water' },
                 { type: 'prompt', value: 'ns2_west_water' },
                 { type: 'prompt', value: 'ns2_east_sewage' },
                 { type: 'prompt', value: 'ns2_west_sewage' }
             ],
-            next: 'branch_service_option'
+            next: 'collect_service_option'
         },
         collect_service_option: {
             id: 'collect_service_option',
             type: 'collect',
-            prompt: 'ns2_sure_or_repeat',
             maxDigits: 1,
             timeout: 7,
             variable: 'service_option',
-            next: 'branch_service_option'
+            validDigits: '1234',
+            next: 'branch_service_option',
+            maxRetries: 2,
+            onTimeout: 'hangup',
+            onEmpty: 'hangup',
+            onInvalid: 'collect_service_option'
         },
         branch_service_option: {
             id: 'branch_service_option',
@@ -113,7 +118,12 @@ const FLOW_DATA = {
             maxDigits: 1,
             timeout: 7,
             variable: 'confirm_choice',
-            next: 'branch_confirm'
+            validDigits: '12',
+            next: 'branch_confirm',
+            maxRetries: 2,
+            onTimeout: 'hangup',
+            onEmpty: 'hangup',
+            onInvalid: 'confirm_or_repeat'
         },
         branch_confirm: {
             id: 'branch_confirm',
@@ -134,9 +144,12 @@ const FLOW_DATA = {
             type: 'collect',
             prompt: 'ns2_close_or_working_or_no_issues',
             maxDigits: 1,
-            timeout: 7,
+            timeout: 20,
+            validDigits: '123',
             variable: 'complaint_resolution',
-            next: 'branch_last_option'
+            next: 'branch_last_option',
+            maxRetries: 3,
+            onMaxRetries: 'hangup'
         },
         branch_last_option: {
             id: 'branch_last_option',
@@ -152,7 +165,7 @@ const FLOW_DATA = {
                 '2': 'Still Working',
                 '3': 'No Issues Found'
             },
-            default: 'last_option'
+            default: 'hangup'
         },
         hangup: {
             id: 'hangup',

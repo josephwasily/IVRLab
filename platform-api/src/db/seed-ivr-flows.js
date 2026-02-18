@@ -108,7 +108,9 @@ const BILLING_FLOW = {
                 id: 'check_total',
                 type: 'branch',
                 label: 'Check Total',
-                condition: 'total_amount > 0',
+                // Treat account as valid when API returns at least one non-summary invoice row.
+                // Some valid accounts can have a zero total due amount.
+                condition: 'Array.isArray(bills_result) && bills_result.some(b => String(b.inh_id) !== "0")',
                 branches: {
                     'true': 'announce_amount',
                     'false': 'invalid_account'

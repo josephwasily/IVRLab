@@ -17,10 +17,16 @@ function toDateTimeLocalValue(date) {
   return localDate.toISOString().slice(0, 16)
 }
 
-function localDateTimeToIso(value) {
+function localDateTimeToIso(value, options = {}) {
+  const { endOfMinute = false } = options
   if (!value) return undefined
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return undefined
+  // `datetime-local` is minute-precision. For upper-bound filters, include
+  // the full selected minute so calls at HH:MM:SS are not dropped.
+  if (endOfMinute) {
+    date.setSeconds(59, 999)
+  }
   return date.toISOString()
 }
 
@@ -78,7 +84,7 @@ export default function Analytics() {
   const filterParams = useMemo(() => ({
     ivrId: selectedIvrId || undefined,
     from: localDateTimeToIso(fromDateTime),
-    to: localDateTimeToIso(toDateTime)
+    to: localDateTimeToIso(toDateTime, { endOfMinute: true })
   }), [selectedIvrId, fromDateTime, toDateTime])
 
   const { data: calls, isLoading } = useQuery({
