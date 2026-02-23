@@ -80,11 +80,11 @@ const upload = multer({
     limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max
     fileFilter: (req, file, cb) => {
         const allowedTypes = [
-            'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/wave', 'audio/x-wav',
+            'audio/mpeg', 'audio/x-mpeg', 'audio/mp3', 'audio/wav', 'audio/wave', 'audio/x-wav',
             'audio/ogg', 'audio/flac', 'audio/aac', 'audio/m4a', 'audio/x-m4a',
             'audio/webm', 'audio/basic', 'audio/x-aiff'
         ];
-        const allowedExtensions = ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.webm', '.aiff', '.ulaw', '.alaw'];
+        const allowedExtensions = ['.mp3', '.mpeg', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.webm', '.aiff', '.ulaw', '.alaw'];
         const ext = path.extname(file.originalname).toLowerCase();
         
         if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(ext)) {

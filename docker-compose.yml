@@ -61,6 +61,8 @@ services:
       - "./new sounds:/app/new-sounds:ro"
       # New sounds 2 folder for additional template seeding (read-only)
       - "./new sounds 2:/app/new-sounds-2:ro"
+      # New sounds 3 folder for follow-up survey template seeding (read-only)
+      - "./new sounds 3:/app/new-sounds-3:ro"
     environment:
       PORT: "3001"
       DB_PATH: "/app/data/platform.db"
@@ -70,14 +72,16 @@ services:
       JWT_SECRET: "change-this-in-production-use-strong-secret"
       # ElevenLabs API key for text-to-speech generation
       ELEVENLABS_API_KEY: "sk_09d0cc298b338bb94a4c36bcae48dc0c1a8beeae7747f21c"
-      # Disable prompt upload/TTS generation to avoid ffmpeg/sox runtime dependency
-      PROMPT_UPLOAD_ENABLED: "false"
+      # Enable prompt upload/TTS generation
+      PROMPT_UPLOAD_ENABLED: "true"
       # Asterisk spool directory for outbound calls
       ASTERISK_SPOOL_DIR: "/asterisk-spool"
       # New sounds directory for IVR flow seeding
       NEW_SOUNDS_DIR: "/app/new-sounds"
       # New sounds 2 directory for complaint template seeding
       NEW_SOUNDS_2_DIR: "/app/new-sounds-2"
+      # New sounds 3 directory for follow-up template seeding
+      NEW_SOUNDS_3_DIR: "/app/new-sounds-3"
       ASTERISK_LOG_PATH: "/app/asterisk-log/messages.log"
       ASTERISK_HOST: "asterisk"
       ASTERISK_AMI_PORT: "5038"

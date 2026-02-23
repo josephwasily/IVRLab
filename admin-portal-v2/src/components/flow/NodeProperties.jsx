@@ -1,12 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { X, Volume2, Trash2 } from 'lucide-react'
+import { Plus, Play, Square, X, Trash2 } from 'lucide-react'
 import { getPrompts, getFilesystemPrompts, getPromptAudioUrl, getFilesystemAudioUrl } from '../../lib/api'
+import PromptCreateModal from '../prompts/PromptCreateModal'
 
 export default function NodeProperties({ node, onChange, onClose, onDelete }) {
   const [formData, setFormData] = useState(node?.data || {})
-  const [playingPrompt, setPlayingPrompt] = useState(null)
-  const audioRef = useState(null)
+  const [showCreatePromptModal, setShowCreatePromptModal] = useState(false)
+  const [inlinePrompts, setInlinePrompts] = useState([])
+  const [playingPromptValue, setPlayingPromptValue] = useState(null)
+  const audioRef = useRef(null)
 
   // Fetch prompts from database
   const { data: dbPrompts } = useQuery({
@@ -29,6 +32,24 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
   useEffect(() => {
     setFormData(node?.data || {})
   }, [node])
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+      audioRef.current = null
+    }
+    setPlayingPromptValue(null)
+  }, [node?.id])
 
   if (!node) {
     return (
@@ -73,13 +94,43 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
     }
   }
 
+  const handlePromptCreated = (prompt) => {
+    if (!prompt?.filename) return
+
+    const promptValue = prompt.filename.replace(/\.ulaw$/i, '')
+    const createdPromptOption = {
+      value: promptValue,
+      label: prompt.name,
+      category: prompt.category || 'custom',
+      language: prompt.language,
+      source: 'db',
+      id: prompt.id
+    }
+
+    setInlinePrompts((prev) => {
+      const withoutDuplicate = prev.filter((p) => p.value !== createdPromptOption.value)
+      return [createdPromptOption, ...withoutDuplicate]
+    })
+
+    handleChange('prompt', promptValue)
+    setShowCreatePromptModal(false)
+  }
+
   // Build combined prompt list
   const allPrompts = []
+  const addPrompt = (promptOption) => {
+    if (!allPrompts.find((p) => p.value === promptOption.value)) {
+      allPrompts.push(promptOption)
+    }
+  }
+
+  // Add newly created prompts before query refresh completes
+  inlinePrompts.forEach((p) => addPrompt(p))
   
   // Add database prompts
   if (dbPrompts) {
-    dbPrompts.forEach(p => {
-      allPrompts.push({
+    dbPrompts.forEach((p) => {
+      addPrompt({
         value: p.filename.replace('.ulaw', ''),
         label: p.name,
         category: p.category || 'custom',
@@ -92,36 +143,31 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
   
   // Add filesystem prompts (Arabic)
   if (fsPromptsAr) {
-    fsPromptsAr.forEach(f => {
+    fsPromptsAr.forEach((f) => {
       const baseName = f.filename.replace('.ulaw', '')
-      // Avoid duplicates
-      if (!allPrompts.find(p => p.value === `ar/${baseName}`)) {
-        allPrompts.push({
-          value: `ar/${baseName}`,
-          label: `${f.name} (Arabic)`,
-          category: 'filesystem',
-          language: 'ar',
-          source: 'fs',
-          filename: f.filename
-        })
-      }
+      addPrompt({
+        value: `ar/${baseName}`,
+        label: `${f.name} (Arabic)`,
+        category: 'filesystem',
+        language: 'ar',
+        source: 'fs',
+        filename: f.filename
+      })
     })
   }
   
   // Add filesystem prompts (English)
   if (fsPromptsEn) {
-    fsPromptsEn.forEach(f => {
+    fsPromptsEn.forEach((f) => {
       const baseName = f.filename.replace('.ulaw', '')
-      if (!allPrompts.find(p => p.value === `en/${baseName}`)) {
-        allPrompts.push({
-          value: `en/${baseName}`,
-          label: `${f.name} (English)`,
-          category: 'filesystem',
-          language: 'en',
-          source: 'fs',
-          filename: f.filename
-        })
-      }
+      addPrompt({
+        value: `en/${baseName}`,
+        label: `${f.name} (English)`,
+        category: 'filesystem',
+        language: 'en',
+        source: 'fs',
+        filename: f.filename
+      })
     })
   }
 
@@ -130,6 +176,46 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
     'Arabic (ar/)': allPrompts.filter(p => p.language === 'ar'),
     'English (en/)': allPrompts.filter(p => p.language === 'en'),
     'Custom': allPrompts.filter(p => p.source === 'db')
+  }
+
+  const stopPromptPlayback = () => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+      audioRef.current = null
+    }
+    setPlayingPromptValue(null)
+  }
+
+  const playSelectedPrompt = (value) => {
+    if (!value) return
+
+    if (playingPromptValue === value) {
+      stopPromptPlayback()
+      return
+    }
+
+    const selectedPrompt = allPrompts.find((p) => p.value === value)
+    if (!selectedPrompt) return
+
+    let url = null
+    if (selectedPrompt.source === 'db' && selectedPrompt.id) {
+      url = getPromptAudioUrl(selectedPrompt.id)
+    } else if (selectedPrompt.source === 'fs' && selectedPrompt.filename) {
+      url = getFilesystemAudioUrl(selectedPrompt.filename, selectedPrompt.language || 'ar')
+    }
+
+    if (!url) return
+
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
+
+    audioRef.current = new Audio(url)
+    audioRef.current.onended = () => setPlayingPromptValue(null)
+    audioRef.current.onerror = () => setPlayingPromptValue(null)
+    audioRef.current.play()
+    setPlayingPromptValue(value)
   }
 
   // Prompt select component
@@ -161,16 +247,47 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
     </div>
   )
 
-  return (
-    <div className="bg-white rounded-lg shadow p-4 w-80">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="font-semibold text-gray-900">Node Properties</h3>
-        <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
-          <X size={18} />
+  const PromptField = ({ value, onValueChange, placeholder }) => (
+    <div className="space-y-2">
+      <PromptSelect
+        value={value}
+        onChange={onValueChange}
+        placeholder={placeholder}
+      />
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setShowCreatePromptModal(true)}
+          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+        >
+          <Plus size={14} />
+          Create Prompt
         </button>
+        {value && (
+          <button
+            type="button"
+            onClick={() => playSelectedPrompt(value)}
+            className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900"
+          >
+            {playingPromptValue === value ? <Square size={14} /> : <Play size={14} />}
+            {playingPromptValue === value ? 'Stop Preview' : 'Play Preview'}
+          </button>
+        )}
       </div>
+    </div>
+  )
 
-      <div className="space-y-4">
+  return (
+    <>
+      <div className="bg-white rounded-lg shadow p-4 w-80">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-semibold text-gray-900">Node Properties</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="space-y-4">
         {/* Node ID */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Node ID</label>
@@ -186,9 +303,9 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
         {(formData.type === 'play' || formData.type === 'play_digits') && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Prompt</label>
-            <PromptSelect
+            <PromptField
               value={formData.prompt}
-              onChange={(value) => handleChange('prompt', value)}
+              onValueChange={(value) => handleChange('prompt', value)}
               placeholder="Select prompt to play..."
             />
           </div>
@@ -198,9 +315,9 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
           <>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Prompt</label>
-              <PromptSelect
+              <PromptField
                 value={formData.prompt}
-                onChange={(value) => handleChange('prompt', value)}
+                onValueChange={(value) => handleChange('prompt', value)}
                 placeholder="Select prompt for input..."
               />
             </div>
@@ -442,7 +559,14 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
             </button>
           </div>
         )}
+        </div>
       </div>
-    </div>
+      {showCreatePromptModal && (
+        <PromptCreateModal
+          onClose={() => setShowCreatePromptModal(false)}
+          onCreated={handlePromptCreated}
+        />
+      )}
+    </>
   )
 }

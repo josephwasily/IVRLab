@@ -10,6 +10,7 @@ const REPORT_VIEWER_PASSWORD = 'user123';
 
 console.log('Seeding database with sample data...');
 const { seedNewSounds2Template } = require('./seed-new-sounds-2-template');
+const { seedNewSounds3Template } = require('./seed-new-sounds-3-template');
 
 function ensureReportViewerUser(tenantId) {
     const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(REPORT_VIEWER_EMAIL);
@@ -45,6 +46,8 @@ if (existingTenant) {
     const { seedIvrFlows } = require('./seed-ivr-flows');
     seedIvrFlows().then(() => {
         return seedNewSounds2Template();
+    }).then(() => {
+        return seedNewSounds3Template();
     }).then(() => {
         console.log('\nLogin credentials:');
         console.log('  Email: admin@demo.com');
@@ -308,6 +311,8 @@ const { seedIvrFlows } = require('./seed-ivr-flows');
 console.log('\nChecking for IVR flow seeding...');
 seedIvrFlows().then(() => {
     return seedNewSounds2Template();
+}).then(() => {
+    return seedNewSounds3Template();
 }).then(() => {
     console.log('\n✅ All seeding completed!');
 }).catch(err => {

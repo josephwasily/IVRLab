@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getIVR, updateIVR, getIVRStats } from '../lib/api'
@@ -20,7 +20,7 @@ const nodeTypeLabels = {
 
 function NodeEditor({ node, onChange }) {
   const handleChange = (field, value) => {
-    onChange({ ...node, [field]: value })
+    onChange({ ...node, [field]: value }, node.id)
   }
 
   return (
@@ -122,13 +122,45 @@ function NodeEditor({ node, onChange }) {
   )
 }
 
+function rewriteNodeReferences(nodes, oldNodeId, newNodeId) {
+  if (oldNodeId === newNodeId) return nodes
+
+  const rewritten = {}
+  Object.entries(nodes).forEach(([nodeKey, node]) => {
+    const nextBranches = node.branches
+      ? Object.fromEntries(
+          Object.entries(node.branches).map(([branchKey, branchTarget]) => [
+            branchKey,
+            branchTarget === oldNodeId ? newNodeId : branchTarget
+          ])
+        )
+      : node.branches
+
+    rewritten[nodeKey] = {
+      ...node,
+      next: node.next === oldNodeId ? newNodeId : node.next,
+      onError: node.onError === oldNodeId ? newNodeId : node.onError,
+      default: node.default === oldNodeId ? newNodeId : node.default,
+      branches: nextBranches
+    }
+  })
+
+  return rewritten
+}
+
 export default function IVREdit() {
   const { id } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('visual')
   const [selectedNode, setSelectedNode] = useState(null)
+  const [saveState, setSaveState] = useState('idle') // idle | pending | saving | saved | error
   const flowBuilderRef = useRef(null)
+  const initializedIvrIdRef = useRef(null)
+  const autoSaveTimerRef = useRef(null)
+  const saveInFlightRef = useRef(false)
+  const pendingSaveRef = useRef(null)
+  const lastSavedHashRef = useRef(null)
 
   const { data: ivr, isLoading } = useQuery({
     queryKey: ['ivr', id],
@@ -142,51 +174,163 @@ export default function IVREdit() {
 
   const [formData, setFormData] = useState(null)
 
-  // Initialize form data when IVR loads
-  if (ivr && !formData) {
-    setFormData({
+  const buildPayload = useCallback((nextFormData) => ({
+    name: nextFormData.name,
+    description: nextFormData.description,
+    language: nextFormData.language,
+    flowData: nextFormData.flow_data
+  }), [])
+
+  const updateMutation = useMutation({
+    mutationFn: (data) => updateIVR(id, data)
+  })
+
+  const flushSave = useCallback(async (payload, payloadHash) => {
+    if (saveInFlightRef.current) {
+      pendingSaveRef.current = { payload, payloadHash }
+      return
+    }
+
+    saveInFlightRef.current = true
+    setSaveState('saving')
+
+    try {
+      const updated = await updateMutation.mutateAsync(payload)
+      lastSavedHashRef.current = payloadHash
+      setSaveState('saved')
+      queryClient.setQueryData(['ivr', id], updated)
+    } catch (error) {
+      setSaveState('error')
+      console.error('Auto-save failed:', error)
+    } finally {
+      saveInFlightRef.current = false
+      if (pendingSaveRef.current) {
+        const next = pendingSaveRef.current
+        pendingSaveRef.current = null
+        if (next.payloadHash !== lastSavedHashRef.current) {
+          flushSave(next.payload, next.payloadHash)
+        }
+      }
+    }
+  }, [id, queryClient, updateMutation])
+
+  const scheduleAutoSave = useCallback((nextFormData) => {
+    if (!nextFormData || initializedIvrIdRef.current !== id) return
+
+    const payload = buildPayload(nextFormData)
+    const payloadHash = JSON.stringify(payload)
+    if (payloadHash === lastSavedHashRef.current) return
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current)
+    }
+    setSaveState('pending')
+
+    autoSaveTimerRef.current = setTimeout(() => {
+      flushSave(payload, payloadHash)
+    }, 700)
+  }, [id, buildPayload, flushSave])
+
+  // Initialize form data when IVR loads (once per IVR id)
+  useEffect(() => {
+    if (!ivr || initializedIvrIdRef.current === ivr.id) return
+
+    const nextFormData = {
       name: ivr.name,
       description: ivr.description || '',
       language: ivr.language,
       flow_data: ivr.flow_data
-    })
-  }
-
-  const updateMutation = useMutation({
-    mutationFn: (data) => updateIVR(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ivr', id] })
     }
-  })
+
+    setFormData(nextFormData)
+    setSelectedNode(null)
+    initializedIvrIdRef.current = ivr.id
+    lastSavedHashRef.current = JSON.stringify(buildPayload(nextFormData))
+    setSaveState('saved')
+  }, [ivr, buildPayload])
+
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current)
+      }
+    }
+  }, [])
 
   const handleSave = () => {
     if (!formData) return
+
     let flowDataToSave = formData.flow_data
     if (activeTab === 'visual') {
       const latestFlow = flowBuilderRef.current?.getFlowData?.()
       if (latestFlow) flowDataToSave = latestFlow
     }
-    setFormData(prev => (prev ? { ...prev, flow_data: flowDataToSave } : prev))
-    updateMutation.mutate({
-      name: formData.name,
-      description: formData.description,
-      language: formData.language,
-      flowData: flowDataToSave
-    })
+
+    const nextFormData = { ...formData, flow_data: flowDataToSave }
+    setFormData(nextFormData)
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current)
+    }
+
+    const payload = buildPayload(nextFormData)
+    const payloadHash = JSON.stringify(payload)
+    flushSave(payload, payloadHash)
   }
 
-  const handleNodeChange = (updatedNode) => {
+  const handleVisualFlowChange = useCallback((nextFlowData) => {
+    setFormData((prev) => {
+      if (!prev) return prev
+      if (JSON.stringify(prev.flow_data) === JSON.stringify(nextFlowData)) {
+        return prev
+      }
+      const nextFormData = { ...prev, flow_data: nextFlowData }
+      scheduleAutoSave(nextFormData)
+      return nextFormData
+    })
+  }, [scheduleAutoSave])
+
+  const handleNodeChange = (updatedNode, previousNodeId) => {
     if (!formData) return
-    setFormData(prev => ({
-      ...prev,
-      flow_data: {
-        ...prev.flow_data,
-        nodes: {
-          ...prev.flow_data.nodes,
-          [updatedNode.id]: updatedNode
+
+    const oldNodeId = previousNodeId || updatedNode.id
+    let nextSelectedNode = null
+
+    setFormData((prev) => {
+      if (!prev?.flow_data?.nodes) return prev
+
+      const currentNodes = prev.flow_data.nodes
+      let nextNodeId = (updatedNode.id || '').trim() || oldNodeId
+
+      if (nextNodeId !== oldNodeId && currentNodes[nextNodeId]) {
+        nextNodeId = oldNodeId
+      }
+
+      const updatedNodes = { ...currentNodes }
+      delete updatedNodes[oldNodeId]
+      updatedNodes[nextNodeId] = { ...updatedNode, id: nextNodeId }
+
+      const rewrittenNodes = rewriteNodeReferences(updatedNodes, oldNodeId, nextNodeId)
+      const nextFormData = {
+        ...prev,
+        flow_data: {
+          ...prev.flow_data,
+          startNode: prev.flow_data.startNode === oldNodeId ? nextNodeId : prev.flow_data.startNode,
+          nodes: rewrittenNodes
         }
       }
-    }))
+
+      if (selectedNode === oldNodeId) {
+        nextSelectedNode = nextNodeId
+      }
+
+      scheduleAutoSave(nextFormData)
+      return nextFormData
+    })
+
+    if (nextSelectedNode) {
+      setSelectedNode(nextSelectedNode)
+    }
   }
 
   if (isLoading || !formData) {
@@ -210,7 +354,7 @@ export default function IVREdit() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{ivr.name}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{formData.name}</h1>
             <p className="text-sm text-gray-500">
               Extension: <span className="font-mono">{ivr.extension}</span>
             </p>
@@ -218,12 +362,18 @@ export default function IVREdit() {
         </div>
         <button
           onClick={handleSave}
-          disabled={updateMutation.isPending}
+          disabled={saveState === 'saving'}
           className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
           <Save className="w-5 h-5 mr-2" />
-          {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+          {saveState === 'saving' ? 'Saving...' : 'Save Now'}
         </button>
+      </div>
+      <div className="mb-4 text-sm text-gray-500">
+        {saveState === 'pending' && 'Changes pending...'}
+        {saveState === 'saving' && 'Auto-saving...'}
+        {saveState === 'saved' && 'All changes saved'}
+        {saveState === 'error' && 'Auto-save failed. Click Save Now.'}
       </div>
 
       {/* Tabs */}
@@ -257,6 +407,7 @@ export default function IVREdit() {
         <FlowBuilder
           ref={flowBuilderRef}
           initialFlow={formData.flow_data}
+          onFlowChange={handleVisualFlowChange}
         />
       )}
 
@@ -309,7 +460,14 @@ export default function IVREdit() {
             <input
               type="text"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) => {
+                setFormData((prev) => {
+                  if (!prev) return prev
+                  const nextFormData = { ...prev, name: e.target.value }
+                  scheduleAutoSave(nextFormData)
+                  return nextFormData
+                })
+              }}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg"
             />
           </div>
@@ -317,7 +475,14 @@ export default function IVREdit() {
             <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
             <textarea
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={(e) => {
+                setFormData((prev) => {
+                  if (!prev) return prev
+                  const nextFormData = { ...prev, description: e.target.value }
+                  scheduleAutoSave(nextFormData)
+                  return nextFormData
+                })
+              }}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg"
               rows={3}
             />
@@ -326,7 +491,14 @@ export default function IVREdit() {
             <label className="block text-sm font-medium text-gray-700 mb-2">Language</label>
             <select
               value={formData.language}
-              onChange={(e) => setFormData(prev => ({ ...prev, language: e.target.value }))}
+              onChange={(e) => {
+                setFormData((prev) => {
+                  if (!prev) return prev
+                  const nextFormData = { ...prev, language: e.target.value }
+                  scheduleAutoSave(nextFormData)
+                  return nextFormData
+                })
+              }}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg"
             >
               <option value="ar">Arabic</option>

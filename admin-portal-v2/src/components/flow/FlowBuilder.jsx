@@ -41,13 +41,25 @@ function getDefaultNodeData(type, nodeId) {
   return base
 }
 
-const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow }, ref) {
+const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow, onFlowChange }, ref) {
   const reactFlowWrapper = useRef(null)
   const [reactFlowInstance, setReactFlowInstance] = useState(null)
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
-  const [selectedNode, setSelectedNode] = useState(null)
+  const [selectedNodeId, setSelectedNodeId] = useState(null)
   const [startNode, setStartNode] = useState('welcome')
+  const nodesRef = useRef(nodes)
+  const edgesRef = useRef(edges)
+  const startNodeRef = useRef(startNode)
+  const syncingFromPropRef = useRef(false)
+
+  const selectedNode = nodes.find((n) => n.id === selectedNodeId) || null
+
+  useEffect(() => {
+    nodesRef.current = nodes
+    edgesRef.current = edges
+    startNodeRef.current = startNode
+  }, [nodes, edges, startNode])
 
   useImperativeHandle(ref, () => ({
     getFlowData: () => reactFlowToFlow(nodes, edges, startNode)
@@ -56,12 +68,35 @@ const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow }, ref) {
   // Load initial flow
   useEffect(() => {
     if (initialFlow) {
+      const currentFlow = reactFlowToFlow(nodesRef.current, edgesRef.current, startNodeRef.current)
+      if (JSON.stringify(currentFlow) === JSON.stringify(initialFlow)) {
+        syncingFromPropRef.current = false
+        return
+      }
+      syncingFromPropRef.current = true
       const { nodes: flowNodes, edges: flowEdges } = flowToReactFlow(initialFlow)
       setNodes(flowNodes)
       setEdges(flowEdges)
       setStartNode(initialFlow.startNode || 'welcome')
+      setSelectedNodeId(null)
+    } else {
+      syncingFromPropRef.current = false
     }
   }, [initialFlow, setNodes, setEdges])
+
+  useEffect(() => {
+    if (!onFlowChange) return
+    const currentFlow = reactFlowToFlow(nodes, edges, startNode)
+
+    if (syncingFromPropRef.current) {
+      if (!initialFlow || JSON.stringify(currentFlow) === JSON.stringify(initialFlow)) {
+        syncingFromPropRef.current = false
+      }
+      return
+    }
+
+    onFlowChange(currentFlow)
+  }, [nodes, edges, startNode, onFlowChange, initialFlow])
 
   const onConnect = useCallback(
     (params) => {
@@ -76,11 +111,11 @@ const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow }, ref) {
   )
 
   const onNodeClick = useCallback((event, node) => {
-    setSelectedNode(node)
+    setSelectedNodeId(node.id)
   }, [])
 
   const onPaneClick = useCallback(() => {
-    setSelectedNode(null)
+    setSelectedNodeId(null)
   }, [])
 
   const onDragOver = useCallback((event) => {
@@ -109,7 +144,7 @@ const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow }, ref) {
       }
 
       setNodes((nds) => [...nds, newNode])
-      setSelectedNode(newNode)
+      setSelectedNodeId(newNode.id)
     },
     [reactFlowInstance, setNodes]
   )
@@ -124,29 +159,37 @@ const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow }, ref) {
         data: getDefaultNodeData(type, nodeId)
       }
       setNodes((nds) => [...nds, newNode])
-      setSelectedNode(newNode)
+      setSelectedNodeId(newNode.id)
     },
     [nodes.length, setNodes]
   )
 
   const handleNodeDataChange = useCallback(
     (nodeId, data) => {
-      setNodes((nds) =>
-        nds.map((n) => {
-          if (n.id === nodeId) {
-            // If ID changed, update the node ID
-            const newId = data.id || n.id
-            return {
-              ...n,
-              id: newId,
-              data: { ...data, label: newId }
-            }
-          }
-          return n
-        })
-      )
+      const requestedId = (data.id || nodeId).trim() || nodeId
+      const duplicateExists = nodes.some((n) => n.id === requestedId && n.id !== nodeId)
+      const newId = duplicateExists ? nodeId : requestedId
+
+      setNodes((nds) => nds.map((n) => {
+        if (n.id !== nodeId) return n
+        return {
+          ...n,
+          id: newId,
+          data: { ...data, id: newId, label: newId }
+        }
+      }))
+
+      if (newId !== nodeId) {
+        setEdges((eds) => eds.map((e) => ({
+          ...e,
+          source: e.source === nodeId ? newId : e.source,
+          target: e.target === nodeId ? newId : e.target
+        })))
+        setStartNode((prev) => (prev === nodeId ? newId : prev))
+        setSelectedNodeId((prev) => (prev === nodeId ? newId : prev))
+      }
     },
-    [setNodes]
+    [nodes, setNodes, setEdges]
   )
 
   const handleDeleteNode = useCallback(
@@ -159,7 +202,7 @@ const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow }, ref) {
         return remaining
       })
       setEdges((eds) => eds.filter((e) => e.source !== nodeId && e.target !== nodeId))
-      setSelectedNode(null)
+      setSelectedNodeId(null)
     },
     [setNodes, setEdges, startNode]
   )
@@ -235,7 +278,7 @@ const FlowBuilder = forwardRef(function FlowBuilder({ initialFlow }, ref) {
         node={selectedNode}
         onChange={handleNodeDataChange}
         onDelete={handleDeleteNode}
-        onClose={() => setSelectedNode(null)}
+        onClose={() => setSelectedNodeId(null)}
       />
     </div>
   )
