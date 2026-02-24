@@ -1,5 +1,18 @@
 # IVR-Lab: Programmable Communications Platform
 
+## Important: Docker-Only Development Rule
+
+This repository is a Docker Compose project.
+
+- Never run `npm install`, `npm run build`, or `npm run dev` on the host machine.
+- Do all install/build/run operations through Docker Compose only.
+- Use:
+  - `docker compose build`
+  - `docker compose up -d`
+  - `docker compose logs -f <service>`
+
+This rule applies to all contributors and coding agents working in this repo.
+
 ## Competitors
 
 The IVR-Lab platform competes with several established solutions in the programmable communications and IVR automation space. Notable competitors include:

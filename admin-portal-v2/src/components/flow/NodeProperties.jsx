@@ -4,6 +4,16 @@ import { Plus, Play, Square, X, Trash2 } from 'lucide-react'
 import { getPrompts, getFilesystemPrompts, getPromptAudioUrl, getFilesystemAudioUrl } from '../../lib/api'
 import PromptCreateModal from '../prompts/PromptCreateModal'
 
+function stripAudioExtension(value) {
+  return String(value || '').replace(/\.(ulaw|wav|gsm|sln)$/i, '')
+}
+
+function toBasename(value) {
+  const normalized = stripAudioExtension(value)
+  const parts = normalized.split('/')
+  return parts[parts.length - 1] || ''
+}
+
 export default function NodeProperties({ node, onChange, onClose, onDelete }) {
   const [formData, setFormData] = useState(node?.data || {})
   const [showCreatePromptModal, setShowCreatePromptModal] = useState(false)
@@ -51,18 +61,12 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
     setPlayingPromptValue(null)
   }, [node?.id])
 
-  if (!node) {
-    return (
-      <div className="bg-white rounded-lg shadow p-4 w-80">
-        <p className="text-gray-500 text-sm">Select a node to edit its properties</p>
-      </div>
-    )
-  }
-
   const handleChange = (field, value) => {
     const updated = { ...formData, [field]: value }
     setFormData(updated)
-    onChange(node.id, updated)
+    if (node?.id) {
+      onChange(node.id, updated)
+    }
   }
 
   const handleBranchChange = (key, value) => {
@@ -95,16 +99,17 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
   }
 
   const handlePromptCreated = (prompt) => {
-    if (!prompt?.filename) return
+    if (!prompt?.name) return
 
-    const promptValue = prompt.filename.replace(/\.ulaw$/i, '')
+    const promptValue = String(prompt.name)
     const createdPromptOption = {
       value: promptValue,
       label: prompt.name,
       category: prompt.category || 'custom',
       language: prompt.language,
       source: 'db',
-      id: prompt.id
+      id: prompt.id,
+      path: stripAudioExtension(prompt.filename || '')
     }
 
     setInlinePrompts((prev) => {
@@ -131,12 +136,13 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
   if (dbPrompts) {
     dbPrompts.forEach((p) => {
       addPrompt({
-        value: p.filename.replace('.ulaw', ''),
+        value: p.name,
         label: p.name,
         category: p.category || 'custom',
         language: p.language,
         source: 'db',
-        id: p.id
+        id: p.id,
+        path: stripAudioExtension(p.filename || '')
       })
     })
   }
@@ -146,12 +152,13 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
     fsPromptsAr.forEach((f) => {
       const baseName = f.filename.replace('.ulaw', '')
       addPrompt({
-        value: `ar/${baseName}`,
+        value: baseName,
         label: `${f.name} (Arabic)`,
         category: 'filesystem',
         language: 'ar',
         source: 'fs',
-        filename: f.filename
+        filename: f.filename,
+        path: `ar/${baseName}`
       })
     })
   }
@@ -161,12 +168,13 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
     fsPromptsEn.forEach((f) => {
       const baseName = f.filename.replace('.ulaw', '')
       addPrompt({
-        value: `en/${baseName}`,
+        value: baseName,
         label: `${f.name} (English)`,
         category: 'filesystem',
         language: 'en',
         source: 'fs',
-        filename: f.filename
+        filename: f.filename,
+        path: `en/${baseName}`
       })
     })
   }
@@ -177,6 +185,28 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
     'English (en/)': allPrompts.filter(p => p.language === 'en'),
     'Custom': allPrompts.filter(p => p.source === 'db')
   }
+
+  const resolvePromptValue = (rawValue) => {
+    if (!rawValue) return ''
+    if (allPrompts.some((p) => p.value === rawValue)) return rawValue
+
+    const normalizedRaw = stripAudioExtension(rawValue)
+    const byPath = allPrompts.find((p) => p.path && stripAudioExtension(p.path) === normalizedRaw)
+    if (byPath) return byPath.value
+
+    const rawBase = toBasename(normalizedRaw)
+    const byBasename = allPrompts.find((p) => toBasename(p.path || p.value) === rawBase)
+    if (byBasename) return byBasename.value
+
+    return rawValue
+  }
+
+  useEffect(() => {
+    if (!node || !formData?.prompt) return
+    const normalizedPrompt = resolvePromptValue(formData.prompt)
+    if (!normalizedPrompt || normalizedPrompt === formData.prompt) return
+    handleChange('prompt', normalizedPrompt)
+  }, [formData.prompt, dbPrompts, fsPromptsAr, fsPromptsEn])
 
   const stopPromptPlayback = () => {
     if (audioRef.current) {
@@ -219,10 +249,12 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
   }
 
   // Prompt select component
-  const PromptSelect = ({ value, onChange, placeholder }) => (
-    <div className="space-y-1">
+  const PromptSelect = ({ value, onChange, placeholder }) => {
+    const normalizedValue = resolvePromptValue(value)
+    return (
+      <div className="space-y-1">
       <select
-        value={value || ''}
+        value={normalizedValue || ''}
         onChange={(e) => onChange(e.target.value)}
         className="w-full px-3 py-2 border rounded-lg text-sm"
       >
@@ -239,43 +271,55 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
           )
         ))}
       </select>
-      {value && (
+      {normalizedValue && (
         <div className="text-xs text-gray-500 font-mono bg-gray-50 px-2 py-1 rounded">
-          Path: {value}
+          Prompt key: {normalizedValue}
         </div>
       )}
     </div>
-  )
+    )
+  }
 
-  const PromptField = ({ value, onValueChange, placeholder }) => (
-    <div className="space-y-2">
-      <PromptSelect
-        value={value}
-        onChange={onValueChange}
-        placeholder={placeholder}
-      />
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => setShowCreatePromptModal(true)}
-          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
-        >
-          <Plus size={14} />
-          Create Prompt
-        </button>
-        {value && (
+  const PromptField = ({ value, onValueChange, placeholder }) => {
+    const normalizedValue = resolvePromptValue(value)
+    return (
+      <div className="space-y-2">
+        <PromptSelect
+          value={value}
+          onChange={onValueChange}
+          placeholder={placeholder}
+        />
+        <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => playSelectedPrompt(value)}
-            className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900"
+            onClick={() => setShowCreatePromptModal(true)}
+            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
           >
-            {playingPromptValue === value ? <Square size={14} /> : <Play size={14} />}
-            {playingPromptValue === value ? 'Stop Preview' : 'Play Preview'}
+            <Plus size={14} />
+            Create Prompt
           </button>
-        )}
+          {normalizedValue && (
+            <button
+              type="button"
+              onClick={() => playSelectedPrompt(normalizedValue)}
+              className="inline-flex items-center gap-1 text-xs text-gray-600 hover:text-gray-900"
+            >
+              {playingPromptValue === normalizedValue ? <Square size={14} /> : <Play size={14} />}
+              {playingPromptValue === normalizedValue ? 'Stop Preview' : 'Play Preview'}
+            </button>
+          )}
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
+
+  if (!node) {
+    return (
+      <div className="bg-white rounded-lg shadow p-4 w-80">
+        <p className="text-gray-500 text-sm">Select a node to edit its properties</p>
+      </div>
+    )
+  }
 
   return (
     <>

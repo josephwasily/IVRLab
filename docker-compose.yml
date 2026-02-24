@@ -42,7 +42,12 @@ services:
       IVR_LANGUAGE: "ar"
       # IVR Mode: "dynamic" uses Platform API flows, "legacy" uses hardcoded balance-ivr
       IVR_MODE: "dynamic"
-    depends_on: [ asterisk, platform-api ]
+    restart: unless-stopped
+    depends_on:
+      asterisk:
+        condition: service_healthy
+      platform-api:
+        condition: service_started
     networks: [ ivrnet ]
 
   platform-api:
