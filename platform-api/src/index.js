@@ -158,6 +158,8 @@ app.post('/api/engine/call-log', async (req, res) => {
             ivrId, 
             extension, 
             callerId, 
+            outboundCallId,
+            calledNumber,
             startTime, 
             endTime, 
             status, 
@@ -217,16 +219,24 @@ app.post('/api/engine/call-log', async (req, res) => {
         const duration = startTime && endTime 
             ? Math.round((new Date(endTime) - new Date(startTime)) / 1000) 
             : 0;
+
+        let resolvedCalledNumber = calledNumber || null;
+        if (!resolvedCalledNumber && outboundCallId) {
+            const outboundCall = db.prepare('SELECT phone_number FROM outbound_calls WHERE id = ?').get(outboundCallId);
+            resolvedCalledNumber = outboundCall?.phone_number || null;
+        }
         
         const id = uuidv4();
         db.prepare(`
-            INSERT INTO call_logs (id, ivr_id, tenant_id, caller_id, extension, start_time, end_time, duration, status, flow_path, dtmf_inputs, api_calls, variables)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO call_logs (id, ivr_id, tenant_id, caller_id, outbound_call_id, called_number, extension, start_time, end_time, duration, status, flow_path, dtmf_inputs, api_calls, variables)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
             id,
             ivrId,
             tenantId,
             callerId,
+            outboundCallId || null,
+            resolvedCalledNumber,
             extension,
             startTime,
             endTime,

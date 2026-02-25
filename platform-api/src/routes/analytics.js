@@ -138,9 +138,10 @@ router.get('/calls/export', (req, res) => {
         const { fromIso, toIso } = resolveDateRange(req.query, 24);
 
         let query = `
-            SELECT c.*, f.name as ivr_name
+            SELECT c.*, f.name as ivr_name, COALESCE(c.called_number, oc.phone_number) as called_number
             FROM call_logs c
             LEFT JOIN ivr_flows f ON c.ivr_id = f.id
+            LEFT JOIN outbound_calls oc ON c.outbound_call_id = oc.id
             WHERE c.tenant_id = ?
         `;
         const params = [req.user.tenantId];
@@ -185,6 +186,7 @@ router.get('/calls/export', (req, res) => {
             'ivr_name',
             'tenant_id',
             'caller_id',
+            'called_number',
             'extension',
             'start_time',
             'end_time',
@@ -212,6 +214,7 @@ router.get('/calls/export', (req, res) => {
                 ivr_name: call.ivr_name,
                 tenant_id: call.tenant_id,
                 caller_id: call.caller_id,
+                called_number: call.called_number,
                 extension: call.extension,
                 start_time: call.start_time,
                 end_time: call.end_time,
@@ -254,9 +257,10 @@ router.get('/calls', (req, res) => {
         const { fromIso, toIso } = resolveDateRange(req.query, 24);
         
         let query = `
-            SELECT c.*, f.name as ivr_name
+            SELECT c.*, f.name as ivr_name, COALESCE(c.called_number, oc.phone_number) as called_number
             FROM call_logs c
             LEFT JOIN ivr_flows f ON c.ivr_id = f.id
+            LEFT JOIN outbound_calls oc ON c.outbound_call_id = oc.id
             WHERE c.tenant_id = ?
         `;
         const params = [req.user.tenantId];

@@ -19,6 +19,19 @@ console.log('Running database migrations...');
 const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
 db.exec(schema);
 
+// Ensure additive columns for existing databases
+function ensureColumn(table, column, typeDef) {
+    const columns = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+    if (!columns.includes(column)) {
+        db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${typeDef}`);
+        console.log(`Added ${table}.${column}`);
+    }
+}
+
+ensureColumn('call_logs', 'outbound_call_id', 'TEXT');
+ensureColumn('call_logs', 'called_number', 'TEXT');
+db.exec('CREATE INDEX IF NOT EXISTS idx_call_logs_outbound_call ON call_logs(outbound_call_id)');
+
 // Initialize extension pool (2000-2999 for inbound IVRs)
 console.log('Initializing extension pool...');
 const insertExt = db.prepare('INSERT OR IGNORE INTO extensions (extension, status) VALUES (?, ?)');

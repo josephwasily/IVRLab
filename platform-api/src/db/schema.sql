@@ -75,6 +75,8 @@ CREATE TABLE IF NOT EXISTS call_logs (
     ivr_id TEXT,
     tenant_id TEXT,
     caller_id TEXT,
+    outbound_call_id TEXT,
+    called_number TEXT,
     extension TEXT,
     start_time DATETIME,
     end_time DATETIME,

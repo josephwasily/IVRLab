@@ -313,6 +313,7 @@ export default function Analytics() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase w-8"></th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Caller</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Called Number</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account Number</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Balance</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">IVR</th>
@@ -340,6 +341,7 @@ export default function Analytics() {
                       )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-900">{call.caller_id || 'Unknown'}</td>
+                    <td className="px-6 py-4 text-sm font-mono text-gray-700">{call.called_number || '-'}</td>
                     <td className="px-6 py-4 text-sm font-mono text-gray-700">{formatCellValue(getAccountNumber(call))}</td>
                     <td className="px-6 py-4 text-sm text-gray-900">{formatCellValue(getBalance(call))}</td>
                     <td className="px-6 py-4 text-sm text-gray-900">{call.ivr_name || '-'}</td>
@@ -361,7 +363,7 @@ export default function Analytics() {
                   </tr>
                   {expandedRows.has(call.id) && hasVariables(call) && (
                     <tr className="bg-gray-50">
-                      <td colSpan={9} className="px-6 py-4">
+                      <td colSpan={10} className="px-6 py-4">
                         <div className="text-sm">
                           <h4 className="font-medium text-gray-700 mb-2">Call Variables</h4>
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

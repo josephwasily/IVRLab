@@ -71,6 +71,7 @@ class DynamicFlowEngine {
     this.ivrId = flowConfig.id;
     this.ivrName = flowConfig.name;
     this.extension = flowConfig.extension;
+    this.outboundCallId = flowConfig.outboundCallId || null;
     
     // Prompt cache: maps prompt names to file paths (from database)
     this.promptCache = flowConfig.promptCache || {};
@@ -84,6 +85,9 @@ class DynamicFlowEngine {
       extension: flowConfig.extension,
       BALANCE_API_URL: BALANCE_API_URL
     };
+    if (this.outboundCallId) {
+      this.variables.outbound_call_id = this.outboundCallId;
+    }
     this.currentNode = null;
     this.nodeHistory = [];
     this.dtmfInputs = [];
@@ -914,6 +918,7 @@ class DynamicFlowEngine {
       ivrName: this.ivrName,
       extension: this.extension,
       callerId: this.variables.caller_id,
+      outboundCallId: this.outboundCallId,
       startTime: this.startTime,
       endTime: new Date().toISOString(),
       nodeHistory: this.nodeHistory,
@@ -938,6 +943,7 @@ class DynamicFlowEngine {
           ivrId: summary.ivrId,
           extension: summary.extension,
           callerId: summary.callerId,
+          outboundCallId: summary.outboundCallId,
           startTime: summary.startTime,
           endTime: summary.endTime,
           status: analyticsStatus,
@@ -1109,6 +1115,7 @@ async function main() {
         }
         
         // Execute the dynamic flow
+        flowConfig.outboundCallId = outboundCallId;
         const engine = new DynamicFlowEngine(client, channel, flowConfig);
         ivrResult = await engine.execute();
         
