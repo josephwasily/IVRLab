@@ -119,7 +119,7 @@ const upload = multer({
 
 // Apply auth middleware
 router.use(authMiddleware);
-router.use(requireRole('admin', 'editor'));
+router.use(requireRole('admin', 'editor', 'viewer'));
 
 function stringifyResult(result) {
     try {
@@ -857,7 +857,7 @@ router.post('/:id/start', (req, res) => {
         if (!trunk) {
             return res.status(400).json({ error: 'SIP trunk not found' });
         }
-        
+
         // Get total contacts count
         const contactCount = db.prepare('SELECT COUNT(*) as count FROM campaign_contacts WHERE campaign_id = ?')
             .get(req.params.id).count;

@@ -31,7 +31,7 @@ const navItems = [
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
 ]
 
-const viewerAllowedPaths = new Set(['/analytics', '/outbound-calls'])
+const viewerAllowedPaths = new Set(['/analytics', '/outbound-calls', '/campaigns'])
 
 export default function Layout() {
   const { user, logout } = useAuth()

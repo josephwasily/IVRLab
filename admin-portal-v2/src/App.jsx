@@ -67,8 +67,8 @@ function App() {
           <Route path="prompts" element={<NonViewerRoute><Prompts /></NonViewerRoute>} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="trunks" element={<NonViewerRoute><Trunks /></NonViewerRoute>} />
-          <Route path="campaigns" element={<NonViewerRoute><Campaigns /></NonViewerRoute>} />
-          <Route path="campaigns/:id" element={<NonViewerRoute><CampaignEdit /></NonViewerRoute>} />
+          <Route path="campaigns" element={<Campaigns />} />
+          <Route path="campaigns/:id" element={<CampaignEdit />} />
           <Route path="outbound-calls" element={<OutboundCalls />} />
           <Route path="logs" element={<NonViewerRoute><Logs /></NonViewerRoute>} />
         </Route>
