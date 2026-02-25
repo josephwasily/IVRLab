@@ -140,26 +140,55 @@ export function reactFlowToFlow(nodes, edges, startNode) {
   const flowNodes = {}
 
   nodes.forEach((node) => {
+    const nodeData = node.data || {}
     const ivrNode = {
       id: node.id,
-      type: node.data.type || 'play',
-      ...node.data
+      type: nodeData.type || 'play',
+      ...nodeData
     }
     delete ivrNode.label
+
+    const hasExplicitDefault = Object.prototype.hasOwnProperty.call(nodeData, 'default')
+    const hasExplicitBranches =
+      Object.prototype.hasOwnProperty.call(nodeData, 'branches') &&
+      typeof nodeData.branches === 'object' &&
+      nodeData.branches !== null
 
     // Find outgoing edges
     const outgoingEdges = edges.filter((e) => e.source === node.id)
     
     outgoingEdges.forEach((edge) => {
-      if (edge.label === 'next' || !edge.label) {
+      const label = String(edge.label || 'next')
+
+      if (label === 'next' || !edge.label) {
         ivrNode.next = edge.target
-      } else if (edge.label === 'error') {
+        return
+      }
+
+      if (label === 'error') {
         ivrNode.onError = edge.target
-      } else if (edge.label === 'default') {
+        return
+      }
+
+      if (label === 'default') {
+        if (ivrNode.type === 'branch' && hasExplicitDefault) {
+          return
+        }
         ivrNode.default = edge.target
-      } else {
-        if (!ivrNode.branches) ivrNode.branches = {}
-        ivrNode.branches[edge.label] = edge.target
+        return
+      }
+
+      if (label === 'next' || label === 'error' || label === 'default') {
+        return
+      }
+
+      // Branch mappings edited in node properties are authoritative for branch nodes.
+      // Only infer branch edges when explicit branches are not provided.
+      if (ivrNode.type !== 'branch' || !hasExplicitBranches) {
+        if (!ivrNode.branches || typeof ivrNode.branches !== 'object') {
+          ivrNode.branches = {}
+        }
+        ivrNode.branches[label] = edge.target
       }
     })
 

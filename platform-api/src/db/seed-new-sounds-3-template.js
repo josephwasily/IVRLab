@@ -57,13 +57,13 @@ const FLOW_DATA = {
             variable: 'problem_solved',
             branches: {
                 '1': 'collect_customer_satisfied',
-                '2': 'collect_customer_satisfied'
+                '2': 'hangup'
             },
             branchDisplayNames: {
                 '1': 'Yes',
                 '2': 'No'
             },
-            default: 'collect_customer_satisfied'
+            default: 'hangup'
         },
         collect_customer_satisfied: {
             id: 'collect_customer_satisfied',
