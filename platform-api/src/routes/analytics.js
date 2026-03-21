@@ -134,7 +134,7 @@ router.get('/dashboard', (req, res) => {
 // Export call logs CSV
 router.get('/calls/export', (req, res) => {
     try {
-        const { ivrId } = req.query;
+        const { ivrId, runId } = req.query;
         const { fromIso, toIso } = resolveDateRange(req.query, 24);
 
         let query = `
@@ -152,6 +152,11 @@ router.get('/calls/export', (req, res) => {
         if (ivrId) {
             query += ' AND c.ivr_id = ?';
             params.push(ivrId);
+        }
+
+        if (runId) {
+            query += ' AND oc.run_id = ?';
+            params.push(runId);
         }
 
         query += ' ORDER BY c.start_time DESC';
@@ -253,7 +258,7 @@ router.get('/calls/export', (req, res) => {
 // Call logs
 router.get('/calls', (req, res) => {
     try {
-        const { ivrId, limit = 50, offset = 0 } = req.query;
+        const { ivrId, runId, limit = 50, offset = 0 } = req.query;
         const { fromIso, toIso } = resolveDateRange(req.query, 24);
         
         let query = `
@@ -294,7 +299,7 @@ router.get('/calls', (req, res) => {
 // Calls summary (for total count chart)
 router.get('/calls/summary', (req, res) => {
     try {
-        const { ivrId } = req.query;
+        const { ivrId, runId } = req.query;
         const { fromIso, toIso } = resolveDateRange(req.query, 24);
 
         let query = `
@@ -304,6 +309,7 @@ router.get('/calls/summary', (req, res) => {
                 SUM(CASE WHEN c.status = 'failed' THEN 1 ELSE 0 END) as failed_calls,
                 AVG(c.duration) as avg_duration
             FROM call_logs c
+            LEFT JOIN outbound_calls oc ON c.outbound_call_id = oc.id
             WHERE c.tenant_id = ?
               AND julianday(c.start_time) >= julianday(?)
               AND julianday(c.start_time) <= julianday(?)
@@ -313,6 +319,11 @@ router.get('/calls/summary', (req, res) => {
         if (ivrId) {
             query += ' AND c.ivr_id = ?';
             params.push(ivrId);
+        }
+
+        if (runId) {
+            query += ' AND oc.run_id = ?';
+            params.push(runId);
         }
 
         const summary = db.prepare(query).get(...params);
@@ -332,23 +343,29 @@ router.get('/calls/summary', (req, res) => {
 // Calls by hour (for charts)
 router.get('/calls/hourly', (req, res) => {
     try {
-        const { ivrId } = req.query;
+        const { ivrId, runId } = req.query;
         const { fromIso, toIso } = resolveDateRange(req.query, 24);
 
         let query = `
             SELECT 
-                strftime('%Y-%m-%d %H:00', start_time) as hour,
+                strftime('%Y-%m-%d %H:00', c.start_time) as hour,
                 COUNT(*) as count
-            FROM call_logs
-            WHERE tenant_id = ?
-              AND julianday(start_time) >= julianday(?)
-              AND julianday(start_time) <= julianday(?)
+            FROM call_logs c
+            LEFT JOIN outbound_calls oc ON c.outbound_call_id = oc.id
+            WHERE c.tenant_id = ?
+              AND julianday(c.start_time) >= julianday(?)
+              AND julianday(c.start_time) <= julianday(?)
         `;
         const params = [req.user.tenantId, fromIso, toIso];
 
         if (ivrId) {
-            query += ' AND ivr_id = ?';
+            query += ' AND c.ivr_id = ?';
             params.push(ivrId);
+        }
+
+        if (runId) {
+            query += ' AND oc.run_id = ?';
+            params.push(runId);
         }
 
         query += `

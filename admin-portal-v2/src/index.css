@@ -4,4 +4,10 @@
 
 body {
   @apply bg-gray-100;
+  direction: inherit;
+  font-family: "Segoe UI", Tahoma, "Noto Sans Arabic", sans-serif;
+}
+
+#root {
+  min-height: 100vh;
 }

@@ -40,6 +40,7 @@ router.post('/login', (req, res) => {
                 id: user.id,
                 email: user.email,
                 name: user.name,
+                language: user.language || 'ar',
                 role: user.role,
                 tenant: {
                     id: user.tenant_id,
@@ -58,7 +59,7 @@ router.post('/login', (req, res) => {
 router.get('/me', authMiddleware, (req, res) => {
     try {
         const user = db.prepare(`
-            SELECT u.id, u.email, u.name, u.role, u.tenant_id,
+            SELECT u.id, u.email, u.name, u.language, u.role, u.tenant_id,
                    t.name as tenant_name, t.slug as tenant_slug
             FROM users u
             JOIN tenants t ON u.tenant_id = t.id
@@ -73,6 +74,7 @@ router.get('/me', authMiddleware, (req, res) => {
             id: user.id,
             email: user.email,
             name: user.name,
+            language: user.language || 'ar',
             role: user.role,
             tenant: {
                 id: user.tenant_id,
@@ -89,10 +91,14 @@ router.get('/me', authMiddleware, (req, res) => {
 // Register new tenant and admin user
 router.post('/register', (req, res) => {
     try {
-        const { tenantName, email, password, name } = req.body;
+        const { tenantName, email, password, name, language = 'ar' } = req.body;
         
         if (!tenantName || !email || !password || !name) {
             return res.status(400).json({ error: 'All fields required' });
+        }
+
+        if (!['ar', 'en'].includes(language)) {
+            return res.status(400).json({ error: 'Invalid language' });
         }
         
         // Check if email exists
@@ -114,9 +120,9 @@ router.post('/register', (req, res) => {
         
         // Create admin user
         db.prepare(`
-            INSERT INTO users (id, tenant_id, email, password_hash, name, role)
-            VALUES (?, ?, ?, ?, ?, 'admin')
-        `).run(userId, tenantId, email, passwordHash, name);
+            INSERT INTO users (id, tenant_id, email, password_hash, name, role, language)
+            VALUES (?, ?, ?, ?, ?, 'admin', ?)
+        `).run(userId, tenantId, email, passwordHash, name, language);
         
         const token = jwt.sign({
             userId,
@@ -132,6 +138,7 @@ router.post('/register', (req, res) => {
                 id: userId,
                 email,
                 name,
+                language,
                 role: 'admin',
                 tenant: {
                     id: tenantId,
@@ -142,6 +149,50 @@ router.post('/register', (req, res) => {
         });
     } catch (error) {
         console.error('Register error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+router.put('/me/language', authMiddleware, (req, res) => {
+    try {
+        const { language } = req.body;
+
+        if (!['ar', 'en'].includes(language)) {
+            return res.status(400).json({ error: 'Invalid language' });
+        }
+
+        const result = db.prepare(`
+            UPDATE users
+            SET language = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `).run(language, req.user.userId);
+
+        if (result.changes === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const user = db.prepare(`
+            SELECT u.id, u.email, u.name, u.language, u.role, u.tenant_id,
+                   t.name as tenant_name, t.slug as tenant_slug
+            FROM users u
+            JOIN tenants t ON u.tenant_id = t.id
+            WHERE u.id = ?
+        `).get(req.user.userId);
+
+        res.json({
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            language: user.language || 'ar',
+            role: user.role,
+            tenant: {
+                id: user.tenant_id,
+                name: user.tenant_name,
+                slug: user.tenant_slug
+            }
+        });
+    } catch (error) {
+        console.error('Update language error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

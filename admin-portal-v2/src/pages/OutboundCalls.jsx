@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getOutboundCalls, getOutboundAnalytics, getCampaigns } from '../lib/api'
+import { Link, useSearchParams } from 'react-router-dom'
+import { getOutboundCalls, getOutboundAnalytics, getCampaigns, getCampaignInstances } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
-import { 
-  Phone, PhoneOff, PhoneMissed, Clock, CheckCircle, XCircle, 
-  AlertTriangle, BarChart3, PhoneOutgoing, Loader2
+import {
+  Phone, PhoneOff, PhoneMissed, Clock, CheckCircle, XCircle,
+  AlertTriangle, BarChart3, PhoneOutgoing, Loader2, History
 } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -20,13 +21,16 @@ const statusConfig = {
   cancelled: { color: 'gray', icon: AlertTriangle, label: 'Cancelled' },
   abrupt_end: { color: 'rose', icon: AlertTriangle, label: 'Aborted After Answer' }
 }
+
 const filterStatusOptions = Object.entries(statusConfig).filter(([status]) => status !== 'abrupt_end')
 
 export default function OutboundCalls() {
   const { user } = useAuth()
   const isViewer = user?.role === 'viewer'
+  const [searchParams, setSearchParams] = useSearchParams()
   const [filterStatus, setFilterStatus] = useState('')
-  const [filterCampaign, setFilterCampaign] = useState('')
+  const [filterCampaign, setFilterCampaign] = useState(searchParams.get('campaign') || '')
+  const [filterRunId, setFilterRunId] = useState(searchParams.get('run') || '')
 
   const { data: campaigns } = useQuery({
     queryKey: ['campaigns'],
@@ -34,18 +38,46 @@ export default function OutboundCalls() {
     enabled: !isViewer
   })
 
+  const { data: instances } = useQuery({
+    queryKey: ['campaign-instances', filterCampaign],
+    queryFn: () => getCampaignInstances(filterCampaign),
+    enabled: !isViewer && !!filterCampaign
+  })
+
+  useEffect(() => {
+    const nextParams = {}
+    if (filterCampaign) nextParams.campaign = filterCampaign
+    if (filterRunId) nextParams.run = filterRunId
+    setSearchParams(nextParams, { replace: true })
+  }, [filterCampaign, filterRunId, setSearchParams])
+
+  useEffect(() => {
+    if (!filterCampaign) {
+      if (filterRunId) setFilterRunId('')
+      return
+    }
+
+    if (instances && filterRunId && !instances.some((instance) => instance.id === filterRunId)) {
+      setFilterRunId('')
+    }
+  }, [filterCampaign, filterRunId, instances])
+
   const { data: calls, isLoading: callsLoading } = useQuery({
-    queryKey: ['outbound-calls', filterStatus, filterCampaign],
-    queryFn: () => getOutboundCalls({ 
+    queryKey: ['outbound-calls', filterStatus, filterCampaign, filterRunId],
+    queryFn: () => getOutboundCalls({
       status: filterStatus || undefined,
-      campaign_id: !isViewer ? (filterCampaign || undefined) : undefined
+      campaign_id: !isViewer ? (filterCampaign || undefined) : undefined,
+      run_id: !isViewer ? (filterRunId || undefined) : undefined
     }),
-    refetchInterval: 5000 // Refresh every 5 seconds
+    refetchInterval: 5000
   })
 
   const { data: analytics } = useQuery({
-    queryKey: ['outbound-analytics', filterCampaign],
-    queryFn: () => getOutboundAnalytics({ campaign_id: filterCampaign || undefined }),
+    queryKey: ['outbound-analytics', filterCampaign, filterRunId],
+    queryFn: () => getOutboundAnalytics({
+      campaign_id: filterCampaign || undefined,
+      run_id: filterRunId || undefined
+    }),
     refetchInterval: 10000
   })
 
@@ -89,78 +121,48 @@ export default function OutboundCalls() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Outbound Calls</h1>
-          <p className="text-gray-500 mt-1">Call history and outcome analytics</p>
+          <p className="mt-1 text-gray-500">Call history and analytics by campaign instance</p>
         </div>
       </div>
 
-      {/* Analytics Summary */}
       {analytics?.totals && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-4 mb-6">
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-2xl font-bold text-gray-900">{analytics.totals.total_calls || 0}</div>
-            <div className="text-sm text-gray-500">Total Calls</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-2xl font-bold text-emerald-600">{analytics.totals.completed || 0}</div>
-            <div className="text-sm text-gray-500">Completed</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-2xl font-bold text-orange-600">{analytics.totals.no_answer || 0}</div>
-            <div className="text-sm text-gray-500">No Answer</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-2xl font-bold text-yellow-600">{analytics.totals.busy || 0}</div>
-            <div className="text-sm text-gray-500">Busy</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-2xl font-bold text-red-600">{analytics.totals.failed || 0}</div>
-            <div className="text-sm text-gray-500">Failed</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-2xl font-bold text-rose-600">{analytics.totals.abrupt_ended || 0}</div>
-            <div className="text-sm text-gray-500">Aborted After Answer</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-2xl font-bold text-gray-600">{analytics.totals.cancelled || 0}</div>
-            <div className="text-sm text-gray-500">Cancelled</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-2xl font-bold text-blue-600">{analytics.totals.answer_rate || 0}%</div>
-            <div className="text-sm text-gray-500">Answer Rate</div>
-          </div>
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="text-2xl font-bold text-purple-600">{formatDuration(Math.round(analytics.totals.avg_duration || 0))}</div>
-            <div className="text-sm text-gray-500">Avg Duration</div>
-          </div>
+        <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-9">
+          {[
+            ['text-gray-900', analytics.totals.total_calls || 0, 'Total Calls'],
+            ['text-emerald-600', analytics.totals.completed || 0, 'Completed'],
+            ['text-orange-600', analytics.totals.no_answer || 0, 'No Answer'],
+            ['text-yellow-600', analytics.totals.busy || 0, 'Busy'],
+            ['text-red-600', analytics.totals.failed || 0, 'Failed'],
+            ['text-rose-600', analytics.totals.abrupt_ended || 0, 'Aborted After Answer'],
+            ['text-gray-600', analytics.totals.cancelled || 0, 'Cancelled'],
+            ['text-blue-600', `${analytics.totals.answer_rate || 0}%`, 'Answer Rate'],
+            ['text-purple-600', formatDuration(Math.round(analytics.totals.avg_duration || 0)), 'Avg Duration']
+          ].map(([color, value, label]) => (
+            <div key={label} className="rounded-lg bg-white p-4 shadow">
+              <div className={clsx('text-2xl font-bold', color)}>{value}</div>
+              <div className="text-sm text-gray-500">{label}</div>
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Outcome Breakdown Chart */}
-      {analytics?.outcomes && analytics.outcomes.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h3 className="font-medium text-gray-900 mb-4 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5" />
+      {analytics?.outcomes?.length > 0 && (
+        <div className="mb-6 rounded-lg bg-white p-6 shadow">
+          <h3 className="mb-4 flex items-center gap-2 font-medium text-gray-900">
+            <BarChart3 className="h-5 w-5" />
             Call Outcomes
           </h3>
-          <div className="flex gap-4 flex-wrap">
+          <div className="flex flex-wrap gap-4">
             {analytics.outcomes.map((outcome) => {
               const config = statusConfig[outcome.status] || statusConfig.queued
-              const percentage = analytics.totals?.total_calls > 0 
-                ? ((outcome.count / analytics.totals.total_calls) * 100).toFixed(1)
-                : 0
+              const percentage = analytics.totals?.total_calls > 0 ? ((outcome.count / analytics.totals.total_calls) * 100).toFixed(1) : 0
               return (
-                <div 
-                  key={outcome.status} 
-                  className={clsx(
-                    'flex-1 min-w-[120px] p-3 rounded-lg border-2',
-                    `border-${config.color}-200 bg-${config.color}-50`
-                  )}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <config.icon className={`w-4 h-4 text-${config.color}-600`} />
+                <div key={outcome.status} className={clsx('min-w-[120px] flex-1 rounded-lg border-2 p-3', `border-${config.color}-200 bg-${config.color}-50`)}>
+                  <div className="mb-1 flex items-center gap-2">
+                    <config.icon className={`h-4 w-4 text-${config.color}-600`} />
                     <span className="text-sm font-medium text-gray-700">{config.label}</span>
                   </div>
                   <div className="text-xl font-bold text-gray-900">{outcome.count}</div>
@@ -172,16 +174,11 @@ export default function OutboundCalls() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="flex gap-4 flex-wrap">
+      <div className="mb-6 rounded-lg bg-white p-4 shadow">
+        <div className="flex flex-wrap gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-            >
+            <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
+            <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
               <option value="">All Statuses</option>
               {filterStatusOptions.map(([value, config]) => (
                 <option key={value} value={value}>{config.label}</option>
@@ -189,112 +186,102 @@ export default function OutboundCalls() {
             </select>
           </div>
           {!isViewer && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Campaign</label>
-            <select
-              value={filterCampaign}
-              onChange={(e) => setFilterCampaign(e.target.value)}
-              className="rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">All Campaigns</option>
-              <option value="none">No Campaign</option>
-              {campaigns?.map((campaign) => (
-                <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
-              ))}
-            </select>
-          </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Campaign</label>
+              <select
+                value={filterCampaign}
+                onChange={(e) => {
+                  setFilterCampaign(e.target.value)
+                  setFilterRunId('')
+                }}
+                className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              >
+                <option value="">All Campaigns</option>
+                {campaigns?.map((campaign) => (
+                  <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {!isViewer && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Instance</label>
+              <select
+                value={filterRunId}
+                onChange={(e) => setFilterRunId(e.target.value)}
+                disabled={!filterCampaign}
+                className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+              >
+                <option value="">All Instances</option>
+                {instances?.map((instance) => (
+                  <option key={instance.id} value={instance.id}>{`Run #${instance.run_number} - ${formatTime(instance.started_at)}`}</option>
+                ))}
+              </select>
+            </div>
           )}
         </div>
       </div>
 
-      {/* Call List */}
       {callsLoading ? (
-        <div className="flex items-center justify-center h-32">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        <div className="flex h-32 items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
         </div>
       ) : calls?.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <PhoneOutgoing className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No outbound calls yet</h3>
-          <p className="text-gray-500">Outbound calls will appear here when triggered.</p>
+        <div className="rounded-lg bg-white p-12 text-center shadow">
+          <PhoneOutgoing className="mx-auto mb-4 h-16 w-16 text-gray-300" />
+          <h3 className="mb-2 text-lg font-medium text-gray-900">No outbound calls yet</h3>
+          <p className="text-gray-500">Outbound calls will appear here when a campaign instance starts.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="overflow-hidden rounded-lg bg-white shadow">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Phone Number
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  IVR Flow
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Attempt
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Duration
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Hangup Cause
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Result
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Time
-                </th>
+                {['Phone Number', 'Status', 'Campaign', 'Instance', 'IVR Flow', 'Attempt', 'Duration', 'Result', 'Time'].map((label) => (
+                  <th key={label} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{label}</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {calls?.map((call) => {
-                const displayStatus = call.status === 'failed' && call.hangup_cause === 'caller_hangup_early'
-                  ? 'abrupt_end'
-                  : call.status
+            <tbody className="divide-y divide-gray-200 bg-white">
+              {calls.map((call) => {
+                const displayStatus = call.status === 'failed' && call.hangup_cause === 'caller_hangup_early' ? 'abrupt_end' : call.status
                 const config = statusConfig[displayStatus] || statusConfig.queued
                 const StatusIcon = config.icon
                 const attemptInfo = getAttemptInfo(call)
                 return (
                   <tr key={call.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="whitespace-nowrap px-6 py-4">
                       <div className="flex items-center">
-                        <Phone className="w-4 h-4 text-gray-400 mr-2" />
+                        <Phone className="mr-2 h-4 w-4 text-gray-400" />
                         <span className="font-mono text-sm">{call.phone_number}</span>
                       </div>
-                      {call.caller_id && (
-                        <div className="text-xs text-gray-500">From: {call.caller_id}</div>
-                      )}
+                      {call.caller_id && <div className="text-xs text-gray-500">From: {call.caller_id}</div>}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={clsx(
-                        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-                        `bg-${config.color}-100 text-${config.color}-800`
-                      )}>
-                        <StatusIcon className="w-3 h-3 mr-1" />
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <span className={clsx('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium', `bg-${config.color}-100 text-${config.color}-800`)}>
+                        <StatusIcon className="mr-1 h-3 w-3" />
                         {config.label}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {call.ivr_name || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      #{attemptInfo.attempt}
-                      {attemptInfo.retries > 0 && (
-                        <div className="text-xs text-gray-500">
-                          Retries: {attemptInfo.retries}
+                    <td className="px-6 py-4 text-sm text-gray-700">{call.campaign_name || '-'}</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      {call.run_number ? (
+                        <div>
+                          <div className="flex items-center gap-1 font-medium">
+                            <History className="h-4 w-4 text-gray-400" />
+                            {`Run #${call.run_number}`}
+                          </div>
+                          <div className="text-xs text-gray-500">{formatTime(call.run_started_at)}</div>
                         </div>
-                      )}
+                      ) : '-'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {formatDuration(call.duration)}
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{call.ivr_name || '-'}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
+                      #{attemptInfo.attempt}
+                      {attemptInfo.retries > 0 && <div className="text-xs text-gray-500">Retries: {attemptInfo.retries}</div>}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {call.hangup_cause || '-'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{formatDuration(call.duration)}</td>
+                    <td className="px-6 py-4 text-sm">
                       <div className="max-w-xs overflow-hidden">
                         <div className="text-xs font-medium text-gray-700">{getOutcomeLabel(call)}</div>
                         {call.result && typeof call.result === 'object' && Object.keys(call.result).length > 0 && (
@@ -308,8 +295,15 @@ export default function OutboundCalls() {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                       {formatTime(call.created_at)}
+                      {call.campaign_id && call.run_id && (
+                        <div className="mt-1">
+                          <Link to={`/campaigns/${call.campaign_id}`} className="text-xs text-blue-600 hover:text-blue-700">
+                            Open campaign
+                          </Link>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )

@@ -15,11 +15,15 @@ const db = new Database(DB_PATH);
 
 console.log('Running database migrations...');
 
-// Read and execute schema
-const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
-db.exec(schema);
+function hasTable(table) {
+    const row = db.prepare(`
+        SELECT name
+        FROM sqlite_master
+        WHERE type = 'table' AND name = ?
+    `).get(table);
+    return !!row;
+}
 
-// Ensure additive columns for existing databases
 function ensureColumn(table, column, typeDef) {
     const columns = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
     if (!columns.includes(column)) {
@@ -28,9 +32,24 @@ function ensureColumn(table, column, typeDef) {
     }
 }
 
+// Preflight additive columns that are referenced by indexes in schema.sql.
+if (hasTable('campaign_contacts')) {
+    ensureColumn('campaign_contacts', 'run_id', 'TEXT');
+}
+
+// Read and execute schema
+const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+db.exec(schema);
+
+// Ensure additive columns for existing databases
 ensureColumn('call_logs', 'outbound_call_id', 'TEXT');
 ensureColumn('call_logs', 'called_number', 'TEXT');
+ensureColumn('users', 'language', "TEXT DEFAULT 'ar' CHECK(language IN ('ar', 'en'))");
+ensureColumn('campaign_contacts', 'run_id', 'TEXT');
 db.exec('CREATE INDEX IF NOT EXISTS idx_call_logs_outbound_call ON call_logs(outbound_call_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_campaign_contacts_run ON campaign_contacts(run_id)');
+db.exec("UPDATE users SET language = 'ar' WHERE language IS NULL OR TRIM(language) = ''");
+db.exec("UPDATE users SET language = 'ar', updated_at = CURRENT_TIMESTAMP WHERE email = 'admin@demo.com'");
 
 // Initialize extension pool (2000-2999 for inbound IVRs)
 console.log('Initializing extension pool...');

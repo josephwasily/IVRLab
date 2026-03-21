@@ -202,104 +202,8 @@ router.post('/call', requireRole('admin', 'editor'), async (req, res) => {
  */
 router.post('/campaign/:id', requireRole('admin', 'editor'), async (req, res) => {
     try {
-        const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?')
-            .get(req.params.id, req.user.tenantId);
-        
-        if (!campaign) {
-            return res.status(404).json({ error: 'Campaign not found' });
-        }
-        
-        // Parse settings if stored as JSON
-        let settings = {};
-        if (campaign.settings) {
-            try { settings = JSON.parse(campaign.settings); } catch(e) {}
-        }
-        
-        // Get trunk_id from campaign or settings
-        const trunkId = campaign.trunk_id || settings.trunk_id;
-        if (!trunkId) {
-            return res.status(400).json({ error: 'Campaign must have a SIP trunk configured' });
-        }
-        
-        // Get trunk details
-        const trunk = db.prepare('SELECT * FROM sip_trunks WHERE id = ?').get(trunkId);
-        if (!trunk) {
-            return res.status(400).json({ error: 'SIP trunk not found' });
-        }
-        
-        // Get IVR details
-        const ivr = db.prepare('SELECT * FROM ivr_flows WHERE id = ?').get(campaign.ivr_id);
-        if (!ivr) {
-            return res.status(400).json({ error: 'IVR flow not found' });
-        }
-        
-        // Get total contacts count
-        const contactCount = db.prepare('SELECT COUNT(*) as count FROM campaign_contacts WHERE campaign_id = ?')
-            .get(req.params.id).count;
-        
-        if (contactCount === 0) {
-            return res.status(400).json({ error: 'Campaign has no contacts' });
-        }
-        
-        // Check if there's already a running run for this campaign
-        const runningRun = db.prepare(`
-            SELECT * FROM campaign_runs WHERE campaign_id = ? AND status = 'running'
-        `).get(req.params.id);
-        
-        if (runningRun) {
-            return res.status(400).json({ error: 'Campaign already has an active run in progress' });
-        }
-        
-        // Get the next run number
-        const lastRun = db.prepare(`
-            SELECT MAX(run_number) as max_run FROM campaign_runs WHERE campaign_id = ?
-        `).get(req.params.id);
-        const runNumber = (lastRun?.max_run || 0) + 1;
-        
-        // Create new run instance with settings snapshot
-        const runId = require('uuid').v4();
-        const runSettings = {
-            trunk_id: trunkId,
-            ivr_id: campaign.ivr_id,
-            caller_id: campaign.caller_id || settings.caller_id,
-            max_concurrent_calls: campaign.max_concurrent_calls || settings.max_concurrent_calls,
-            retry_attempts: campaign.max_attempts || settings.retry_attempts,
-            retry_delay_minutes: campaign.retry_delay_minutes || settings.retry_delay_minutes
-        };
-        
-        db.prepare(`
-            INSERT INTO campaign_runs (id, campaign_id, run_number, status, total_contacts, started_by, settings)
-            VALUES (?, ?, ?, 'running', ?, ?, ?)
-        `).run(runId, req.params.id, runNumber, contactCount, req.user.id, JSON.stringify(runSettings));
-        
-        // Reset contact statuses for this new run
-        db.prepare(`
-            UPDATE campaign_contacts SET status = 'pending', attempts = 0, last_attempt_at = NULL, result = NULL
-            WHERE campaign_id = ?
-        `).run(req.params.id);
-        
-        // Note: Campaign status is now tracked via campaign_runs, not campaigns table
-        
-        console.log(`Campaign ${req.params.id} triggered - Run #${runNumber} (${runId})`);
-        
-        // Start processing contacts asynchronously
-        const effectiveCallerId = campaign.caller_id || settings.caller_id || trunk.caller_id || '1000';
-        const maxConcurrent = campaign.max_concurrent_calls || settings.max_concurrent_calls || 5;
-        
-        // Process contacts in the background
-        processCampaignContacts(req.params.id, runId, {
-            trunk,
-            ivrExtension: ivr.extension,
-            callerId: effectiveCallerId,
-            maxConcurrent
-        });
-        
-        res.json({ 
-            success: true, 
-            message: `Campaign started - Run #${runNumber}`,
-            campaign_id: req.params.id,
-            run_id: runId,
-            run_number: runNumber
+        res.status(410).json({
+            error: 'Triggering a campaign without an instance contact upload is no longer supported.'
         });
     } catch (error) {
         console.error('Error triggering campaign:', error);
@@ -463,14 +367,17 @@ router.get('/call/:id', (req, res) => {
  */
 router.get('/calls', (req, res) => {
     try {
-        const { status, limit = 50, campaign_id } = req.query;
+        const { status, limit = 50, campaign_id, run_id } = req.query;
         
         let query = `
-            SELECT oc.*, st.name as trunk_name, iv.name as ivr_name, cc.attempts as contact_attempts
+            SELECT oc.*, st.name as trunk_name, iv.name as ivr_name, c.name as campaign_name, cc.attempts as contact_attempts,
+                   cr.run_number, cr.started_at as run_started_at
             FROM outbound_calls oc
             JOIN sip_trunks st ON oc.trunk_id = st.id
             LEFT JOIN ivr_flows iv ON oc.ivr_id = iv.id
+            LEFT JOIN campaigns c ON oc.campaign_id = c.id
             LEFT JOIN campaign_contacts cc ON oc.contact_id = cc.id
+            LEFT JOIN campaign_runs cr ON oc.run_id = cr.id
             WHERE st.tenant_id = ?
         `;
         const params = [req.user.tenantId];
@@ -483,6 +390,11 @@ router.get('/calls', (req, res) => {
         if (campaign_id) {
             query += ' AND oc.campaign_id = ?';
             params.push(campaign_id);
+        }
+
+        if (run_id) {
+            query += ' AND oc.run_id = ?';
+            params.push(run_id);
         }
         
         query += ' ORDER BY oc.created_at DESC LIMIT ?';
@@ -508,7 +420,7 @@ router.get('/calls', (req, res) => {
  */
 router.get('/analytics', (req, res) => {
     try {
-        const { campaign_id, start_date, end_date } = req.query;
+        const { campaign_id, run_id, start_date, end_date } = req.query;
         
         let baseWhere = `st.tenant_id = ?`;
         const params = [req.user.tenantId];
@@ -516,6 +428,11 @@ router.get('/analytics', (req, res) => {
         if (campaign_id) {
             baseWhere += ' AND oc.campaign_id = ?';
             params.push(campaign_id);
+        }
+
+        if (run_id) {
+            baseWhere += ' AND oc.run_id = ?';
+            params.push(run_id);
         }
         
         if (start_date) {

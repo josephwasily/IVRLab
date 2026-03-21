@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getCallLogs, getCallLogsCsv, getCallSummary, getHourlyCalls, getIVRs } from '../lib/api'
 import { Phone, ChevronDown, ChevronUp, Filter, Download } from 'lucide-react'
@@ -11,21 +11,21 @@ const statusColors = {
   no_answer: 'bg-yellow-100 text-yellow-800'
 }
 
-function toDateTimeLocalValue(date) {
+function toDateInputValue(date) {
   const timezoneOffsetMs = date.getTimezoneOffset() * 60 * 1000
   const localDate = new Date(date.getTime() - timezoneOffsetMs)
-  return localDate.toISOString().slice(0, 16)
+  return localDate.toISOString().slice(0, 10)
 }
 
-function localDateTimeToIso(value, options = {}) {
-  const { endOfMinute = false } = options
+function localDateToIso(value, options = {}) {
+  const { endOfDay = false } = options
   if (!value) return undefined
-  const date = new Date(value)
+  const date = new Date(`${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return undefined
-  // `datetime-local` is minute-precision. For upper-bound filters, include
-  // the full selected minute so calls at HH:MM:SS are not dropped.
-  if (endOfMinute) {
-    date.setSeconds(59, 999)
+  if (endOfDay) {
+    date.setHours(23, 59, 59, 999)
+  } else {
+    date.setHours(0, 0, 0, 0)
   }
   return date.toISOString()
 }
@@ -68,12 +68,8 @@ function buildHourlySeries(hourly, fromIso, toIso) {
 export default function Analytics() {
   const [expandedRows, setExpandedRows] = useState(new Set())
   const [selectedIvrId, setSelectedIvrId] = useState('')
-  const [fromDateTime, setFromDateTime] = useState(() => (
-    toDateTimeLocalValue(new Date(Date.now() - (24 * 60 * 60 * 1000)))
-  ))
-  const [toDateTime, setToDateTime] = useState(() => toDateTimeLocalValue(new Date()))
+  const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()))
   const [isExporting, setIsExporting] = useState(false)
-  const defaultIvrApplied = useRef(false)
   
   // Fetch IVR list for filter dropdown
   const { data: ivrs } = useQuery({
@@ -81,11 +77,16 @@ export default function Analytics() {
     queryFn: getIVRs
   })
 
+  const activeIvrs = useMemo(
+    () => (ivrs || []).filter((ivr) => ivr.status === 'active'),
+    [ivrs]
+  )
+
   const filterParams = useMemo(() => ({
     ivrId: selectedIvrId || undefined,
-    from: localDateTimeToIso(fromDateTime),
-    to: localDateTimeToIso(toDateTime, { endOfMinute: true })
-  }), [selectedIvrId, fromDateTime, toDateTime])
+    from: localDateToIso(selectedDate),
+    to: localDateToIso(selectedDate, { endOfDay: true })
+  }), [selectedIvrId, selectedDate])
 
   const { data: calls, isLoading } = useQuery({
     queryKey: ['call-logs', filterParams.ivrId, filterParams.from, filterParams.to],
@@ -103,19 +104,10 @@ export default function Analytics() {
   })
 
   useEffect(() => {
-    if (!ivrs?.length || defaultIvrApplied.current) return
-
-    const billingFlow = ivrs.find((ivr) => (
-      ivr.id === 'billing-inquiry-flow'
-      || ivr.extension === '2010'
-      || (ivr.name || '').toLowerCase().includes('billing invoice inquiry')
-    ))
-
-    if (billingFlow) {
-      setSelectedIvrId(billingFlow.id)
+    if (selectedIvrId && !activeIvrs.some((ivr) => ivr.id === selectedIvrId)) {
+      setSelectedIvrId('')
     }
-    defaultIvrApplied.current = true
-  }, [ivrs])
+  }, [activeIvrs, selectedIvrId])
 
   const toggleRow = (id) => {
     setExpandedRows(prev => {
@@ -211,7 +203,7 @@ export default function Analytics() {
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All IVR Flows</option>
-              {ivrs?.map((ivr) => (
+              {activeIvrs.map((ivr) => (
                 <option key={ivr.id} value={ivr.id}>
                   {ivr.name} ({ivr.extension})
                 </option>
@@ -220,23 +212,11 @@ export default function Analytics() {
           </div>
 
           <div className="min-w-[220px]">
-            <label className="block text-xs font-medium text-gray-500 mb-1">From</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Date</label>
             <input
-              type="datetime-local"
-              value={fromDateTime}
-              onChange={(e) => setFromDateTime(e.target.value)}
-              max={toDateTime}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div className="min-w-[220px]">
-            <label className="block text-xs font-medium text-gray-500 mb-1">To</label>
-            <input
-              type="datetime-local"
-              value={toDateTime}
-              onChange={(e) => setToDateTime(e.target.value)}
-              min={fromDateTime}
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>

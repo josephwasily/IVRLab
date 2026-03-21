@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { useAuth } from './contexts/AuthContext'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -12,6 +12,7 @@ import Prompts from './pages/Prompts'
 import Trunks from './pages/Trunks'
 import Campaigns from './pages/Campaigns'
 import CampaignEdit from './pages/CampaignEdit'
+import CampaignInstanceWizard from './pages/CampaignInstanceWizard'
 import OutboundCalls from './pages/OutboundCalls'
 import Logs from './pages/Logs'
 
@@ -51,29 +52,28 @@ function NonViewerRoute({ children }) {
 
 function App() {
   return (
-    <AuthProvider>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/" element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }>
-          <Route index element={<HomeRoute />} />
-          <Route path="ivr" element={<NonViewerRoute><IVRList /></NonViewerRoute>} />
-          <Route path="ivr/create" element={<NonViewerRoute><IVRCreate /></NonViewerRoute>} />
-          <Route path="ivr/:id" element={<NonViewerRoute><IVREdit /></NonViewerRoute>} />
-          <Route path="templates" element={<NonViewerRoute><Templates /></NonViewerRoute>} />
-          <Route path="prompts" element={<NonViewerRoute><Prompts /></NonViewerRoute>} />
-          <Route path="analytics" element={<Analytics />} />
-          <Route path="trunks" element={<NonViewerRoute><Trunks /></NonViewerRoute>} />
-          <Route path="campaigns" element={<Campaigns />} />
-          <Route path="campaigns/:id" element={<CampaignEdit />} />
-          <Route path="outbound-calls" element={<OutboundCalls />} />
-          <Route path="logs" element={<NonViewerRoute><Logs /></NonViewerRoute>} />
-        </Route>
-      </Routes>
-    </AuthProvider>
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/" element={
+        <ProtectedRoute>
+          <Layout />
+        </ProtectedRoute>
+      }>
+        <Route index element={<HomeRoute />} />
+        <Route path="ivr" element={<NonViewerRoute><IVRList /></NonViewerRoute>} />
+        <Route path="ivr/create" element={<NonViewerRoute><IVRCreate /></NonViewerRoute>} />
+        <Route path="ivr/:id" element={<NonViewerRoute><IVREdit /></NonViewerRoute>} />
+        <Route path="templates" element={<NonViewerRoute><Templates /></NonViewerRoute>} />
+        <Route path="prompts" element={<NonViewerRoute><Prompts /></NonViewerRoute>} />
+        <Route path="analytics" element={<Analytics />} />
+        <Route path="trunks" element={<NonViewerRoute><Trunks /></NonViewerRoute>} />
+        <Route path="campaigns" element={<Campaigns />} />
+        <Route path="campaigns/:id" element={<CampaignEdit />} />
+        <Route path="campaigns/:id/instances/new" element={<NonViewerRoute><CampaignInstanceWizard /></NonViewerRoute>} />
+        <Route path="outbound-calls" element={<OutboundCalls />} />
+        <Route path="logs" element={<NonViewerRoute><Logs /></NonViewerRoute>} />
+      </Route>
+    </Routes>
   )
 }
 

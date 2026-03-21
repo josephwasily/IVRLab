@@ -17,7 +17,7 @@ function ensureReportViewerUser(tenantId) {
     if (existing) {
         db.prepare(`
             UPDATE users
-            SET tenant_id = ?, role = 'viewer', status = 'active', name = 'Reports Viewer', updated_at = CURRENT_TIMESTAMP
+            SET tenant_id = ?, role = 'viewer', status = 'active', name = 'Reports Viewer', language = COALESCE(language, 'ar'), updated_at = CURRENT_TIMESTAMP
             WHERE email = ?
         `).run(tenantId, REPORT_VIEWER_EMAIL);
         return false;
@@ -26,8 +26,8 @@ function ensureReportViewerUser(tenantId) {
     const userId = uuidv4();
     const passwordHash = bcrypt.hashSync(REPORT_VIEWER_PASSWORD, 10);
     db.prepare(`
-        INSERT INTO users (id, tenant_id, email, password_hash, name, role)
-        VALUES (?, ?, ?, ?, ?, 'viewer')
+        INSERT INTO users (id, tenant_id, email, password_hash, name, role, language)
+        VALUES (?, ?, ?, ?, ?, 'viewer', 'ar')
     `).run(userId, tenantId, REPORT_VIEWER_EMAIL, passwordHash, 'Reports Viewer');
     return true;
 }
@@ -79,8 +79,8 @@ console.log('Created default tenant: Demo Company');
 const userId = uuidv4();
 const passwordHash = bcrypt.hashSync('admin123', 10);
 db.prepare(`
-    INSERT INTO users (id, tenant_id, email, password_hash, name, role)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO users (id, tenant_id, email, password_hash, name, role, language)
+    VALUES (?, ?, ?, ?, ?, ?, 'ar')
 `).run(userId, tenantId, 'admin@demo.com', passwordHash, 'Admin User', 'admin');
 console.log('Created admin user: admin@demo.com / admin123');
 

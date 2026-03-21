@@ -1,15 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { getDashboardStats, getExtensionStats } from '../lib/api'
+import { useI18n } from '../contexts/I18nContext'
 import { Phone, PhoneCall, Clock, Hash } from 'lucide-react'
 
 function StatCard({ icon: Icon, label, value, subValue, color }) {
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center">
-        <div className={`p-3 rounded-lg ${color}`}>
-          <Icon className="w-6 h-6 text-white" />
+    <div className="rounded-lg bg-white p-6 shadow">
+      <div className="flex items-center gap-4">
+        <div className={`rounded-lg p-3 ${color}`}>
+          <Icon className="h-6 w-6 text-white" />
         </div>
-        <div className="ml-4">
+        <div>
           <p className="text-sm text-gray-500">{label}</p>
           <p className="text-2xl font-bold text-gray-900">{value}</p>
           {subValue && <p className="text-xs text-gray-400">{subValue}</p>}
@@ -20,6 +21,7 @@ function StatCard({ icon: Icon, label, value, subValue, color }) {
 }
 
 export default function Dashboard() {
+  const { t, formatNumber } = useI18n()
   const { data: stats, isLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: getDashboardStats
@@ -32,110 +34,107 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
       </div>
     )
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Dashboard</h1>
+      <h1 className="mb-6 text-2xl font-bold text-gray-900">{t('dashboard.title')}</h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={Phone}
-          label="Active IVRs"
-          value={stats?.ivrs?.active || 0}
-          subValue={`${stats?.ivrs?.total || 0} total`}
+          label={t('dashboard.activeIvrs')}
+          value={formatNumber(stats?.ivrs?.active || 0)}
+          subValue={t('dashboard.totalSuffix', { count: formatNumber(stats?.ivrs?.total || 0) })}
           color="bg-blue-500"
         />
         <StatCard
           icon={PhoneCall}
-          label="Calls Today"
-          value={stats?.calls?.total || 0}
-          subValue={`${stats?.calls?.completed || 0} completed`}
+          label={t('dashboard.callsToday')}
+          value={formatNumber(stats?.calls?.total || 0)}
+          subValue={t('dashboard.completedSuffix', { count: formatNumber(stats?.calls?.completed || 0) })}
           color="bg-green-500"
         />
         <StatCard
           icon={Clock}
-          label="Avg Duration"
-          value={`${stats?.calls?.avgDuration || 0}s`}
+          label={t('dashboard.avgDuration')}
+          value={`${formatNumber(stats?.calls?.avgDuration || 0)}s`}
           color="bg-purple-500"
         />
         <StatCard
           icon={Hash}
-          label="Extensions"
-          value={stats?.extensions || 0}
-          subValue={extStats ? `${extStats.available} available` : ''}
+          label={t('dashboard.extensions')}
+          value={formatNumber(stats?.extensions || 0)}
+          subValue={extStats ? t('dashboard.availableSuffix', { count: formatNumber(extStats.available) }) : ''}
           color="bg-orange-500"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Quick Actions */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="rounded-lg bg-white p-6 shadow">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">{t('dashboard.quickActions')}</h2>
           <div className="space-y-3">
             <a
               href="/ivr/create"
-              className="block px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100"
+              className="block rounded-lg bg-blue-50 px-4 py-3 text-blue-700 hover:bg-blue-100"
             >
-              Create New IVR →
+              {t('dashboard.createIvr')}
             </a>
             <a
               href="/templates"
-              className="block px-4 py-3 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100"
+              className="block rounded-lg bg-gray-50 px-4 py-3 text-gray-700 hover:bg-gray-100"
             >
-              Browse Templates →
+              {t('dashboard.browseTemplates')}
             </a>
             <a
               href="/analytics"
-              className="block px-4 py-3 bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100"
+              className="block rounded-lg bg-gray-50 px-4 py-3 text-gray-700 hover:bg-gray-100"
             >
-              View Call Logs →
+              {t('dashboard.viewCallLogs')}
             </a>
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">IVR Status</h2>
+        <div className="rounded-lg bg-white p-6 shadow">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900">{t('dashboard.ivrStatus')}</h2>
           <div className="space-y-3">
-            <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-gray-600">Active</span>
-              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                {stats?.ivrs?.active || 0}
+            <div className="flex items-center justify-between border-b py-2">
+              <span className="text-gray-600">{t('common.active')}</span>
+              <span className="rounded-full bg-green-100 px-3 py-1 text-sm text-green-800">
+                {formatNumber(stats?.ivrs?.active || 0)}
               </span>
             </div>
-            <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-gray-600">Draft</span>
-              <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm">
-                {stats?.ivrs?.draft || 0}
+            <div className="flex items-center justify-between border-b py-2">
+              <span className="text-gray-600">{t('common.draft')}</span>
+              <span className="rounded-full bg-yellow-100 px-3 py-1 text-sm text-yellow-800">
+                {formatNumber(stats?.ivrs?.draft || 0)}
               </span>
             </div>
-            <div className="flex justify-between items-center py-2">
-              <span className="text-gray-600">Inactive</span>
-              <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">
-                {stats?.ivrs?.inactive || 0}
+            <div className="flex items-center justify-between py-2">
+              <span className="text-gray-600">{t('common.inactive')}</span>
+              <span className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-800">
+                {formatNumber(stats?.ivrs?.inactive || 0)}
               </span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Partner Logos Footer */}
-      <div className="mt-8 py-6 border-t border-gray-200">
-        <p className="text-center text-sm text-gray-500 mb-4">Proudly built by</p>
+      <div className="mt-8 border-t border-gray-200 py-6">
+        <p className="mb-4 text-center text-sm text-gray-500">{t('dashboard.builtBy')}</p>
         <div className="flex items-center justify-center gap-12">
-          <img 
-            src="/replexity_logo.jpg" 
-            alt="Replexity" 
+          <img
+            src="/replexity_logo.jpg"
+            alt="Replexity"
             className="h-12 object-contain"
           />
-          <img 
-            src="/eplus_logo.png" 
-            alt="EPlus" 
+          <img
+            src="/eplus_logo.png"
+            alt="EPlus"
             className="h-12 object-contain"
           />
         </div>

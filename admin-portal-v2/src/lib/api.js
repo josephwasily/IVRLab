@@ -46,6 +46,11 @@ export const getCurrentUser = async () => {
   return response.data
 }
 
+export const updateCurrentUserLanguage = async (language) => {
+  const response = await api.put('/auth/me/language', { language })
+  return response.data
+}
+
 // IVRs
 export const getIVRs = async () => {
   const response = await api.get('/ivr')
@@ -275,6 +280,40 @@ export const uploadCampaignContacts = async (campaignId, file, mapping) => {
   const response = await api.post(`/campaigns/${campaignId}/contacts`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   })
+  return response.data
+}
+
+export const downloadCampaignContactsTemplate = async (campaignId) => {
+  const response = await api.get(`/campaigns/${campaignId}/contacts/template.csv`, {
+    responseType: 'blob'
+  })
+  return response.data
+}
+
+export const createCampaignInstanceFromUpload = async (campaignId, file, mapping) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('phone_column', mapping.phone_column)
+  const response = await api.post(`/campaigns/${campaignId}/instances/upload`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+  return response.data
+}
+
+export const createCampaignInstanceManual = async (campaignId, contacts) => {
+  const response = await api.post(`/campaigns/${campaignId}/instances/manual`, {
+    contacts
+  })
+  return response.data
+}
+
+export const getCampaignInstances = async (campaignId) => {
+  const response = await api.get(`/campaigns/${campaignId}/instances`)
+  return response.data
+}
+
+export const getCampaignInstanceContacts = async (campaignId, runId) => {
+  const response = await api.get(`/campaigns/${campaignId}/instances/${runId}/contacts`)
   return response.data
 }
 

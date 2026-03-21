@@ -6428,3 +6428,46 @@
 [Feb 25 11:19:34] ERROR[1] loader.c: cdr_sqlite3_custom declined to load.
 [Feb 25 11:19:34] ERROR[1] loader.c: res_hep_rtcp declined to load.
 [Feb 25 11:19:34] ERROR[1] loader.c: res_hep_pjsip declined to load.
+[Mar 20 00:03:36] Asterisk 20.18.2 built by root @ buildkitsandbox on a x86_64 running Linux on 2026-02-18 08:13:33 UTC
+[Mar 20 00:03:37] NOTICE[1] loader.c: 338 modules will be loaded.
+[Mar 20 00:03:40] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database user found, using 'asterisk' as default.
+[Mar 20 00:03:40] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database password found, using 'asterisk' as default.
+[Mar 20 00:03:40] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database host found, using localhost via socket.
+[Mar 20 00:03:40] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database name found, using 'asterisk' as default.
+[Mar 20 00:03:40] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database port found, using 5432 as default.
+[Mar 20 00:03:40] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database socket found, using '/tmp/.s.PGSQL.5432' as default.
+[Mar 20 00:03:40] ERROR[1] res_config_pgsql.c: PostgreSQL RealTime: Failed to connect database asterisk on : 
+[Mar 20 00:03:40] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: Couldn't establish connection. Check debug.
+[Mar 20 00:03:40] NOTICE[1] res_config_ldap.c: No directory user found, anonymous binding as default.
+[Mar 20 00:03:40] ERROR[1] res_config_ldap.c: No directory URL or host found.
+[Mar 20 00:03:40] ERROR[1] res_config_ldap.c: Cannot load LDAP RealTime driver.
+[Mar 20 00:03:40] NOTICE[1] cdr.c: CDR simple logging enabled.
+[Mar 20 00:03:40] NOTICE[1] indications.c: Default country for indication tones: us
+[Mar 20 00:03:40] NOTICE[1] indications.c: Setting default indication country to 'us'
+[Mar 20 00:03:41] ERROR[1] netsock2.c: getnameinfo(): ai_family not supported
+[Mar 20 00:03:41] ERROR[1] res_rtp_asterisk.c: Failed to setup recurring DNS resolution of stunaddr ''
+[Mar 20 00:03:42] WARNING[1] res_phoneprov.c: Unable to find a valid server address or name.
+[Mar 20 00:03:42] WARNING[1] res_musiconhold.c: No music on hold classes configured, disabling music on hold.
+[Mar 20 00:03:43] NOTICE[1] res_smdi.c: No SMDI interfaces are available to listen on, not starting SMDI listener.
+[Mar 20 00:03:46] NOTICE[1] confbridge/conf_config_parser.c: Adding default_menu menu to app_confbridge
+[Mar 20 00:03:46] NOTICE[1] cel_custom.c: No mappings found in cel_custom.conf. Not logging CEL to custom CSVs.
+[Mar 20 00:03:46] NOTICE[1] cdr_pgsql.c: cdr_pgsql configuration contains no global section, skipping module load.
+[Mar 20 00:03:46] WARNING[1] cel_pgsql.c: CEL pgsql config file missing global section.
+[Mar 20 00:03:48] WARNING[1] res_hep_rtcp.c: res_hep is disabled; declining module load
+[Mar 20 00:03:49] WARNING[1] res_hep_pjsip.c: res_hep is disabled; declining module load
+[Mar 20 00:03:49] WARNING[1] loader.c: Some non-required modules failed to load.
+[Mar 20 00:03:49] WARNING[1] loader.c: Module 'res_adsi' has been loaded but may be removed in a future release.
+[Mar 20 00:03:49] WARNING[1] loader.c: Module 'app_getcpeid' has been loaded but may be removed in a future release.
+[Mar 20 00:03:49] WARNING[1] loader.c: Module 'app_adsiprog' has been loaded but may be removed in a future release.
+[Mar 20 00:03:49] ERROR[1] loader.c: Error loading module 'format_ogg_vorbis.so': libvorbisenc.so.2: cannot open shared object file: No such file or directory
+[Mar 20 00:03:49] ERROR[1] loader.c: cel_sqlite3_custom declined to load.
+[Mar 20 00:03:49] ERROR[1] loader.c: cdr_pgsql declined to load.
+[Mar 20 00:03:49] ERROR[1] loader.c: cdr_sqlite3_custom declined to load.
+[Mar 20 00:03:49] ERROR[1] loader.c: res_hep_rtcp declined to load.
+[Mar 20 00:03:49] ERROR[1] loader.c: res_hep_pjsip declined to load.
+[Mar 20 20:56:28] ERROR[34] chan_pjsip.c: Unable to create PJSIP channel - endpoint '19990001234' was not found
+[Mar 20 20:57:14] ERROR[34] chan_pjsip.c: Unable to create PJSIP channel - endpoint '19990001234' was not found
+[Mar 20 20:58:01] ERROR[34] chan_pjsip.c: Unable to create PJSIP channel - endpoint '19990001234' was not found
+[Mar 20 21:34:31] ERROR[34] chan_pjsip.c: Unable to create PJSIP channel - endpoint '5000' was not found
+[Mar 20 21:35:19] ERROR[34] chan_pjsip.c: Unable to create PJSIP channel - endpoint '5000' was not found
+[Mar 20 23:00:55] ERROR[34] chan_pjsip.c: Unable to create PJSIP channel - endpoint '5000' was not found

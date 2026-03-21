@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     name TEXT NOT NULL,
+    language TEXT DEFAULT 'ar' CHECK(language IN ('ar', 'en')),
     role TEXT DEFAULT 'editor' CHECK(role IN ('admin', 'editor', 'viewer')),
     status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -149,13 +150,15 @@ CREATE TABLE IF NOT EXISTS campaign_runs (
 CREATE TABLE IF NOT EXISTS campaign_contacts (
     id TEXT PRIMARY KEY,
     campaign_id TEXT NOT NULL,
+    run_id TEXT,
     phone_number TEXT NOT NULL,
     variables TEXT DEFAULT '{}',  -- JSON custom variables
     status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'calling', 'completed', 'failed', 'skipped')),
     attempts INTEGER DEFAULT 0,
     last_attempt_at DATETIME,
     result TEXT,  -- JSON result data
-    FOREIGN KEY (campaign_id) REFERENCES campaigns(id)
+    FOREIGN KEY (campaign_id) REFERENCES campaigns(id),
+    FOREIGN KEY (run_id) REFERENCES campaign_runs(id) ON DELETE CASCADE
 );
 
 -- API Connectors
@@ -277,6 +280,7 @@ CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
 CREATE INDEX IF NOT EXISTS idx_campaign_runs_campaign ON campaign_runs(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_campaign_runs_status ON campaign_runs(status);
 CREATE INDEX IF NOT EXISTS idx_campaign_contacts_campaign ON campaign_contacts(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_campaign_contacts_run ON campaign_contacts(run_id);
 CREATE INDEX IF NOT EXISTS idx_campaign_contacts_status ON campaign_contacts(status);
 CREATE INDEX IF NOT EXISTS idx_campaign_triggers_campaign ON campaign_triggers(campaign_id);
 CREATE INDEX IF NOT EXISTS idx_outbound_calls_campaign ON outbound_calls(campaign_id);

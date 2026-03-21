@@ -3,6 +3,8 @@ const router = express.Router();
 const db = require('../db');
 const { v4: uuidv4 } = require('uuid');
 const { authMiddleware, requireRole } = require('../middleware/auth');
+const fs = require('fs');
+const path = require('path');
 const multer = require('multer');
 const csv = require('csv-parse/sync');
 const net = require('net');
@@ -13,6 +15,7 @@ const AMI_PORT = parseInt(process.env.AMI_PORT || '5038');
 const AMI_USER = process.env.AMI_USER || 'admin';
 const AMI_SECRET = process.env.AMI_SECRET || 'amipass';
 const CALL_RESULT_TIMEOUT_MS = parseInt(process.env.OUTBOUND_CALL_RESULT_TIMEOUT_MS || '45000', 10);
+const CAMPAIGN_CONTACTS_TEMPLATE_PATH = path.join(__dirname, '..', 'assets', 'campaign-contacts-template.csv');
 
 function parseTrunkSettings(trunk) {
     if (!trunk || !trunk.settings) return {};
@@ -140,6 +143,194 @@ function buildAttemptResult({ outcome, attemptNumber, maxAttempts, retrySchedule
     };
 }
 
+function parseCampaignSettings(campaign) {
+    if (!campaign?.settings) return {};
+    try {
+        return JSON.parse(campaign.settings);
+    } catch (_error) {
+        return {};
+    }
+}
+
+function getCampaignExecutionContext(campaign) {
+    const settings = parseCampaignSettings(campaign);
+    const trunkId = campaign.trunk_id || settings.trunk_id;
+    if (!trunkId) {
+        throw new Error('Campaign must have a SIP trunk configured');
+    }
+
+    const trunk = db.prepare('SELECT * FROM sip_trunks WHERE id = ?').get(trunkId);
+    if (!trunk) {
+        throw new Error('SIP trunk not found');
+    }
+
+    let ivrExtension = null;
+    if (campaign.ivr_id) {
+        const ivr = db.prepare('SELECT extension FROM ivr_flows WHERE id = ?').get(campaign.ivr_id);
+        ivrExtension = ivr?.extension || null;
+    }
+
+    const maxAttempts = parseInt(campaign.max_attempts || settings.retry_attempts || 3, 10);
+    const runSettings = {
+        trunk_id: trunkId,
+        ivr_id: campaign.ivr_id,
+        caller_id: campaign.caller_id || settings.caller_id,
+        max_concurrent_calls: campaign.max_concurrent_calls || settings.max_concurrent_calls,
+        retry_attempts: maxAttempts,
+        retry_delay_minutes: campaign.retry_delay_minutes || settings.retry_delay_minutes
+    };
+
+    return {
+        settings,
+        trunk,
+        trunkId,
+        ivrId: campaign.ivr_id || null,
+        ivrExtension,
+        callerId: campaign.caller_id || settings.caller_id || trunk.caller_id || '1000',
+        maxConcurrent: campaign.max_concurrent_calls || settings.max_concurrent_calls || 5,
+        maxAttempts,
+        runSettings
+    };
+}
+
+function createCampaignRunRecord(campaignId, startedBy, totalContacts, runSettings) {
+    const lastRun = db.prepare(`
+        SELECT MAX(run_number) as max_run FROM campaign_runs WHERE campaign_id = ?
+    `).get(campaignId);
+
+    const runId = uuidv4();
+    const runNumber = (lastRun?.max_run || 0) + 1;
+
+    db.prepare(`
+        INSERT INTO campaign_runs (id, campaign_id, run_number, status, total_contacts, started_by, settings)
+        VALUES (?, ?, ?, 'running', ?, ?, ?)
+    `).run(runId, campaignId, runNumber, totalContacts, startedBy, JSON.stringify(runSettings));
+
+    return { runId, runNumber };
+}
+
+function insertContactsForRun({ campaignId, runId, contacts }) {
+    const insertStmt = db.prepare(`
+        INSERT INTO campaign_contacts (id, campaign_id, run_id, phone_number, variables)
+        VALUES (?, ?, ?, ?, ?)
+    `);
+
+    let imported = 0;
+    let duplicates = 0;
+    let skipped = 0;
+    const seenPhones = new Set();
+
+    const insertMany = db.transaction((contactList) => {
+        for (const contact of contactList) {
+            const phone = String(contact.phone_number || '').trim();
+            if (!phone) {
+                skipped++;
+                continue;
+            }
+
+            if (seenPhones.has(phone)) {
+                duplicates++;
+                continue;
+            }
+
+            const variables = {};
+            if (contact.name) variables.name = contact.name;
+            if (contact.variables && typeof contact.variables === 'object') {
+                Object.assign(variables, contact.variables);
+            }
+
+            insertStmt.run(uuidv4(), campaignId, runId, phone, JSON.stringify(variables));
+            seenPhones.add(phone);
+            imported++;
+        }
+    });
+
+    insertMany(contacts);
+
+    return { imported, duplicates, skipped };
+}
+
+function parseCsvContactsFromRequest(file, phoneColumn = 'phone') {
+    if (!file) {
+        throw new Error('No CSV file uploaded');
+    }
+
+    const records = csv.parse(file.buffer.toString(), {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true
+    });
+
+    if (records.length === 0) {
+        throw new Error('CSV file is empty');
+    }
+
+    const firstRecord = records[0];
+    if (!firstRecord[phoneColumn]) {
+        const error = new Error(`Column "${phoneColumn}" not found in CSV`);
+        error.availableColumns = Object.keys(firstRecord);
+        throw error;
+    }
+
+    return records.map((record) => {
+        const phone = String(record[phoneColumn] || '').trim();
+        const variables = { ...record };
+        delete variables[phoneColumn];
+
+        const inferredName = record.name || record.Name || record.full_name || record.customer_name || '';
+        return {
+            phone_number: phone,
+            name: inferredName,
+            variables
+        };
+    });
+}
+
+function startCampaignInstance({ campaign, contacts, startedBy }) {
+    const runningRun = db.prepare(`
+        SELECT * FROM campaign_runs WHERE campaign_id = ? AND status = 'running'
+    `).get(campaign.id);
+
+    if (runningRun) {
+        throw new Error('Campaign already has an active run in progress');
+    }
+
+    const execution = getCampaignExecutionContext(campaign);
+    const { runId, runNumber } = createCampaignRunRecord(
+        campaign.id,
+        startedBy,
+        Array.isArray(contacts) ? contacts.length : 0,
+        execution.runSettings
+    );
+
+    const importStats = insertContactsForRun({ campaignId: campaign.id, runId, contacts });
+
+    if (importStats.imported === 0) {
+        db.prepare('DELETE FROM campaign_runs WHERE id = ?').run(runId);
+        throw new Error('No valid contacts provided for this campaign instance');
+    }
+
+    db.prepare('UPDATE campaign_runs SET total_contacts = ? WHERE id = ?').run(importStats.imported, runId);
+
+    processCampaignContacts(campaign.id, runId, {
+        trunk: execution.trunk,
+        ivrId: execution.ivrId,
+        ivrExtension: execution.ivrExtension,
+        callerId: execution.callerId,
+        maxConcurrent: execution.maxConcurrent,
+        maxAttempts: execution.maxAttempts,
+        contactScope: 'run'
+    });
+
+    return {
+        runId,
+        runNumber,
+        imported: importStats.imported,
+        duplicates: importStats.duplicates,
+        skipped: importStats.skipped
+    };
+}
+
 function finalizeContactAfterAttempt({
     campaignId,
     runId,
@@ -181,14 +372,6 @@ function finalizeContactAfterAttempt({
             }
         }
     }
-
-    if (campaignId) {
-        if (contactStatus === 'completed') {
-            db.prepare('UPDATE campaigns SET contacts_completed = contacts_completed + 1 WHERE id = ?').run(campaignId);
-        } else {
-            db.prepare('UPDATE campaigns SET contacts_failed = contacts_failed + 1 WHERE id = ?').run(campaignId);
-        }
-    }
 }
 
 // List all campaigns for tenant
@@ -199,8 +382,9 @@ router.get('/', (req, res) => {
         let query = `
             SELECT c.*, 
                    i.name as ivr_name,
-                   (SELECT COUNT(*) FROM campaign_contacts WHERE campaign_id = c.id) as total_contacts,
-                   (SELECT COUNT(*) FROM campaign_runs WHERE campaign_id = c.id) as run_count
+                   (SELECT COUNT(*) FROM campaign_runs WHERE campaign_id = c.id) as run_count,
+                   (SELECT COUNT(*) FROM campaign_runs WHERE campaign_id = c.id AND status = 'running') as running_instances_count,
+                   (SELECT COUNT(*) FROM campaign_runs WHERE campaign_id = c.id AND status = 'paused') as paused_instances_count
             FROM campaigns c
             LEFT JOIN ivr_flows i ON c.ivr_id = i.id
             WHERE c.tenant_id = ?
@@ -240,7 +424,7 @@ router.get('/', (req, res) => {
             
             // Get active run info if any
             const activeRun = db.prepare(`
-                SELECT id, run_number, status, total_contacts, contacts_completed, contacts_failed, started_at
+                SELECT id, run_number, status, total_contacts, contacts_completed, contacts_failed, contacts_no_answer, started_at
                 FROM campaign_runs 
                 WHERE campaign_id = ? AND status IN ('running', 'paused')
                 ORDER BY run_number DESC LIMIT 1
@@ -289,11 +473,11 @@ router.get('/:id', (req, res) => {
             campaign.trunk_name = trunk ? trunk.name : null;
         }
         
-        // Default values
-        campaign.total_contacts = campaign.total_contacts || 0;
-        campaign.contacts_called = campaign.contacts_called || 0;
-        campaign.contacts_completed = campaign.contacts_completed || 0;
-        campaign.contacts_failed = campaign.contacts_failed || 0;
+        campaign.instance_count = db.prepare('SELECT COUNT(*) as count FROM campaign_runs WHERE campaign_id = ?')
+            .get(req.params.id).count;
+        campaign.running_instances_count = db.prepare(`
+            SELECT COUNT(*) as count FROM campaign_runs WHERE campaign_id = ? AND status = 'running'
+        `).get(req.params.id).count;
         
         // Get triggers (if table exists)
         try {
@@ -417,8 +601,13 @@ router.delete('/:id', (req, res) => {
             return res.status(404).json({ error: 'Campaign not found' });
         }
         
-        if (existing.status === 'running') {
-            return res.status(400).json({ error: 'Cannot delete running campaign' });
+        const activeRun = db.prepare(`
+            SELECT id FROM campaign_runs
+            WHERE campaign_id = ? AND status IN ('running', 'paused')
+        `).get(req.params.id);
+
+        if (activeRun) {
+            return res.status(400).json({ error: 'Cannot delete campaign with an active instance' });
         }
         
         // Delete related data
@@ -437,77 +626,8 @@ router.delete('/:id', (req, res) => {
 // Add manual contacts - MUST be before /:id/contacts to avoid route conflict
 router.post('/:id/contacts/manual', (req, res) => {
     try {
-        const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?')
-            .get(req.params.id, req.user.tenantId);
-        
-        if (!campaign) {
-            return res.status(404).json({ error: 'Campaign not found' });
-        }
-        
-        const { contacts, clear_existing = false } = req.body;
-        
-        if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
-            return res.status(400).json({ error: 'No contacts provided' });
-        }
-        
-        // Validate contacts
-        const invalidContacts = contacts.filter(c => !c.phone_number || c.phone_number.trim() === '');
-        if (invalidContacts.length > 0) {
-            return res.status(400).json({ error: 'Some contacts are missing phone numbers' });
-        }
-        
-        // Clear existing contacts if requested
-        if (clear_existing) {
-            db.prepare('DELETE FROM campaign_contacts WHERE campaign_id = ?').run(req.params.id);
-        }
-        
-        // Get existing phone numbers to prevent duplicates
-        const existingPhones = new Set(
-            db.prepare('SELECT phone_number FROM campaign_contacts WHERE campaign_id = ?')
-                .all(req.params.id)
-                .map(c => c.phone_number)
-        );
-        
-        // Insert contacts
-        const insertStmt = db.prepare(`
-            INSERT INTO campaign_contacts (id, campaign_id, phone_number, variables)
-            VALUES (?, ?, ?, ?)
-        `);
-        
-        let imported = 0;
-        let duplicates = 0;
-        
-        const insertMany = db.transaction((contactList) => {
-            for (const contact of contactList) {
-                const phone = contact.phone_number.trim();
-                
-                // Skip if phone number already exists
-                if (existingPhones.has(phone)) {
-                    duplicates++;
-                    continue;
-                }
-                
-                const variables = {};
-                if (contact.name) variables.name = contact.name;
-                if (contact.variables) Object.assign(variables, contact.variables);
-                
-                insertStmt.run(uuidv4(), req.params.id, phone, JSON.stringify(variables));
-                existingPhones.add(phone); // Track newly added phones too
-                imported++;
-            }
-        });
-        
-        insertMany(contacts);
-        
-        // Get total contacts count (not stored in campaigns table - computed on read)
-        const totalContacts = db.prepare('SELECT COUNT(*) as count FROM campaign_contacts WHERE campaign_id = ?')
-            .get(req.params.id).count;
-        
-        res.json({ 
-            success: true, 
-            imported,
-            duplicates,
-            total: totalContacts 
+        res.status(410).json({
+            error: 'Campaign-level contacts are no longer supported. Create a campaign instance instead.'
         });
     } catch (error) {
         console.error('Error adding manual contacts:', error);
@@ -518,97 +638,8 @@ router.post('/:id/contacts/manual', (req, res) => {
 // Upload contacts CSV
 router.post('/:id/contacts', upload.single('file'), (req, res) => {
     try {
-        const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?')
-            .get(req.params.id, req.user.tenantId);
-        
-        if (!campaign) {
-            return res.status(404).json({ error: 'Campaign not found' });
-        }
-        
-        if (!req.file) {
-            return res.status(400).json({ error: 'No CSV file uploaded' });
-        }
-        
-        const { phone_column = 'phone', clear_existing = 'false' } = req.body;
-        
-        // Parse CSV
-        const records = csv.parse(req.file.buffer.toString(), {
-            columns: true,
-            skip_empty_lines: true,
-            trim: true
-        });
-        
-        if (records.length === 0) {
-            return res.status(400).json({ error: 'CSV file is empty' });
-        }
-        
-        // Validate phone column exists
-        const firstRecord = records[0];
-        if (!firstRecord[phone_column]) {
-            return res.status(400).json({ 
-                error: `Column "${phone_column}" not found in CSV`,
-                available_columns: Object.keys(firstRecord)
-            });
-        }
-        
-        // Clear existing contacts if requested
-        if (clear_existing === 'true') {
-            db.prepare('DELETE FROM campaign_contacts WHERE campaign_id = ?').run(req.params.id);
-        }
-        
-        // Get existing phone numbers to prevent duplicates
-        const existingPhones = new Set(
-            db.prepare('SELECT phone_number FROM campaign_contacts WHERE campaign_id = ?')
-                .all(req.params.id)
-                .map(c => c.phone_number)
-        );
-        
-        // Insert contacts
-        const insertStmt = db.prepare(`
-            INSERT INTO campaign_contacts (id, campaign_id, phone_number, variables)
-            VALUES (?, ?, ?, ?)
-        `);
-        
-        let imported = 0;
-        let skipped = 0;
-        let duplicates = 0;
-        
-        const insertMany = db.transaction((records) => {
-            for (const record of records) {
-                const phone = record[phone_column]?.trim();
-                if (!phone) {
-                    skipped++;
-                    continue;
-                }
-                
-                // Skip if phone number already exists
-                if (existingPhones.has(phone)) {
-                    duplicates++;
-                    continue;
-                }
-                
-                // Store all columns as variables (except phone)
-                const variables = { ...record };
-                delete variables[phone_column];
-                
-                insertStmt.run(uuidv4(), req.params.id, phone, JSON.stringify(variables));
-                existingPhones.add(phone); // Track newly added phones too
-                imported++;
-            }
-        });
-        
-        insertMany(records);
-        
-        // Get total contacts count (computed, not stored)
-        const totalContacts = db.prepare('SELECT COUNT(*) as count FROM campaign_contacts WHERE campaign_id = ?')
-            .get(req.params.id).count;
-        
-        res.json({ 
-            success: true, 
-            imported, 
-            skipped,
-            duplicates,
-            total: totalContacts 
+        res.status(410).json({
+            error: 'Campaign-level contact uploads are no longer supported. Upload contacts when creating an instance.'
         });
     } catch (error) {
         console.error('Error uploading contacts:', error);
@@ -616,40 +647,150 @@ router.post('/:id/contacts', upload.single('file'), (req, res) => {
     }
 });
 
-// List contacts
-router.get('/:id/contacts', (req, res) => {
+// Download simple CSV template for campaign instance uploads
+router.get('/:id/contacts/template.csv', (req, res) => {
     try {
-        const campaign = db.prepare('SELECT id FROM campaigns WHERE id = ? AND tenant_id = ?')
+        const campaign = db.prepare('SELECT id, name FROM campaigns WHERE id = ? AND tenant_id = ?')
             .get(req.params.id, req.user.tenantId);
-        
+
         if (!campaign) {
             return res.status(404).json({ error: 'Campaign not found' });
         }
-        
-        const { status, limit = 100, offset = 0 } = req.query;
-        
-        let query = 'SELECT * FROM campaign_contacts WHERE campaign_id = ?';
-        const params = [req.params.id];
-        
-        if (status) {
-            query += ' AND status = ?';
-            params.push(status);
+
+        const template = fs.readFileSync(CAMPAIGN_CONTACTS_TEMPLATE_PATH, 'utf8');
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${campaign.name.replace(/[^a-z0-9_-]+/gi, '_')}-contacts-template.csv"`);
+        res.send(`\uFEFF${template}`);
+    } catch (error) {
+        console.error('Error generating campaign contact template:', error);
+        res.status(500).json({ error: 'Failed to generate contact template' });
+    }
+});
+
+// Create and start a campaign instance from manual contacts
+router.post('/:id/instances/manual', (req, res) => {
+    try {
+        const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?')
+            .get(req.params.id, req.user.tenantId);
+
+        if (!campaign) {
+            return res.status(404).json({ error: 'Campaign not found' });
         }
-        
-        query += ' ORDER BY id LIMIT ? OFFSET ?';
-        params.push(parseInt(limit), parseInt(offset));
-        
-        const contacts = db.prepare(query).all(...params);
-        
-        contacts.forEach(c => {
-            if (c.variables) try { c.variables = JSON.parse(c.variables); } catch(e) {}
-            if (c.result) try { c.result = JSON.parse(c.result); } catch(e) {}
+
+        const { contacts } = req.body;
+        if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
+            return res.status(400).json({ error: 'No contacts provided' });
+        }
+
+        const invalidContacts = contacts.filter((contact) => !contact.phone_number || !String(contact.phone_number).trim());
+        if (invalidContacts.length > 0) {
+            return res.status(400).json({ error: 'Some contacts are missing phone numbers' });
+        }
+
+        const result = startCampaignInstance({
+            campaign,
+            contacts,
+            startedBy: req.user.userId
         });
-        
-        const total = db.prepare('SELECT COUNT(*) as count FROM campaign_contacts WHERE campaign_id = ?')
-            .get(req.params.id).count;
-        
-        res.json({ contacts, total, limit: parseInt(limit), offset: parseInt(offset) });
+
+        res.status(201).json({
+            success: true,
+            message: `Campaign instance started - Run #${result.runNumber}`,
+            run_id: result.runId,
+            run_number: result.runNumber,
+            imported: result.imported,
+            duplicates: result.duplicates,
+            skipped: result.skipped
+        });
+    } catch (error) {
+        console.error('Error creating campaign instance from manual contacts:', error);
+        res.status(500).json({ error: error.message || 'Failed to create campaign instance' });
+    }
+});
+
+// Create and start a campaign instance from a CSV file
+router.post('/:id/instances/upload', upload.single('file'), (req, res) => {
+    try {
+        const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?')
+            .get(req.params.id, req.user.tenantId);
+
+        if (!campaign) {
+            return res.status(404).json({ error: 'Campaign not found' });
+        }
+
+        const { phone_column = 'phone' } = req.body;
+        const contacts = parseCsvContactsFromRequest(req.file, phone_column);
+
+        const result = startCampaignInstance({
+            campaign,
+            contacts,
+            startedBy: req.user.userId
+        });
+
+        res.status(201).json({
+            success: true,
+            message: `Campaign instance started - Run #${result.runNumber}`,
+            run_id: result.runId,
+            run_number: result.runNumber,
+            imported: result.imported,
+            duplicates: result.duplicates,
+            skipped: result.skipped
+        });
+    } catch (error) {
+        console.error('Error creating campaign instance from upload:', error);
+        const payload = { error: error.message || 'Failed to create campaign instance' };
+        if (error.availableColumns) {
+            payload.available_columns = error.availableColumns;
+        }
+        res.status(500).json(payload);
+    }
+});
+
+// List contacts for a specific campaign instance
+router.get('/:id/instances/:runId/contacts', (req, res) => {
+    try {
+        const campaign = db.prepare('SELECT id FROM campaigns WHERE id = ? AND tenant_id = ?')
+            .get(req.params.id, req.user.tenantId);
+
+        if (!campaign) {
+            return res.status(404).json({ error: 'Campaign not found' });
+        }
+
+        const run = db.prepare('SELECT id FROM campaign_runs WHERE id = ? AND campaign_id = ?')
+            .get(req.params.runId, req.params.id);
+
+        if (!run) {
+            return res.status(404).json({ error: 'Campaign instance not found' });
+        }
+
+        const contacts = db.prepare(`
+            SELECT * FROM campaign_contacts
+            WHERE campaign_id = ? AND run_id = ?
+            ORDER BY id
+        `).all(req.params.id, req.params.runId);
+
+        contacts.forEach((contact) => {
+            if (contact.variables) try { contact.variables = JSON.parse(contact.variables); } catch (_error) {}
+            if (contact.result) try { contact.result = JSON.parse(contact.result); } catch (_error) {}
+        });
+
+        res.json({
+            contacts,
+            total: contacts.length
+        });
+    } catch (error) {
+        console.error('Error listing campaign instance contacts:', error);
+        res.status(500).json({ error: 'Failed to list campaign instance contacts' });
+    }
+});
+
+// List contacts
+router.get('/:id/contacts', (req, res) => {
+    try {
+        res.status(410).json({
+            error: 'Campaign-level contacts are no longer available. View contacts through a campaign instance.'
+        });
     } catch (error) {
         console.error('Error listing contacts:', error);
         res.status(500).json({ error: 'Failed to list contacts' });
@@ -659,20 +800,9 @@ router.get('/:id/contacts', (req, res) => {
 // Delete all contacts
 router.delete('/:id/contacts', (req, res) => {
     try {
-        const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?')
-            .get(req.params.id, req.user.tenantId);
-        
-        if (!campaign) {
-            return res.status(404).json({ error: 'Campaign not found' });
-        }
-        
-        if (campaign.status === 'running') {
-            return res.status(400).json({ error: 'Cannot delete contacts while campaign is running' });
-        }
-        
-        db.prepare('DELETE FROM campaign_contacts WHERE campaign_id = ?').run(req.params.id);
-        
-        res.json({ success: true });
+        res.status(410).json({
+            error: 'Campaign-level contacts are no longer available. Delete contacts from a campaign instance if needed.'
+        });
     } catch (error) {
         console.error('Error deleting contacts:', error);
         res.status(500).json({ error: 'Failed to delete contacts' });
@@ -682,30 +812,9 @@ router.delete('/:id/contacts', (req, res) => {
 // Delete single contact
 router.delete('/:id/contacts/:contactId', (req, res) => {
     try {
-        const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?')
-            .get(req.params.id, req.user.tenantId);
-        
-        if (!campaign) {
-            return res.status(404).json({ error: 'Campaign not found' });
-        }
-        
-        // Check if campaign is running
-        const runningRun = db.prepare(`
-            SELECT * FROM campaign_runs WHERE campaign_id = ? AND status = 'running'
-        `).get(req.params.id);
-        
-        if (runningRun) {
-            return res.status(400).json({ error: 'Cannot delete contact while campaign is running' });
-        }
-        
-        const result = db.prepare('DELETE FROM campaign_contacts WHERE id = ? AND campaign_id = ?')
-            .run(req.params.contactId, req.params.id);
-        
-        if (result.changes === 0) {
-            return res.status(404).json({ error: 'Contact not found' });
-        }
-        
-        res.json({ success: true });
+        res.status(410).json({
+            error: 'Campaign-level contacts are no longer available. Delete contacts from a campaign instance if needed.'
+        });
     } catch (error) {
         console.error('Error deleting contact:', error);
         res.status(500).json({ error: 'Failed to delete contact' });
@@ -726,7 +835,7 @@ router.get('/:id/stats', (req, res) => {
         const contactStats = db.prepare(`
             SELECT status, COUNT(*) as count 
             FROM campaign_contacts 
-            WHERE campaign_id = ? 
+            WHERE campaign_id = ?
             GROUP BY status
         `).all(req.params.id);
         
@@ -759,6 +868,31 @@ router.get('/:id/stats', (req, res) => {
     } catch (error) {
         console.error('Error getting stats:', error);
         res.status(500).json({ error: 'Failed to get campaign statistics' });
+    }
+});
+
+// Get campaign runs (history of executions)
+router.get('/:id/instances', (req, res) => {
+    try {
+        const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?')
+            .get(req.params.id, req.user.tenantId);
+        
+        if (!campaign) {
+            return res.status(404).json({ error: 'Campaign not found' });
+        }
+        
+        const instances = db.prepare(`
+            SELECT cr.*, u.email as started_by_email
+            FROM campaign_runs cr
+            LEFT JOIN users u ON cr.started_by = u.id
+            WHERE cr.campaign_id = ?
+            ORDER BY cr.run_number DESC
+        `).all(req.params.id);
+        
+        res.json(instances);
+    } catch (error) {
+        console.error('Error getting campaign instances:', error);
+        res.status(500).json({ error: 'Failed to get campaign instances' });
     }
 });
 
@@ -833,105 +967,8 @@ router.get('/:id/runs/:runId', (req, res) => {
 // Start campaign - creates a new run instance
 router.post('/:id/start', (req, res) => {
     try {
-        const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?')
-            .get(req.params.id, req.user.tenantId);
-        
-        if (!campaign) {
-            return res.status(404).json({ error: 'Campaign not found' });
-        }
-        
-        // Parse settings if stored as JSON
-        let settings = {};
-        if (campaign.settings) {
-            try { settings = JSON.parse(campaign.settings); } catch(e) {}
-        }
-        
-        // Get trunk_id from campaign or settings
-        const trunkId = campaign.trunk_id || settings.trunk_id;
-        if (!trunkId) {
-            return res.status(400).json({ error: 'Campaign must have a SIP trunk configured' });
-        }
-        
-        // Get trunk details
-        const trunk = db.prepare('SELECT * FROM sip_trunks WHERE id = ?').get(trunkId);
-        if (!trunk) {
-            return res.status(400).json({ error: 'SIP trunk not found' });
-        }
-
-        // Get total contacts count
-        const contactCount = db.prepare('SELECT COUNT(*) as count FROM campaign_contacts WHERE campaign_id = ?')
-            .get(req.params.id).count;
-        
-        if (contactCount === 0) {
-            return res.status(400).json({ error: 'Campaign has no contacts' });
-        }
-        
-        // Check if there's already a running run for this campaign
-        const runningRun = db.prepare(`
-            SELECT * FROM campaign_runs WHERE campaign_id = ? AND status = 'running'
-        `).get(req.params.id);
-        
-        if (runningRun) {
-            return res.status(400).json({ error: 'Campaign already has an active run in progress' });
-        }
-        
-        // Get the next run number
-        const lastRun = db.prepare(`
-            SELECT MAX(run_number) as max_run FROM campaign_runs WHERE campaign_id = ?
-        `).get(req.params.id);
-        const runNumber = (lastRun?.max_run || 0) + 1;
-        
-        // Create new run instance with settings snapshot
-        const runId = uuidv4();
-        const maxAttempts = parseInt(campaign.max_attempts || settings.retry_attempts || 3, 10);
-        const runSettings = {
-            trunk_id: trunkId,
-            ivr_id: campaign.ivr_id,
-            caller_id: campaign.caller_id || settings.caller_id,
-            max_concurrent_calls: campaign.max_concurrent_calls || settings.max_concurrent_calls,
-            retry_attempts: maxAttempts,
-            retry_delay_minutes: campaign.retry_delay_minutes || settings.retry_delay_minutes
-        };
-        
-        db.prepare(`
-            INSERT INTO campaign_runs (id, campaign_id, run_number, status, total_contacts, started_by, settings)
-            VALUES (?, ?, ?, 'running', ?, ?, ?)
-        `).run(runId, req.params.id, runNumber, contactCount, req.user.userId, JSON.stringify(runSettings));
-        
-        // Reset contact statuses for this new run
-        db.prepare(`
-            UPDATE campaign_contacts SET status = 'pending', attempts = 0, last_attempt_at = NULL, result = NULL
-            WHERE campaign_id = ?
-        `).run(req.params.id);
-        
-        console.log(`Campaign ${req.params.id} started - Run #${runNumber} (${runId})`);
-        
-        // Start processing contacts asynchronously
-        const effectiveCallerId = campaign.caller_id || settings.caller_id || trunk.caller_id || '1000';
-        const maxConcurrent = campaign.max_concurrent_calls || settings.max_concurrent_calls || 5;
-        
-        // Get IVR extension if IVR is configured
-        let ivrExtension = null;
-        if (campaign.ivr_id) {
-            const ivr = db.prepare('SELECT extension FROM ivr_flows WHERE id = ?').get(campaign.ivr_id);
-            ivrExtension = ivr?.extension;
-        }
-        
-        // Process contacts in the background
-        processCampaignContacts(req.params.id, runId, {
-            trunk,
-            ivrId: campaign.ivr_id || null,
-            ivrExtension,
-            callerId: effectiveCallerId,
-            maxConcurrent,
-            maxAttempts
-        });
-        
-        res.json({ 
-            success: true, 
-            message: `Campaign started - Run #${runNumber}`,
-            run_id: runId,
-            run_number: runNumber
+        res.status(410).json({
+            error: 'Starting a campaign without contacts is no longer supported. Create a campaign instance with uploaded contacts instead.'
         });
     } catch (error) {
         console.error('Error starting campaign:', error);
@@ -1026,10 +1063,11 @@ router.post('/:id/cancel', (req, res) => {
             UPDATE campaign_contacts
             SET status = 'skipped',
                 result = COALESCE(result, ?)
-            WHERE campaign_id = ? AND status = 'pending'
+            WHERE status = 'pending'
+              AND run_id = ?
         `).run(
             stringifyResult({ call_outcome: 'campaign_cancelled', note: 'Campaign cancelled before dialing' }),
-            req.params.id
+            activeRun.id
         );
 
         db.prepare(`
@@ -1058,7 +1096,11 @@ router.post('/:id/cancel', (req, res) => {
  * @param {object} options 
  */
 async function processCampaignContacts(campaignId, runId, options) {
-    const { trunk, ivrId, ivrExtension, callerId, maxConcurrent, maxAttempts } = options;
+    const { trunk, ivrId, ivrExtension, callerId, maxConcurrent, maxAttempts, contactScope = 'campaign' } = options;
+    const contactScopeWhere = contactScope === 'run'
+        ? 'run_id = ?'
+        : 'campaign_id = ? AND run_id IS NULL';
+    const contactScopeValue = contactScope === 'run' ? runId : campaignId;
     
     console.log(`[Campaign ${campaignId}] Starting to process contacts for run ${runId}`);
     
@@ -1074,8 +1116,8 @@ async function processCampaignContacts(campaignId, runId, options) {
         // Count active calls
         const activeCalls = db.prepare(`
             SELECT COUNT(*) as count FROM campaign_contacts 
-            WHERE campaign_id = ? AND status = 'calling'
-        `).get(campaignId).count;
+            WHERE ${contactScopeWhere} AND status = 'calling'
+        `).get(contactScopeValue).count;
         
         if (activeCalls >= maxConcurrent) {
             // Wait and try again
@@ -1086,9 +1128,9 @@ async function processCampaignContacts(campaignId, runId, options) {
         // Get next pending contact
         const contact = db.prepare(`
             SELECT * FROM campaign_contacts 
-            WHERE campaign_id = ? AND status = 'pending'
+            WHERE ${contactScopeWhere} AND status = 'pending'
             LIMIT 1
-        `).get(campaignId);
+        `).get(contactScopeValue);
         
         if (!contact) {
             // Check if any calls are still in progress
