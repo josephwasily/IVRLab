@@ -51,6 +51,11 @@ db.exec('CREATE INDEX IF NOT EXISTS idx_campaign_contacts_run ON campaign_contac
 db.exec("UPDATE users SET language = 'ar' WHERE language IS NULL OR TRIM(language) = ''");
 db.exec("UPDATE users SET language = 'ar', updated_at = CURRENT_TIMESTAMP WHERE email = 'admin@demo.com'");
 
+// Webhook columns for campaigns
+ensureColumn('campaigns', 'webhook_api_key', 'TEXT');
+ensureColumn('campaigns', 'flag_variable', 'TEXT');
+ensureColumn('campaigns', 'flag_value', 'TEXT');
+
 // Initialize extension pool (2000-2999 for inbound IVRs)
 console.log('Initializing extension pool...');
 const insertExt = db.prepare('INSERT OR IGNORE INTO extensions (extension, status) VALUES (?, ?)');

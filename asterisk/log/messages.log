@@ -6471,3 +6471,12 @@
 [Mar 20 21:34:31] ERROR[34] chan_pjsip.c: Unable to create PJSIP channel - endpoint '5000' was not found
 [Mar 20 21:35:19] ERROR[34] chan_pjsip.c: Unable to create PJSIP channel - endpoint '5000' was not found
 [Mar 20 23:00:55] ERROR[34] chan_pjsip.c: Unable to create PJSIP channel - endpoint '5000' was not found
+[Mar 25 00:22:42] ERROR[34] res_pjsip.c: Endpoint '1001': Could not create dialog to invalid URI '1001'.  Is endpoint registered and reachable?
+[Mar 25 00:22:42] ERROR[34] chan_pjsip.c: Failed to create outgoing session to endpoint '1001'
+[Mar 25 00:23:29] ERROR[34] res_pjsip.c: Endpoint '1001': Could not create dialog to invalid URI '1001'.  Is endpoint registered and reachable?
+[Mar 25 00:23:29] ERROR[34] chan_pjsip.c: Failed to create outgoing session to endpoint '1001'
+[Mar 25 00:24:16] ERROR[34] res_pjsip.c: Endpoint '1001': Could not create dialog to invalid URI '1001'.  Is endpoint registered and reachable?
+[Mar 25 00:24:16] ERROR[34] chan_pjsip.c: Failed to create outgoing session to endpoint '1001'
+[Mar 25 00:25:03] ERROR[34] chan_pjsip.c: Unable to create PJSIP channel - endpoint '1002' was not found
+[Mar 25 00:25:50] ERROR[34] chan_pjsip.c: Unable to create PJSIP channel - endpoint '1002' was not found
+[Mar 25 00:26:36] ERROR[34] chan_pjsip.c: Unable to create PJSIP channel - endpoint '1002' was not found

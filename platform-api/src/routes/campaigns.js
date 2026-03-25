@@ -558,9 +558,10 @@ router.put('/:id', (req, res) => {
             return res.status(400).json({ error: 'Cannot modify running campaign' });
         }
         
-        const { 
+        const {
             name, description, campaign_type, ivr_id, trunk_id, caller_id,
-            max_concurrent_calls, calls_per_minute, max_attempts, retry_delay_minutes, settings
+            max_concurrent_calls, calls_per_minute, max_attempts, retry_delay_minutes, settings,
+            flag_variable, flag_value
         } = req.body;
         
         const updates = [];
@@ -577,7 +578,9 @@ router.put('/:id', (req, res) => {
         if (max_attempts !== undefined) { updates.push('max_attempts = ?'); values.push(max_attempts); }
         if (retry_delay_minutes !== undefined) { updates.push('retry_delay_minutes = ?'); values.push(retry_delay_minutes); }
         if (settings !== undefined) { updates.push('settings = ?'); values.push(JSON.stringify(settings)); }
-        
+        if (flag_variable !== undefined) { updates.push('flag_variable = ?'); values.push(flag_variable || null); }
+        if (flag_value !== undefined) { updates.push('flag_value = ?'); values.push(flag_value || null); }
+
         updates.push('updated_at = CURRENT_TIMESTAMP');
         values.push(req.params.id, req.user.tenantId);
         
@@ -588,6 +591,34 @@ router.put('/:id', (req, res) => {
     } catch (error) {
         console.error('Error updating campaign:', error);
         res.status(500).json({ error: 'Failed to update campaign' });
+    }
+});
+
+// Generate or regenerate webhook API key for a campaign
+router.post('/:id/generate-api-key', (req, res) => {
+    try {
+        const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ? AND tenant_id = ?')
+            .get(req.params.id, req.user.tenantId);
+
+        if (!campaign) {
+            return res.status(404).json({ error: 'Campaign not found' });
+        }
+
+        const crypto = require('crypto');
+        const apiKey = crypto.randomBytes(32).toString('hex');
+
+        db.prepare('UPDATE campaigns SET webhook_api_key = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+            .run(apiKey, req.params.id);
+
+        res.json({
+            success: true,
+            webhook_api_key: apiKey,
+            webhook_trigger_url: `/api/webhooks/campaigns/${req.params.id}/trigger`,
+            webhook_results_url: `/api/webhooks/campaigns/${req.params.id}/runs/{run_id}/results`
+        });
+    } catch (error) {
+        console.error('Error generating API key:', error);
+        res.status(500).json({ error: 'Failed to generate API key' });
     }
 });
 
@@ -1267,3 +1298,5 @@ async function processCampaignContacts(campaignId, runId, options) {
 }
 
 module.exports = router;
+module.exports.startCampaignInstance = startCampaignInstance;
+module.exports.getCampaignExecutionContext = getCampaignExecutionContext;

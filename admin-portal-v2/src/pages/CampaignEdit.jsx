@@ -11,9 +11,10 @@ import {
   getCampaignInstanceContacts,
   pauseCampaign,
   resumeCampaign,
-  cancelCampaign
+  cancelCampaign,
+  generateCampaignApiKey
 } from '../lib/api'
-import { ArrowLeft, Save, Loader2, Pause, Play, Square, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, Pause, Play, Square, ExternalLink, Key, Copy, RefreshCw } from 'lucide-react'
 import clsx from 'clsx'
 
 const campaignTypes = [
@@ -56,7 +57,9 @@ export default function CampaignEdit() {
     max_concurrent_calls: 1,
     max_attempts: 3,
     retry_delay_minutes: 30,
-    settings: {}
+    settings: {},
+    flag_variable: '',
+    flag_value: ''
   })
   const [selectedInstanceId, setSelectedInstanceId] = useState(null)
 
@@ -97,7 +100,9 @@ export default function CampaignEdit() {
       max_concurrent_calls: campaign.max_concurrent_calls || 1,
       max_attempts: campaign.max_attempts || 3,
       retry_delay_minutes: campaign.retry_delay_minutes || 30,
-      settings: campaign.settings || {}
+      settings: campaign.settings || {},
+      flag_variable: campaign.flag_variable || '',
+      flag_value: campaign.flag_value || ''
     })
   }, [campaign])
 
@@ -130,6 +135,17 @@ export default function CampaignEdit() {
   const pauseMutation = useMutation({ mutationFn: () => pauseCampaign(id), onSuccess: invalidateAll })
   const resumeMutation = useMutation({ mutationFn: () => resumeCampaign(id), onSuccess: invalidateAll })
   const cancelMutation = useMutation({ mutationFn: () => cancelCampaign(id), onSuccess: invalidateAll })
+  const apiKeyMutation = useMutation({
+    mutationFn: () => generateCampaignApiKey(id),
+    onSuccess: () => invalidateAll()
+  })
+
+  const [copiedField, setCopiedField] = useState(null)
+  const copyToClipboard = (text, field) => {
+    navigator.clipboard.writeText(text)
+    setCopiedField(field)
+    setTimeout(() => setCopiedField(null), 2000)
+  }
 
   const activeInstance = instances?.find((instance) => ['running', 'paused'].includes(instance.status)) || null
   const selectedInstance = instances?.find((instance) => instance.id === selectedInstanceId) || null
@@ -227,6 +243,72 @@ export default function CampaignEdit() {
       </div>
 
       {!isNew && (
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="rounded-lg bg-white p-6 shadow">
+            <h3 className="mb-4 flex items-center gap-2 font-medium text-gray-900"><Key className="h-4 w-4" />Webhook Integration</h3>
+            <p className="mb-4 text-sm text-gray-500">Allow external systems to trigger campaign runs and retrieve results via API.</p>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">API Key</label>
+                {campaign?.webhook_api_key ? (
+                  <div className="flex items-center gap-2">
+                    <input readOnly value={campaign.webhook_api_key} className="flex-1 rounded-md border-gray-300 bg-gray-50 font-mono text-xs shadow-sm" />
+                    <button onClick={() => copyToClipboard(campaign.webhook_api_key, 'apiKey')} className="rounded-md border border-gray-300 p-2 hover:bg-gray-50" title="Copy">
+                      <Copy className="h-4 w-4 text-gray-500" />
+                    </button>
+                    <button onClick={() => apiKeyMutation.mutate()} disabled={apiKeyMutation.isLoading} className="rounded-md border border-gray-300 p-2 hover:bg-gray-50" title="Regenerate">
+                      <RefreshCw className={clsx('h-4 w-4 text-gray-500', apiKeyMutation.isLoading && 'animate-spin')} />
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={() => apiKeyMutation.mutate()} disabled={apiKeyMutation.isLoading} className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-700 hover:bg-blue-100">
+                    {apiKeyMutation.isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Key className="mr-2 h-4 w-4" />}
+                    Generate API Key
+                  </button>
+                )}
+                {copiedField === 'apiKey' && <p className="mt-1 text-xs text-green-600">Copied!</p>}
+              </div>
+              {campaign?.webhook_api_key && (
+                <>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Trigger URL</label>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-700">POST /api/webhooks/campaigns/{id}/trigger</code>
+                      <button onClick={() => copyToClipboard(`${window.location.origin}/api/webhooks/campaigns/${id}/trigger`, 'triggerUrl')} className="rounded-md border border-gray-300 p-2 hover:bg-gray-50">
+                        <Copy className="h-4 w-4 text-gray-500" />
+                      </button>
+                    </div>
+                    {copiedField === 'triggerUrl' && <p className="mt-1 text-xs text-green-600">Copied!</p>}
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Results URL</label>
+                    <code className="block rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-700">GET /api/webhooks/campaigns/{id}/runs/{'<run_id>'}/results</code>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-white p-6 shadow">
+            <h3 className="mb-4 font-medium text-gray-900">Result Flag Configuration</h3>
+            <p className="mb-4 text-sm text-gray-500">Configure a variable from the IVR flow to produce a true/false flag per contact in the results API.</p>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Flag Variable Name</label>
+                <input value={formData.flag_variable} onChange={(e) => setFormData({ ...formData, flag_variable: e.target.value })} placeholder="e.g. confirm_payment" className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+                <p className="mt-1 text-xs text-gray-400">The IVR variable name captured during the call (from a collect or branch node).</p>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Flag True Value</label>
+                <input value={formData.flag_value} onChange={(e) => setFormData({ ...formData, flag_value: e.target.value })} placeholder="e.g. 1" className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+                <p className="mt-1 text-xs text-gray-400">When the variable equals this value, the flag will be true.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isNew && (
         <>
           <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-lg bg-white p-4 shadow"><div className="text-sm text-gray-500">Total Instances</div><div className="mt-1 text-2xl font-bold text-gray-900">{instances?.length || 0}</div></div>
@@ -254,7 +336,7 @@ export default function CampaignEdit() {
             {instances?.length ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
-                  <thead><tr className="border-b">{['Instance', 'Status', 'Contacts', 'Completed', 'Failed', 'Started', 'Actions'].map((label) => <th key={label} className="px-2 py-2 text-left">{label}</th>)}</tr></thead>
+                  <thead><tr className="border-b">{['Instance', 'Status', 'Contacts', 'Completed', 'Failed', 'Started', 'Results URL', 'Actions'].map((label) => <th key={label} className="px-2 py-2 text-left">{label}</th>)}</tr></thead>
                   <tbody>
                     {instances.map((instance) => (
                       <tr key={instance.id} className={clsx('border-b hover:bg-gray-50', selectedInstanceId === instance.id && 'bg-blue-50')}>
@@ -264,6 +346,17 @@ export default function CampaignEdit() {
                         <td className="px-2 py-3 text-green-600">{instance.contacts_completed || 0}</td>
                         <td className="px-2 py-3 text-red-600">{instance.contacts_failed || 0}</td>
                         <td className="px-2 py-3 text-gray-500">{formatDateTime(instance.started_at)}</td>
+                        <td className="px-2 py-3">
+                          <div className="flex items-center gap-1">
+                            <code className="max-w-[200px] truncate rounded bg-gray-100 px-2 py-1 text-[10px] text-gray-600" title={`${window.location.origin}/api/webhooks/campaigns/${id}/runs/${instance.id}/results`}>
+                              /api/webhooks/campaigns/{id}/runs/{instance.id}/results
+                            </code>
+                            <button onClick={() => copyToClipboard(`${window.location.origin}/api/webhooks/campaigns/${id}/runs/${instance.id}/results`, `resultsUrl-${instance.id}`)} className="shrink-0 rounded border border-gray-200 p-1 hover:bg-gray-50" title="Copy Results URL">
+                              <Copy className="h-3 w-3 text-gray-500" />
+                            </button>
+                            {copiedField === `resultsUrl-${instance.id}` && <span className="text-[10px] text-green-600">Copied!</span>}
+                          </div>
+                        </td>
                         <td className="px-2 py-3">
                           <div className="flex justify-end gap-2">
                             <button onClick={() => setSelectedInstanceId(instance.id)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">View Contacts</button>

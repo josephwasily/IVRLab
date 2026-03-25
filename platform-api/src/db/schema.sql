@@ -116,6 +116,9 @@ CREATE TABLE IF NOT EXISTS campaigns (
     started_at DATETIME,
     completed_at DATETIME,
     created_by TEXT,
+    webhook_api_key TEXT,  -- API key for external webhook authentication
+    flag_variable TEXT,  -- Variable name to check for result flag (e.g., 'confirm_payment')
+    flag_value TEXT,  -- Value that means flag=true (e.g., '1')
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (tenant_id) REFERENCES tenants(id),

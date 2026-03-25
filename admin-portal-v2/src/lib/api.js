@@ -375,6 +375,11 @@ export const getCampaignRun = async (campaignId, runId) => {
   return response.data
 }
 
+export const generateCampaignApiKey = async (campaignId) => {
+  const response = await api.post(`/campaigns/${campaignId}/generate-api-key`)
+  return response.data
+}
+
 // IVR Flows (alias for campaigns)
 export const getIVRFlows = async () => {
   const response = await api.get('/ivr')

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs wc:*)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -r \"StasisStart\\\\|call_result_callback\" C:UsersjwasiDesktopIVR-Lab --include=*.js)",
+      "Bash(docker compose:*)",
+      "Bash(docker exec:*)",
+      "Bash(curl:*)"
+    ]
+  }
+}
