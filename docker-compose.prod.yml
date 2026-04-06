@@ -1,0 +1,101 @@
+services:
+  asterisk:
+    image: 185.163.125.167:8888/ivr-lab/ivr-asterisk:latest
+    container_name: asterisk
+    ports:
+      - "5060:5060/udp"
+      - "10000-10100:10000-10100/udp"
+      - "8088:8088"
+      - "5038:5038"
+    environment:
+      EXTERNAL_IP: "${EXTERNAL_IP}"
+      SIP_TRUNK_IP: "${SIP_TRUNK_IP}"
+      SIP_TRUNK_PORT: "${SIP_TRUNK_PORT:-5060}"
+    volumes:
+      - ./prompts:/var/lib/asterisk/sounds/custom:ro
+      - ./prompts:/var/lib/asterisk/sounds/en/custom:ro
+      - ./prompts/ar:/var/lib/asterisk/sounds/ar:ro
+      - asterisk-log:/var/log/asterisk
+      - asterisk-spool:/var/spool/asterisk
+    restart: unless-stopped
+    networks:
+      ivrnet:
+        ipv4_address: 172.30.0.10
+
+  ivr-node:
+    image: 185.163.125.167:8888/ivr-lab/ivr-node:latest
+    container_name: ivr-node
+    environment:
+      ARI_URL: "http://ariuser:aripass@asterisk:8088"
+      ARI_USER: "ariuser"
+      ARI_PASS: "aripass"
+      APP_NAME: "balance-ivr"
+      BALANCE_API_URL: "http://balance-api:3000"
+      PLATFORM_API_URL: "http://platform-api:3001"
+      IVR_LANGUAGE: "${IVR_LANGUAGE:-ar}"
+      IVR_MODE: "dynamic"
+    restart: unless-stopped
+    depends_on:
+      asterisk:
+        condition: service_healthy
+      platform-api:
+        condition: service_started
+    networks: [ ivrnet ]
+
+  platform-api:
+    image: 185.163.125.167:8888/ivr-lab/ivr-platform-api:latest
+    container_name: platform-api
+    ports:
+      - "3001:3001"
+    volumes:
+      - platform-data:/app/data
+      - ./prompts:/app/prompts
+      - asterisk-log:/app/asterisk-log:ro
+      - asterisk-spool:/asterisk-spool
+    environment:
+      PORT: "3001"
+      DB_PATH: "/app/data/platform.db"
+      PROMPTS_PATH: "/app/prompts"
+      EXTERNAL_IP: "${EXTERNAL_IP}"
+      JWT_SECRET: "${JWT_SECRET:-change-this-in-production-use-strong-secret}"
+      ELEVENLABS_API_KEY: "${ELEVENLABS_API_KEY:-}"
+      PROMPT_UPLOAD_ENABLED: "true"
+      ASTERISK_SPOOL_DIR: "/asterisk-spool"
+      ASTERISK_LOG_PATH: "/app/asterisk-log/messages.log"
+      ASTERISK_HOST: "asterisk"
+      ASTERISK_AMI_PORT: "5038"
+    restart: unless-stopped
+    networks: [ ivrnet ]
+
+  admin-portal-v2:
+    image: 185.163.125.167:8888/ivr-lab/ivr-admin-portal-v2:latest
+    container_name: admin-portal-v2
+    ports:
+      - "8082:80"
+    restart: unless-stopped
+    depends_on: [ platform-api ]
+    networks: [ ivrnet ]
+
+  balance-api:
+    image: 185.163.125.167:8888/ivr-lab/ivr-balance-api:latest
+    container_name: balance-api
+    volumes:
+      - ivr-data:/data
+    environment:
+      DB_PATH: "/data/ivr_calls.db"
+      PORT: "3000"
+    restart: unless-stopped
+    networks: [ ivrnet ]
+
+networks:
+  ivrnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
+
+volumes:
+  ivr-data:
+  platform-data:
+  asterisk-spool:
+  asterisk-log:
