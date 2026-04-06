@@ -18,11 +18,7 @@ services:
       - asterisk-log:/var/log/asterisk
       - asterisk-spool:/var/spool/asterisk
     healthcheck:
-      test: ["CMD-SHELL", "asterisk -rx 'core show version' || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 45s
+      disable: true
     restart: unless-stopped
     networks:
       ivrnet:
@@ -42,10 +38,8 @@ services:
       IVR_MODE: "dynamic"
     restart: unless-stopped
     depends_on:
-      asterisk:
-        condition: service_healthy
-      platform-api:
-        condition: service_started
+      - asterisk
+      - platform-api
     networks: [ ivrnet ]
 
   platform-api:
