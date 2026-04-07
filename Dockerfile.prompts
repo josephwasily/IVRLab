@@ -1,0 +1,16 @@
+FROM alpine:3.20
+
+COPY prompts/ /data/prompts/
+COPY "new sounds/" /data/new-sounds/
+COPY "new sounds 2/" /data/new-sounds-2/
+COPY "new sounds 3/" /data/new-sounds-3/
+
+RUN rm -f /data/prompts/Dockerfile
+
+CMD ["sh", "-c", "\
+  cp -a /data/prompts/. /out/prompts/ 2>/dev/null; \
+  cp -a /data/new-sounds/. /out/new-sounds/ 2>/dev/null; \
+  cp -a /data/new-sounds-2/. /out/new-sounds-2/ 2>/dev/null; \
+  cp -a /data/new-sounds-3/. /out/new-sounds-3/ 2>/dev/null; \
+  echo '[prompts-init] All audio files copied'; \
+  exit 0"]

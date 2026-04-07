@@ -75,6 +75,9 @@ services:
       ASTERISK_LOG_PATH: "/app/asterisk-log/messages.log"
       ASTERISK_HOST: "asterisk"
       ASTERISK_AMI_PORT: "5038"
+      NEW_SOUNDS_DIR: "/app/prompts/new-sounds"
+      NEW_SOUNDS_2_DIR: "/app/prompts/new-sounds-2"
+      NEW_SOUNDS_3_DIR: "/app/prompts/new-sounds-3"
     restart: unless-stopped
     depends_on:
       prompts-init:
