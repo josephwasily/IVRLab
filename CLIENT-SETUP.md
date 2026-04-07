@@ -86,7 +86,17 @@ docker compose logs -f
 
 ```bash
 cd /opt/ivr-lab
+docker compose down
 docker compose pull
 docker compose up -d
-docker compose exec platform-api node src/db/migrate.js
+```
+
+**WARNING: NEVER use `docker compose down -v`** — the `-v` flag deletes all data volumes including the database. Backups are created automatically on each startup in the `platform-data` volume under `backups/`.
+
+### Restore from backup (if needed)
+
+```bash
+docker compose exec platform-api ls /app/data/backups/
+docker compose exec platform-api cp /app/data/backups/platform-YYYYMMDD-HHMMSS.db /app/data/platform.db
+docker compose restart platform-api
 ```
