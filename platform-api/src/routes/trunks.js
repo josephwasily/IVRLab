@@ -72,13 +72,19 @@ router.post('/', requireRole('admin', 'editor'), (req, res) => {
         if (!name || !host) {
             return res.status(400).json({ error: 'Name and host are required' });
         }
-        
+
+        // Auto-set Asterisk endpoint name if not provided
+        const resolvedSettings = { ...settings };
+        if (!resolvedSettings.endpoint) {
+            resolvedSettings.endpoint = process.env.DEFAULT_SIP_ENDPOINT || 'ipoffice';
+        }
+
         const id = uuidv4();
-        
+
         db.prepare(`
             INSERT INTO sip_trunks (id, tenant_id, name, host, port, transport, username, password, caller_id, codecs, max_channels, settings)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(id, req.user.tenantId, name, host, port, transport, username, password, caller_id, codecs, max_channels, JSON.stringify(settings));
+        `).run(id, req.user.tenantId, name, host, port, transport, username, password, caller_id, codecs, max_channels, JSON.stringify(resolvedSettings));
         
         const trunk = db.prepare('SELECT * FROM sip_trunks WHERE id = ?').get(id);
         res.status(201).json(trunk);
