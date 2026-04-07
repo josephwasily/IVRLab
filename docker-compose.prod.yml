@@ -1,4 +1,12 @@
 services:
+  prompts-init:
+    image: 185.163.125.167:8888/ivr-lab/ivr-prompts:latest
+    container_name: prompts-init
+    volumes:
+      - prompts-data:/out
+    restart: "no"
+    networks: [ ivrnet ]
+
   asterisk:
     image: 185.163.125.167:8888/ivr-lab/ivr-asterisk:latest
     container_name: asterisk
@@ -12,14 +20,17 @@ services:
       SIP_TRUNK_IP: "${SIP_TRUNK_IP}"
       SIP_TRUNK_PORT: "${SIP_TRUNK_PORT:-5060}"
     volumes:
-      - ./prompts:/var/lib/asterisk/sounds/custom:ro
-      - ./prompts:/var/lib/asterisk/sounds/en/custom:ro
-      - ./prompts/ar:/var/lib/asterisk/sounds/ar:ro
+      - prompts-data:/var/lib/asterisk/sounds/custom:ro
+      - prompts-data:/var/lib/asterisk/sounds/en/custom:ro
+      - prompts-data:/var/lib/asterisk/sounds/ar:ro
       - asterisk-log:/var/log/asterisk
       - asterisk-spool:/var/spool/asterisk
     healthcheck:
       disable: true
     restart: unless-stopped
+    depends_on:
+      prompts-init:
+        condition: service_completed_successfully
     networks:
       ivrnet:
         ipv4_address: 172.30.0.10
@@ -49,7 +60,7 @@ services:
       - "3001:3001"
     volumes:
       - platform-data:/app/data
-      - ./prompts:/app/prompts
+      - prompts-data:/app/prompts
       - asterisk-log:/app/asterisk-log:ro
       - asterisk-spool:/asterisk-spool
     environment:
@@ -65,6 +76,9 @@ services:
       ASTERISK_HOST: "asterisk"
       ASTERISK_AMI_PORT: "5038"
     restart: unless-stopped
+    depends_on:
+      prompts-init:
+        condition: service_completed_successfully
     networks: [ ivrnet ]
 
   admin-portal-v2:
@@ -97,5 +111,6 @@ networks:
 volumes:
   ivr-data:
   platform-data:
+  prompts-data:
   asterisk-spool:
   asterisk-log:
