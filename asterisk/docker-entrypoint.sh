@@ -14,8 +14,6 @@ fi
 # ── Config from environment ──────────────────────────────────────────────────
 SIP_TRUNK_IP="${SIP_TRUNK_IP:-}"
 SIP_TRUNK_PORT="${SIP_TRUNK_PORT:-5060}"
-SIP_TRUNK_NAME="${SIP_TRUNK_NAME:-ipoffice}"
-SIP_TRUNK_CONTEXT="${SIP_TRUNK_CONTEXT:-from-ipoffice}"
 EXTERNAL_IP="${EXTERNAL_IP:-}"
 
 # ── Apply external IP ───────────────────────────────────────────────────────
@@ -26,14 +24,25 @@ if [ -n "$EXTERNAL_IP" ]; then
   echo "[entrypoint] Set external address to ${EXTERNAL_IP}"
 fi
 
-# ── Apply SIP trunk IP ──────────────────────────────────────────────────────
+# ── Apply SIP trunk IP (backwards compatible default trunk) ─────────────────
 if [ -n "$SIP_TRUNK_IP" ]; then
   sed -i "s|^contact=sip:.*|contact=sip:${SIP_TRUNK_IP}:${SIP_TRUNK_PORT}|" "$PJSIP_CONF"
   sed -i "s|^match=.*|match=${SIP_TRUNK_IP}|" "$PJSIP_CONF"
-  echo "[entrypoint] Configured SIP trunk: ${SIP_TRUNK_IP}:${SIP_TRUNK_PORT}"
+  echo "[entrypoint] Configured default SIP trunk: ${SIP_TRUNK_IP}:${SIP_TRUNK_PORT}"
 else
   echo "[entrypoint] WARNING: SIP_TRUNK_IP not set — using default IP in pjsip.conf"
 fi
+
+# ── Symlink dynamic trunk config from shared volume ─────────────────────────
+# platform-api writes pjsip_trunks.conf to /asterisk-config/
+# Asterisk reads it via #tryinclude pjsip_trunks.conf
+if [ -d /asterisk-config ]; then
+  ln -sf /asterisk-config/pjsip_trunks.conf /etc/asterisk/pjsip_trunks.conf 2>/dev/null || true
+  echo "[entrypoint] Linked dynamic trunk config from /asterisk-config/"
+fi
+
+# Create CDR CSV directory to prevent log errors
+mkdir -p /var/log/asterisk/cdr-csv
 
 # ── Start Asterisk ──────────────────────────────────────────────────────────
 exec /usr/sbin/asterisk -fvvv

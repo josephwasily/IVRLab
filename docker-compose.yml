@@ -29,6 +29,8 @@ services:
       # Arabic prompts and digits
       - ./prompts/ar:/var/lib/asterisk/sounds/ar:ro
       - ./asterisk/log:/var/log/asterisk:rw
+      # Shared config volume for dynamic trunk management
+      - asterisk-config:/asterisk-config
       # Outbound call spool directory
       - asterisk-spool:/var/spool/asterisk
     networks:
@@ -67,6 +69,8 @@ services:
       - ./prompts:/app/prompts
       - ./asterisk/log:/app/asterisk-log:ro
       - ./asterisk/pjsip.conf:/app/asterisk-pjsip.conf:ro
+      # Shared config volume for dynamic trunk management
+      - asterisk-config:/asterisk-config
       # Shared spool directory for outbound calls
       - asterisk-spool:/asterisk-spool
       # New sounds folder for IVR flow seeding (read-only)
@@ -97,6 +101,8 @@ services:
       ASTERISK_LOG_PATH: "/app/asterisk-log/messages.log"
       ASTERISK_HOST: "asterisk"
       ASTERISK_AMI_PORT: "5038"
+      PJSIP_TRUNKS_PATH: "/asterisk-config/pjsip_trunks.conf"
+      DEFAULT_SIP_ENDPOINT: "ipoffice"
     networks: [ ivrnet ]
 
   admin-portal:
@@ -148,4 +154,5 @@ networks:
 volumes:
   ivr-data:
   platform-data:
+  asterisk-config:
   asterisk-spool:

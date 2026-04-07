@@ -24,6 +24,7 @@ services:
       - prompts-custom:/var/lib/asterisk/sounds/custom:ro
       - prompts-custom:/var/lib/asterisk/sounds/en/custom:ro
       - prompts-ar:/var/lib/asterisk/sounds/ar:ro
+      - asterisk-config:/asterisk-config
       - asterisk-log:/var/log/asterisk
       - asterisk-spool:/var/spool/asterisk
     healthcheck:
@@ -62,6 +63,7 @@ services:
     volumes:
       - platform-data:/app/data
       - prompts-custom:/app/prompts
+      - asterisk-config:/asterisk-config
       - asterisk-log:/app/asterisk-log:ro
       - asterisk-spool:/asterisk-spool
     environment:
@@ -80,6 +82,7 @@ services:
       NEW_SOUNDS_2_DIR: "/app/prompts/new-sounds-2"
       NEW_SOUNDS_3_DIR: "/app/prompts/new-sounds-3"
       DEFAULT_SIP_ENDPOINT: "ipoffice"
+      PJSIP_TRUNKS_PATH: "/asterisk-config/pjsip_trunks.conf"
     restart: unless-stopped
     depends_on:
       prompts-init:
@@ -118,5 +121,6 @@ volumes:
   platform-data:
   prompts-custom:
   prompts-ar:
+  asterisk-config:
   asterisk-spool:
   asterisk-log:
