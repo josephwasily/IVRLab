@@ -68,7 +68,7 @@ docker compose up -d
 
 ```bash
 docker compose exec platform-api node src/db/migrate.js
-docker compose exec platform-api node src/db/seed.js
+i 
 ```
 
 ## 8. Verify
