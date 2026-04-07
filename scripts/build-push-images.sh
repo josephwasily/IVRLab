@@ -3,19 +3,55 @@
 # Build and push all IVR-Lab images to a container registry.
 #
 # Usage:
-#   ./scripts/build-push-images.sh                          # defaults to ghcr.io/your-org, tag=latest
-#   ./scripts/build-push-images.sh myregistry.azurecr.io    # custom registry
-#   ./scripts/build-push-images.sh myregistry.azurecr.io v1.3  # custom registry + tag
-#
-# For self-hosted registries (Harbor, Nexus, etc.):
-#   docker login myregistry.example.com
-#   ./scripts/build-push-images.sh myregistry.example.com/ivr-lab v1.3
+#   ./scripts/build-push-images.sh                                    # defaults, tag=latest
+#   ./scripts/build-push-images.sh 185.163.125.167:8888/ivr-lab       # custom registry
+#   ./scripts/build-push-images.sh 185.163.125.167:8888/ivr-lab v1.3  # custom registry + tag
 # =============================================================================
 set -euo pipefail
 
-REGISTRY="${1:-ghcr.io/your-org}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REGISTRY="${1:-185.163.125.167:8888/ivr-lab}"
 TAG="${2:-latest}"
 
+echo "=== Building and pushing to ${REGISTRY} with tag ${TAG} ==="
+
+# ── Build prompts image ─────────────────────────────────────────────────────
+# Prompts image needs a staging directory because "new sounds *" folders have
+# spaces in their names which Dockerfile COPY cannot handle.
+echo ""
+echo "--- Building prompts image ---"
+PROMPTS_BUILD=$(mktemp -d)
+trap "rm -rf $PROMPTS_BUILD" EXIT
+
+cp -a "$REPO_ROOT/prompts/"* "$PROMPTS_BUILD/" 2>/dev/null || true
+rm -f "$PROMPTS_BUILD/Dockerfile"
+
+for DIR in "new sounds" "new sounds 2" "new sounds 3"; do
+  if [ -d "$REPO_ROOT/$DIR" ]; then
+    DEST="$PROMPTS_BUILD/$(echo "$DIR" | tr ' ' '-')"
+    mkdir -p "$DEST"
+    cp -a "$REPO_ROOT/$DIR/"* "$DEST/"
+  fi
+done
+
+cat > "$PROMPTS_BUILD/Dockerfile" << 'DEOF'
+FROM alpine:3.20
+COPY . /data/
+RUN rm -f /data/Dockerfile
+CMD ["sh", "-c", "\
+  mkdir -p /out/custom /out/ar; \
+  cd /data && find . -maxdepth 1 ! -name ar ! -name . -exec cp -a {} /out/custom/ \; ; \
+  cp -a /data/ar/. /out/ar/ 2>/dev/null; \
+  echo '[prompts-init] Done'; \
+  exit 0"]
+DEOF
+
+FULL="${REGISTRY}/ivr-prompts:${TAG}"
+docker build -t "$FULL" "$PROMPTS_BUILD"
+docker push "$FULL"
+
+# ── Build remaining images ──────────────────────────────────────────────────
 IMAGES=(
   "ivr-asterisk:./asterisk"
   "ivr-node:./ivr-node"
@@ -24,8 +60,6 @@ IMAGES=(
   "ivr-balance-api:./balance-api"
 )
 
-echo "=== Building and pushing to ${REGISTRY} with tag ${TAG} ==="
-
 for entry in "${IMAGES[@]}"; do
   NAME="${entry%%:*}"
   CONTEXT="${entry#*:}"
@@ -33,7 +67,7 @@ for entry in "${IMAGES[@]}"; do
 
   echo ""
   echo "--- Building ${FULL} from ${CONTEXT} ---"
-  docker build -t "$FULL" "$CONTEXT"
+  docker build -t "$FULL" "$REPO_ROOT/$CONTEXT"
 
   echo "--- Pushing ${FULL} ---"
   docker push "$FULL"
@@ -42,6 +76,5 @@ done
 echo ""
 echo "=== All images pushed to ${REGISTRY} ==="
 echo ""
-echo "Clients can now run:"
-echo "  REGISTRY=${REGISTRY} IMAGE_TAG=${TAG} docker compose -f docker-compose.prod.yml pull"
-echo "  REGISTRY=${REGISTRY} IMAGE_TAG=${TAG} docker compose -f docker-compose.prod.yml up -d"
+echo "On client servers, run:"
+echo "  docker compose pull && docker compose up -d"
