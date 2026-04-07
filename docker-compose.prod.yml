@@ -3,7 +3,8 @@ services:
     image: 185.163.125.167:8888/ivr-lab/ivr-prompts:latest
     container_name: prompts-init
     volumes:
-      - prompts-data:/out
+      - prompts-custom:/out/custom
+      - prompts-ar:/out/ar
     restart: "no"
     networks: [ ivrnet ]
 
@@ -20,9 +21,9 @@ services:
       SIP_TRUNK_IP: "${SIP_TRUNK_IP}"
       SIP_TRUNK_PORT: "${SIP_TRUNK_PORT:-5060}"
     volumes:
-      - prompts-data:/var/lib/asterisk/sounds/custom:ro
-      - prompts-data:/var/lib/asterisk/sounds/en/custom:ro
-      - prompts-data:/var/lib/asterisk/sounds/ar:ro
+      - prompts-custom:/var/lib/asterisk/sounds/custom:ro
+      - prompts-custom:/var/lib/asterisk/sounds/en/custom:ro
+      - prompts-ar:/var/lib/asterisk/sounds/ar:ro
       - asterisk-log:/var/log/asterisk
       - asterisk-spool:/var/spool/asterisk
     healthcheck:
@@ -60,7 +61,7 @@ services:
       - "3001:3001"
     volumes:
       - platform-data:/app/data
-      - prompts-data:/app/prompts
+      - prompts-custom:/app/prompts
       - asterisk-log:/app/asterisk-log:ro
       - asterisk-spool:/asterisk-spool
     environment:
@@ -78,6 +79,7 @@ services:
       NEW_SOUNDS_DIR: "/app/prompts/new-sounds"
       NEW_SOUNDS_2_DIR: "/app/prompts/new-sounds-2"
       NEW_SOUNDS_3_DIR: "/app/prompts/new-sounds-3"
+      DEFAULT_SIP_ENDPOINT: "ipoffice"
     restart: unless-stopped
     depends_on:
       prompts-init:
@@ -114,6 +116,7 @@ networks:
 volumes:
   ivr-data:
   platform-data:
-  prompts-data:
+  prompts-custom:
+  prompts-ar:
   asterisk-spool:
   asterisk-log:

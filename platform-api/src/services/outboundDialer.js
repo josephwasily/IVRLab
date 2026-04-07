@@ -26,6 +26,8 @@ function resolveTrunkEndpointName(trunk) {
     if (settings.asterisk_endpoint) return String(settings.asterisk_endpoint).trim();
     const trunkName = String(trunk?.name || '').toLowerCase();
     if (trunkName.includes('ip office') || trunkName.includes('ipoffice')) return 'ipoffice';
+    // Fall back to DEFAULT_SIP_ENDPOINT env var (e.g. "ipoffice")
+    if (process.env.DEFAULT_SIP_ENDPOINT) return process.env.DEFAULT_SIP_ENDPOINT;
     return null;
 }
 
