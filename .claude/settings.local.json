@@ -7,7 +7,8 @@
       "Bash(docker compose:*)",
       "Bash(docker exec:*)",
       "Bash(curl:*)",
-      "Bash(docker push:*)"
+      "Bash(docker push:*)",
+      "Bash(docker build:*)"
     ]
   }
 }
