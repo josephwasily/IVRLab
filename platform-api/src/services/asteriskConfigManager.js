@@ -13,7 +13,7 @@
 const fs = require('fs');
 const net = require('net');
 const path = require('path');
-const db = require('../db/database');
+const db = require('../db');
 
 const ASTERISK_HOST = process.env.ASTERISK_HOST || 'asterisk';
 const AMI_PORT = parseInt(process.env.ASTERISK_AMI_PORT || '5038', 10);
