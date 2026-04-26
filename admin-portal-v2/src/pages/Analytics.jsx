@@ -68,7 +68,9 @@ function buildHourlySeries(hourly, fromIso, toIso) {
 export default function Analytics() {
   const [expandedRows, setExpandedRows] = useState(new Set())
   const [selectedIvrId, setSelectedIvrId] = useState('')
-  const [selectedDate, setSelectedDate] = useState(() => toDateInputValue(new Date()))
+  const today = useMemo(() => toDateInputValue(new Date()), [])
+  const [fromDate, setFromDate] = useState(today)
+  const [toDate, setToDate] = useState(today)
   const [isExporting, setIsExporting] = useState(false)
   
   // Fetch IVR list for filter dropdown
@@ -82,11 +84,13 @@ export default function Analytics() {
     [ivrs]
   )
 
+  const effectiveToDate = toDate && toDate >= fromDate ? toDate : fromDate
+
   const filterParams = useMemo(() => ({
     ivrId: selectedIvrId || undefined,
-    from: localDateToIso(selectedDate),
-    to: localDateToIso(selectedDate, { endOfDay: true })
-  }), [selectedIvrId, selectedDate])
+    from: localDateToIso(fromDate),
+    to: localDateToIso(effectiveToDate, { endOfDay: true })
+  }), [selectedIvrId, fromDate, effectiveToDate])
 
   const { data: calls, isLoading } = useQuery({
     queryKey: ['call-logs', filterParams.ivrId, filterParams.from, filterParams.to],
@@ -211,12 +215,32 @@ export default function Analytics() {
             </select>
           </div>
 
-          <div className="min-w-[220px]">
-            <label className="block text-xs font-medium text-gray-500 mb-1">Date</label>
+          <div className="min-w-[180px]">
+            <label className="block text-xs font-medium text-gray-500 mb-1">From</label>
             <input
               type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              value={fromDate}
+              onChange={(e) => {
+                const next = e.target.value
+                if (!next) return
+                setFromDate(next)
+                if (toDate && toDate < next) setToDate(next)
+              }}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div className="min-w-[180px]">
+            <label className="block text-xs font-medium text-gray-500 mb-1">To</label>
+            <input
+              type="date"
+              value={toDate}
+              min={fromDate}
+              onChange={(e) => {
+                const next = e.target.value
+                if (!next) return
+                setToDate(next < fromDate ? fromDate : next)
+              }}
               className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
