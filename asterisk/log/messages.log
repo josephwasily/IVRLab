@@ -6480,3 +6480,108 @@
 [Mar 25 00:25:03] ERROR[34] chan_pjsip.c: Unable to create PJSIP channel - endpoint '1002' was not found
 [Mar 25 00:25:50] ERROR[34] chan_pjsip.c: Unable to create PJSIP channel - endpoint '1002' was not found
 [Mar 25 00:26:36] ERROR[34] chan_pjsip.c: Unable to create PJSIP channel - endpoint '1002' was not found
+[Apr 15 22:29:53] Asterisk 20.18.2 built by root @ buildkitsandbox on a x86_64 running Linux on 2026-02-18 08:13:33 UTC
+[Apr 15 22:29:53] NOTICE[8] loader.c: 338 modules will be loaded.
+[Apr 15 22:29:54] WARNING[8] res_config_pgsql.c: PostgreSQL RealTime: No database user found, using 'asterisk' as default.
+[Apr 15 22:29:54] WARNING[8] res_config_pgsql.c: PostgreSQL RealTime: No database password found, using 'asterisk' as default.
+[Apr 15 22:29:54] WARNING[8] res_config_pgsql.c: PostgreSQL RealTime: No database host found, using localhost via socket.
+[Apr 15 22:29:54] WARNING[8] res_config_pgsql.c: PostgreSQL RealTime: No database name found, using 'asterisk' as default.
+[Apr 15 22:29:54] WARNING[8] res_config_pgsql.c: PostgreSQL RealTime: No database port found, using 5432 as default.
+[Apr 15 22:29:54] WARNING[8] res_config_pgsql.c: PostgreSQL RealTime: No database socket found, using '/tmp/.s.PGSQL.5432' as default.
+[Apr 15 22:29:54] ERROR[8] res_config_pgsql.c: PostgreSQL RealTime: Failed to connect database asterisk on : 
+[Apr 15 22:29:54] WARNING[8] res_config_pgsql.c: PostgreSQL RealTime: Couldn't establish connection. Check debug.
+[Apr 15 22:29:54] NOTICE[8] res_config_ldap.c: No directory user found, anonymous binding as default.
+[Apr 15 22:29:54] ERROR[8] res_config_ldap.c: No directory URL or host found.
+[Apr 15 22:29:54] ERROR[8] res_config_ldap.c: Cannot load LDAP RealTime driver.
+[Apr 15 22:29:54] NOTICE[8] cdr.c: CDR simple logging enabled.
+[Apr 15 22:29:54] NOTICE[8] indications.c: Default country for indication tones: us
+[Apr 15 22:29:54] NOTICE[8] indications.c: Setting default indication country to 'us'
+[Apr 15 22:29:54] ERROR[8] res_rtp_asterisk.c: Failed to setup recurring DNS resolution of stunaddr ''
+[Apr 15 22:29:54] WARNING[8] res_phoneprov.c: Unable to find a valid server address or name.
+[Apr 15 22:29:54] WARNING[8] res_musiconhold.c: No music on hold classes configured, disabling music on hold.
+[Apr 15 22:29:54] NOTICE[8] res_smdi.c: No SMDI interfaces are available to listen on, not starting SMDI listener.
+[Apr 15 22:29:54] NOTICE[8] confbridge/conf_config_parser.c: Adding default_menu menu to app_confbridge
+[Apr 15 22:29:54] NOTICE[8] cel_custom.c: No mappings found in cel_custom.conf. Not logging CEL to custom CSVs.
+[Apr 15 22:29:54] NOTICE[8] cdr_pgsql.c: cdr_pgsql configuration contains no global section, skipping module load.
+[Apr 15 22:29:54] WARNING[8] cel_pgsql.c: CEL pgsql config file missing global section.
+[Apr 15 22:29:54] WARNING[8] res_hep_rtcp.c: res_hep is disabled; declining module load
+[Apr 15 22:29:54] WARNING[8] res_hep_pjsip.c: res_hep is disabled; declining module load
+[Apr 15 22:29:54] WARNING[8] loader.c: Some non-required modules failed to load.
+[Apr 15 22:29:54] WARNING[8] loader.c: Module 'res_adsi' has been loaded but may be removed in a future release.
+[Apr 15 22:29:54] WARNING[8] loader.c: Module 'app_getcpeid' has been loaded but may be removed in a future release.
+[Apr 15 22:29:54] WARNING[8] loader.c: Module 'app_adsiprog' has been loaded but may be removed in a future release.
+[Apr 15 22:29:54] ERROR[8] loader.c: Error loading module 'format_ogg_vorbis.so': libvorbisenc.so.2: cannot open shared object file: No such file or directory
+[Apr 15 22:29:54] ERROR[8] loader.c: cel_sqlite3_custom declined to load.
+[Apr 15 22:29:54] ERROR[8] loader.c: cdr_pgsql declined to load.
+[Apr 15 22:29:54] ERROR[8] loader.c: cdr_sqlite3_custom declined to load.
+[Apr 15 22:29:54] ERROR[8] loader.c: res_hep_rtcp declined to load.
+[Apr 15 22:29:54] ERROR[8] loader.c: res_hep_pjsip declined to load.
+[Apr 15 22:32:23] Asterisk 20.18.2 built by root @ buildkitsandbox on a x86_64 running Linux on 2026-02-18 08:13:33 UTC
+[Apr 15 22:32:23] NOTICE[1] loader.c: 338 modules will be loaded.
+[Apr 15 22:32:24] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database user found, using 'asterisk' as default.
+[Apr 15 22:32:24] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database password found, using 'asterisk' as default.
+[Apr 15 22:32:24] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database host found, using localhost via socket.
+[Apr 15 22:32:24] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database name found, using 'asterisk' as default.
+[Apr 15 22:32:24] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database port found, using 5432 as default.
+[Apr 15 22:32:24] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: No database socket found, using '/tmp/.s.PGSQL.5432' as default.
+[Apr 15 22:32:24] ERROR[1] res_config_pgsql.c: PostgreSQL RealTime: Failed to connect database asterisk on : 
+[Apr 15 22:32:24] WARNING[1] res_config_pgsql.c: PostgreSQL RealTime: Couldn't establish connection. Check debug.
+[Apr 15 22:32:24] NOTICE[1] res_config_ldap.c: No directory user found, anonymous binding as default.
+[Apr 15 22:32:24] ERROR[1] res_config_ldap.c: No directory URL or host found.
+[Apr 15 22:32:24] ERROR[1] res_config_ldap.c: Cannot load LDAP RealTime driver.
+[Apr 15 22:32:24] NOTICE[1] cdr.c: CDR simple logging enabled.
+[Apr 15 22:32:24] NOTICE[1] indications.c: Default country for indication tones: us
+[Apr 15 22:32:24] NOTICE[1] indications.c: Setting default indication country to 'us'
+[Apr 15 22:32:24] ERROR[1] res_rtp_asterisk.c: Failed to setup recurring DNS resolution of stunaddr ''
+[Apr 15 22:32:25] WARNING[1] res_phoneprov.c: Unable to find a valid server address or name.
+[Apr 15 22:32:25] WARNING[1] res_musiconhold.c: No music on hold classes configured, disabling music on hold.
+[Apr 15 22:32:25] NOTICE[1] res_smdi.c: No SMDI interfaces are available to listen on, not starting SMDI listener.
+[Apr 15 22:32:25] NOTICE[1] confbridge/conf_config_parser.c: Adding default_menu menu to app_confbridge
+[Apr 15 22:32:25] NOTICE[1] cel_custom.c: No mappings found in cel_custom.conf. Not logging CEL to custom CSVs.
+[Apr 15 22:32:25] NOTICE[1] cdr_pgsql.c: cdr_pgsql configuration contains no global section, skipping module load.
+[Apr 15 22:32:25] WARNING[1] cel_pgsql.c: CEL pgsql config file missing global section.
+[Apr 15 22:32:25] WARNING[1] res_hep_rtcp.c: res_hep is disabled; declining module load
+[Apr 15 22:32:26] WARNING[1] res_hep_pjsip.c: res_hep is disabled; declining module load
+[Apr 15 22:32:26] WARNING[1] loader.c: Some non-required modules failed to load.
+[Apr 15 22:32:26] WARNING[1] loader.c: Module 'res_adsi' has been loaded but may be removed in a future release.
+[Apr 15 22:32:26] WARNING[1] loader.c: Module 'app_getcpeid' has been loaded but may be removed in a future release.
+[Apr 15 22:32:26] WARNING[1] loader.c: Module 'app_adsiprog' has been loaded but may be removed in a future release.
+[Apr 15 22:32:26] ERROR[1] loader.c: Error loading module 'format_ogg_vorbis.so': libvorbisenc.so.2: cannot open shared object file: No such file or directory
+[Apr 15 22:32:26] ERROR[1] loader.c: cel_sqlite3_custom declined to load.
+[Apr 15 22:32:26] ERROR[1] loader.c: cdr_pgsql declined to load.
+[Apr 15 22:32:26] ERROR[1] loader.c: cdr_sqlite3_custom declined to load.
+[Apr 15 22:32:26] ERROR[1] loader.c: res_hep_rtcp declined to load.
+[Apr 15 22:32:26] ERROR[1] loader.c: res_hep_pjsip declined to load.
+[Apr 15 22:35:52] ERROR[40] chan_pjsip.c: Unable to create PJSIP channel - endpoint '5000' was not found
+[Apr 15 22:36:39] ERROR[40] chan_pjsip.c: Unable to create PJSIP channel - endpoint '5000' was not found
+[Apr 15 22:37:25] ERROR[40] chan_pjsip.c: Unable to create PJSIP channel - endpoint '5000' was not found
+[Apr 15 23:16:32] WARNING[40] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.30.0.1:55003) to AOR '1001' will exceed max contacts of 1
+[Apr 15 23:17:04] WARNING[40] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.30.0.1:55003) to AOR '1001' will exceed max contacts of 1
+[Apr 15 23:19:06] WARNING[3299][C-00000001] file.c: File invalid does not exist in any format
+[Apr 15 23:19:06] WARNING[3299][C-00000001] file.c: Unable to open invalid (format (ulaw)): No such file or directory
+[Apr 15 23:19:06] WARNING[3299][C-00000001] res_stasis_playback.c: 1776295137.0: Playback failed for sound:invalid
+[Apr 15 23:19:38] WARNING[3337][C-00000002] file.c: File invalid does not exist in any format
+[Apr 15 23:19:38] WARNING[3337][C-00000002] file.c: Unable to open invalid (format (ulaw)): No such file or directory
+[Apr 15 23:19:38] WARNING[3337][C-00000002] res_stasis_playback.c: 1776295173.2: Playback failed for sound:invalid
+[Apr 15 23:20:47] NOTICE[3411][C-00000003] res_stasis_playback.c: 1776295233.4: Playback stopped for sound:custom/survey/survey_welcome
+[Apr 15 23:20:51] NOTICE[3411][C-00000003] res_stasis_playback.c: 1776295233.4: Playback stopped for sound:custom/survey/survey_q1_satisfaction
+[Apr 15 23:20:55] NOTICE[3411][C-00000003] res_stasis_playback.c: 1776295233.4: Playback stopped for sound:custom/survey/survey_q2_employees
+[Apr 15 23:21:00] NOTICE[3411][C-00000003] res_stasis_playback.c: 1776295233.4: Playback stopped for sound:custom/survey/survey_q3_accuracy
+[Apr 15 23:21:04] NOTICE[3411][C-00000003] res_stasis_playback.c: 1776295233.4: Playback stopped for sound:custom/survey/survey_q4_speed
+[Apr 15 23:21:13] NOTICE[3411][C-00000003] res_stasis_playback.c: 1776295233.4: Playback stopped for sound:custom/survey/survey_q5_overall
+[Apr 15 23:30:45] NOTICE[4117][C-00000004] res_stasis_playback.c: 1776295825.6: Playback stopped for sound:custom/survey/survey_welcome
+[Apr 15 23:30:48] NOTICE[4117][C-00000004] res_stasis_playback.c: 1776295825.6: Playback stopped for sound:custom/survey/survey_q1_satisfaction
+[Apr 15 23:30:51] NOTICE[4117][C-00000004] res_stasis_playback.c: 1776295825.6: Playback stopped for sound:custom/survey/survey_q2_employees
+[Apr 15 23:30:54] NOTICE[4117][C-00000004] res_stasis_playback.c: 1776295825.6: Playback stopped for sound:custom/survey/survey_q3_accuracy
+[Apr 15 23:30:56] NOTICE[4117][C-00000004] res_stasis_playback.c: 1776295825.6: Playback stopped for sound:custom/survey/survey_q4_speed
+[Apr 15 23:31:00] NOTICE[4117][C-00000004] res_stasis_playback.c: 1776295825.6: Playback stopped for sound:custom/survey/survey_q5_overall
+[Apr 17 21:40:35] WARNING[40] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.30.0.1:57121) to AOR '1001' will exceed max contacts of 1
+[Apr 17 21:40:44] WARNING[40] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.30.0.1:57121) to AOR '1001' will exceed max contacts of 1
+[Apr 17 21:41:02] WARNING[40] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.30.0.1:57121) to AOR '1001' will exceed max contacts of 1
+[Apr 19 09:21:36] WARNING[40] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.30.0.1:52128) to AOR '1001' will exceed max contacts of 1
+[Apr 19 09:21:36] WARNING[40] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.30.0.1:52128) to AOR '1001' will exceed max contacts of 1
+[Apr 19 09:21:36] WARNING[40] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.30.0.1:52128) to AOR '1001' will exceed max contacts of 1
+[Apr 19 09:21:36] WARNING[40] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.30.0.1:52128) to AOR '1001' will exceed max contacts of 1
+[Apr 19 09:21:54] WARNING[40] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.30.0.1:52128) to AOR '1001' will exceed max contacts of 1
+[Apr 19 09:22:28] WARNING[40] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.30.0.1:52128) to AOR '1001' will exceed max contacts of 1
+[Apr 19 09:22:28] WARNING[40] res_pjsip_registrar.c: Registration attempt from endpoint '1001' (172.30.0.1:52128) to AOR '1001' will exceed max contacts of 1

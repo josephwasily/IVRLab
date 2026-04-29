@@ -1,7 +1,7 @@
 FROM andrius/asterisk:20
 
 # Bake default config into the image
-COPY pjsip.conf /etc/asterisk/pjsip.conf
+COPY --chmod=666 pjsip.conf /etc/asterisk/pjsip.conf
 COPY extensions.conf /etc/asterisk/extensions.conf
 COPY asterisk.conf /etc/asterisk/asterisk.conf
 COPY http.conf /etc/asterisk/http.conf

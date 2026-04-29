@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const csv = require('csv-parse/sync');
+const XLSX = require('xlsx');
 const net = require('net');
 
 // AMI Configuration
@@ -107,15 +108,17 @@ function sendAMICommand(action, params = {}) {
     });
 }
 
-// Configure multer for CSV uploads
-const upload = multer({ 
+// Configure multer for CSV / Excel uploads
+const ALLOWED_UPLOAD_EXTS = ['.csv', '.xlsx', '.xls'];
+const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
     fileFilter: (req, file, cb) => {
-        if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+        const lower = (file.originalname || '').toLowerCase();
+        if (ALLOWED_UPLOAD_EXTS.some((ext) => lower.endsWith(ext))) {
             cb(null, true);
         } else {
-            cb(new Error('Only CSV files are allowed'));
+            cb(new Error('Only CSV or Excel files are allowed'));
         }
     }
 });
@@ -252,22 +255,44 @@ function insertContactsForRun({ campaignId, runId, contacts }) {
 
 function parseCsvContactsFromRequest(file, phoneColumn = 'phone') {
     if (!file) {
-        throw new Error('No CSV file uploaded');
+        throw new Error('No file uploaded');
     }
 
-    const records = csv.parse(file.buffer.toString(), {
-        columns: true,
-        skip_empty_lines: true,
-        trim: true
-    });
+    const lowerName = (file.originalname || '').toLowerCase();
+    const isExcel = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls');
+
+    let records;
+    if (isExcel) {
+        const workbook = XLSX.read(file.buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        if (!sheetName) {
+            throw new Error('Excel file has no sheets');
+        }
+        const sheet = workbook.Sheets[sheetName];
+        records = XLSX.utils.sheet_to_json(sheet, { defval: '', raw: false });
+        records = records.map((row) => {
+            const trimmed = {};
+            for (const key of Object.keys(row)) {
+                trimmed[String(key).trim()] = typeof row[key] === 'string' ? row[key].trim() : row[key];
+            }
+            return trimmed;
+        });
+    } else {
+        records = csv.parse(file.buffer.toString(), {
+            columns: true,
+            skip_empty_lines: true,
+            trim: true,
+            bom: true
+        });
+    }
 
     if (records.length === 0) {
-        throw new Error('CSV file is empty');
+        throw new Error(isExcel ? 'Excel file is empty' : 'CSV file is empty');
     }
 
     const firstRecord = records[0];
-    if (!firstRecord[phoneColumn]) {
-        const error = new Error(`Column "${phoneColumn}" not found in CSV`);
+    if (!(phoneColumn in firstRecord)) {
+        const error = new Error(`Column "${phoneColumn}" not found in file`);
         error.availableColumns = Object.keys(firstRecord);
         throw error;
     }

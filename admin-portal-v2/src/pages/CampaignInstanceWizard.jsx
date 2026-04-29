@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import * as XLSX from 'xlsx'
 import {
   getCampaign,
   getCampaignInstances,
@@ -86,13 +87,32 @@ export default function CampaignInstanceWizard() {
     setNotice(null)
     setFile(nextFile)
     const reader = new FileReader()
+    const lowerName = nextFile.name.toLowerCase()
+    const isExcel = lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls')
     reader.onload = (loadEvent) => {
-      const firstLine = String(loadEvent.target?.result || '').split(/\r?\n/)[0] || ''
-      const headers = firstLine.split(',').map((value) => value.replace(/^"|"$/g, '').trim()).filter(Boolean)
+      let headers = []
+      try {
+        if (isExcel) {
+          const data = new Uint8Array(loadEvent.target?.result || new ArrayBuffer(0))
+          const workbook = XLSX.read(data, { type: 'array' })
+          const sheetName = workbook.SheetNames[0]
+          const sheet = sheetName ? workbook.Sheets[sheetName] : null
+          if (sheet) {
+            const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' })
+            headers = (rows[0] || []).map((value) => String(value || '').trim()).filter(Boolean)
+          }
+        } else {
+          const firstLine = String(loadEvent.target?.result || '').split(/\r?\n/)[0] || ''
+          headers = firstLine.split(',').map((value) => value.replace(/^"|"$/g, '').trim()).filter(Boolean)
+        }
+      } catch (error) {
+        setNotice({ success: false, message: `Could not read file: ${error.message}` })
+      }
       setCsvHeaders(headers)
       setPhoneColumn(headers.find((header) => /phone|mobile|number|tel/i.test(header)) || '')
     }
-    reader.readAsText(nextFile)
+    if (isExcel) reader.readAsArrayBuffer(nextFile)
+    else reader.readAsText(nextFile)
   }
 
   const onDownloadTemplate = async () => {
@@ -218,14 +238,14 @@ export default function CampaignInstanceWizard() {
                 Download Template
               </button>
             </div>
-            <input type="file" ref={fileInputRef} onChange={onFileChange} accept=".csv" className="hidden" />
+            <input type="file" ref={fileInputRef} onChange={onFileChange} accept=".csv,.xlsx,.xls" className="hidden" />
             {!file ? (
               <div className="text-center">
                 <FileSpreadsheet className="mx-auto mb-3 h-12 w-12 text-gray-400" />
                 <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
                   <button onClick={() => fileInputRef.current?.click()} className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700">
                     <Upload className="mr-2 h-5 w-5" />
-                    Select CSV File
+                    Select CSV or Excel File
                   </button>
                   <button onClick={onDownloadTemplate} className="inline-flex items-center rounded-lg border border-gray-200 px-4 py-2 text-gray-700 hover:bg-gray-50">
                     <Download className="mr-2 h-4 w-4" />
