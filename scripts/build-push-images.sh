@@ -39,13 +39,20 @@ cat > "$PROMPTS_BUILD/Dockerfile" << 'DEOF'
 FROM alpine:3.20
 COPY . /data/
 RUN rm -f /data/Dockerfile
-CMD ["sh", "-c", "\
-  mkdir -p /out/custom /out/ar; \
-  cd /data && find . -maxdepth 1 ! -name ar ! -name . -exec cp -a {} /out/custom/ \; ; \
-  cp -a /data/ar/. /out/ar/ 2>/dev/null; \
-  echo '[prompts-init] Done'; \
-  exit 0"]
+COPY init.sh /init.sh
+RUN chmod +x /init.sh
+CMD ["/init.sh"]
 DEOF
+
+cat > "$PROMPTS_BUILD/init.sh" << 'IEOF'
+#!/bin/sh
+set -e
+mkdir -p /out/custom /out/ar
+cd /data
+find . -maxdepth 1 ! -name ar ! -name . -exec cp -a {} /out/custom/ \;
+cp -a /data/ar/. /out/ar/ 2>/dev/null || true
+echo '[prompts-init] Done'
+IEOF
 
 FULL="${REGISTRY}/ivr-prompts:${TAG}"
 docker build -t "$FULL" "$PROMPTS_BUILD"
