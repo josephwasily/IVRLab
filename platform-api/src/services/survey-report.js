@@ -22,11 +22,11 @@ function extractEligibleCaptures(flowData) {
   const rawNodes = flowData.nodes;
   let iterable;
   if (Array.isArray(rawNodes)) {
-    iterable = rawNodes;
+    iterable = rawNodes.filter((n) => n && n.id);
   } else if (rawNodes && typeof rawNodes === 'object') {
     iterable = Object.entries(rawNodes).map(([id, node]) => ({
-      id,
-      ...node
+      ...node,
+      id
     }));
   } else {
     return [];
