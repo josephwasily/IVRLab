@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Plus, Play, Square, X, Trash2 } from 'lucide-react'
 import { getPrompts, getFilesystemPrompts, getPromptAudioUrl, getFilesystemAudioUrl } from '../../lib/api'
 import PromptCreateModal from '../prompts/PromptCreateModal'
+import { useI18n } from '../../contexts/I18nContext'
 
 function stripAudioExtension(value) {
   return String(value || '').replace(/\.(ulaw|wav|gsm|sln)$/i, '')
@@ -15,6 +16,7 @@ function toBasename(value) {
 }
 
 export default function NodeProperties({ node, onChange, onClose, onDelete }) {
+  const { t } = useI18n()
   const [formData, setFormData] = useState(node?.data || {})
   const [showCreatePromptModal, setShowCreatePromptModal] = useState(false)
   const [inlinePrompts, setInlinePrompts] = useState([])
@@ -395,6 +397,26 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
                 placeholder="#"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('nodeProperties.reportLabelAr')}</label>
+              <input
+                type="text"
+                value={formData.reportLabelAr || ''}
+                onChange={(e) => handleChange('reportLabelAr', e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg text-sm"
+                dir="rtl"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('nodeProperties.reportLabelEn')}</label>
+              <input
+                type="text"
+                value={formData.reportLabelEn || ''}
+                onChange={(e) => handleChange('reportLabelEn', e.target.value)}
+                className="w-full px-3 py-2 border rounded-lg text-sm"
+              />
+            </div>
+            <p className="text-xs text-gray-400">{t('nodeProperties.reportHelp')}</p>
           </>
         )}
 
