@@ -8,6 +8,7 @@ const path = require('path');
 const multer = require('multer');
 const csv = require('csv-parse/sync');
 const XLSX = require('xlsx');
+const surveyReport = require('../services/survey-report');
 const net = require('net');
 
 // AMI Configuration
@@ -517,6 +518,42 @@ router.get('/:id', (req, res) => {
     } catch (error) {
         console.error('Error getting campaign:', error);
         res.status(500).json({ error: 'Failed to get campaign' });
+    }
+});
+
+// Report — list eligible single-digit captures for the survey report.
+router.get('/:id/report/captures', (req, res) => {
+    try {
+        const campaign = db.prepare(
+            'SELECT id, ivr_id FROM campaigns WHERE id = ? AND tenant_id = ?'
+        ).get(req.params.id, req.user.tenantId);
+
+        if (!campaign) {
+            return res.status(404).json({ error: 'Campaign not found' });
+        }
+        if (!campaign.ivr_id) {
+            return res.json([]);
+        }
+
+        const flow = db.prepare(
+            'SELECT flow_data FROM ivr_flows WHERE id = ? AND tenant_id = ?'
+        ).get(campaign.ivr_id, req.user.tenantId);
+
+        if (!flow || !flow.flow_data) {
+            return res.json([]);
+        }
+
+        let parsed = {};
+        try {
+            parsed = JSON.parse(flow.flow_data);
+        } catch (_e) {
+            return res.json([]);
+        }
+
+        return res.json(surveyReport.extractEligibleCaptures(parsed));
+    } catch (error) {
+        console.error('Error listing report captures:', error);
+        res.status(500).json({ error: 'Failed to list captures' });
     }
 });
 
