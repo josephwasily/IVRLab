@@ -408,3 +408,17 @@ export const getCallStatus = async (callId) => {
 }
 
 export default api
+
+// Campaign survey report
+export const getCampaignReportCaptures = async (campaignId) => {
+  const response = await api.get(`/campaigns/${campaignId}/report/captures`)
+  return response.data
+}
+
+export const downloadCampaignReportXlsx = async (campaignId, params) => {
+  const response = await api.get(`/campaigns/${campaignId}/report/export`, {
+    params,
+    responseType: 'blob'
+  })
+  return response.data
+}
