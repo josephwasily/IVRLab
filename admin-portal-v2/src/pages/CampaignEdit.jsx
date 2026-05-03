@@ -14,8 +14,10 @@ import {
   cancelCampaign,
   generateCampaignApiKey
 } from '../lib/api'
-import { ArrowLeft, Save, Loader2, Pause, Play, Square, ExternalLink, Key, Copy, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, Pause, Play, Square, ExternalLink, Key, Copy, RefreshCw, Download } from 'lucide-react'
 import clsx from 'clsx'
+import CampaignReportExportModal from '../components/CampaignReportExportModal'
+import { useI18n } from '../contexts/I18nContext'
 
 const campaignTypes = [
   { value: 'survey', label: 'Survey', description: 'Collect responses via IVR' },
@@ -62,6 +64,8 @@ export default function CampaignEdit() {
     flag_value: ''
   })
   const [selectedInstanceId, setSelectedInstanceId] = useState(null)
+  const [reportModalOpen, setReportModalOpen] = useState(false)
+  const { t } = useI18n()
 
   const campaignKey = ['campaign', id]
   const instancesKey = ['campaign-instances', id]
@@ -168,6 +172,15 @@ export default function CampaignEdit() {
           <h1 className="text-2xl font-bold text-gray-900">{isNew ? 'New Campaign' : campaign?.name}</h1>
           {campaign && <p className="text-sm text-gray-500">Campaign design is managed here. Start instances from the dedicated wizard.</p>}
         </div>
+        {!isNew && instances?.length > 0 && (
+          <button
+            onClick={() => setReportModalOpen(true)}
+            className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-700 hover:bg-blue-100"
+          >
+            <Download className="mr-2 h-4 w-4" />
+            {t('campaignReport.exportButton')}
+          </button>
+        )}
         {!isNew && (
           <Link to={`/campaigns/${id}/instances/new`} className="inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700 hover:bg-green-100">
             <Play className="mr-2 h-4 w-4" />
@@ -411,6 +424,12 @@ export default function CampaignEdit() {
           </div>
         </>
       )}
+      <CampaignReportExportModal
+        campaignId={id}
+        campaignName={campaign?.name || ''}
+        open={reportModalOpen}
+        onClose={() => setReportModalOpen(false)}
+      />
     </div>
   )
 }
