@@ -557,6 +557,106 @@ router.get('/:id/report/captures', (req, res) => {
     }
 });
 
+// Report — generate and stream the .xlsx survey report.
+router.get('/:id/report/export', (req, res) => {
+    try {
+        const campaign = db.prepare(
+            'SELECT id, name, ivr_id FROM campaigns WHERE id = ? AND tenant_id = ?'
+        ).get(req.params.id, req.user.tenantId);
+
+        if (!campaign) {
+            return res.status(404).json({ error: 'Campaign not found' });
+        }
+
+        const { from, to, captures: capturesParam } = req.query;
+        const digitMin = parseInt(req.query.digitMin || '1', 10);
+        const digitMax = parseInt(req.query.digitMax || '5', 10);
+        const language = ['ar', 'en'].includes(req.query.language)
+            ? req.query.language
+            : (req.user.language || 'ar');
+
+        if (!from || !to) {
+            return res.status(400).json({ error: '"from" and "to" are required' });
+        }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+            return res.status(400).json({ error: '"from" / "to" must be YYYY-MM-DD' });
+        }
+        if (from > to) {
+            return res.status(400).json({ error: '"from" must be on or before "to"' });
+        }
+        // Range cap: 5 years.
+        if ((new Date(to) - new Date(from)) / (1000 * 60 * 60 * 24) > 5 * 366) {
+            return res.status(400).json({ error: 'Date range cannot exceed 5 years' });
+        }
+        if (!Number.isInteger(digitMin) || !Number.isInteger(digitMax) ||
+            digitMin < 0 || digitMax > 9 || digitMin > digitMax) {
+            return res.status(400).json({ error: 'Invalid digit range' });
+        }
+
+        const requestedNodeIds = String(capturesParam || '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+        if (requestedNodeIds.length === 0) {
+            return res.status(400).json({ error: 'At least one capture must be selected' });
+        }
+
+        // Re-derive eligible captures from the current flow and intersect.
+        let eligible = [];
+        if (campaign.ivr_id) {
+            const flow = db.prepare(
+                'SELECT flow_data FROM ivr_flows WHERE id = ? AND tenant_id = ?'
+            ).get(campaign.ivr_id, req.user.tenantId);
+            if (flow && flow.flow_data) {
+                try {
+                    eligible = surveyReport.extractEligibleCaptures(JSON.parse(flow.flow_data));
+                } catch (_e) {
+                    eligible = [];
+                }
+            }
+        }
+
+        const eligibleById = new Map(eligible.map((c) => [c.nodeId, c]));
+        const selected = requestedNodeIds
+            .map((id) => eligibleById.get(id))
+            .filter(Boolean);
+        if (selected.length === 0) {
+            return res.status(400).json({ error: 'No selected captures are eligible for this report' });
+        }
+
+        const aggregation = surveyReport.aggregateSurveyData({
+            db,
+            campaignId: campaign.id,
+            captures: selected,
+            from,
+            to,
+            digitMin,
+            digitMax
+        });
+
+        const buffer = surveyReport.buildSurveyWorkbook({
+            language,
+            captures: selected,
+            digitMin,
+            digitMax,
+            aggregation
+        });
+
+        const safeName = surveyReport.sanitizeFilenamePart(campaign.name);
+        const fallback = `${safeName}-report-${from}-to-${to}.xlsx`;
+        const utf8Name = encodeURIComponent(`${campaign.name || 'campaign'}-report-${from}-to-${to}.xlsx`);
+
+        res.setHeader('Content-Type',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition',
+            `attachment; filename="${fallback}"; filename*=UTF-8''${utf8Name}`);
+        res.send(buffer);
+    } catch (error) {
+        console.error('Error exporting survey report:', error);
+        res.status(500).json({ error: 'Failed to export report' });
+    }
+});
+
 // Create new campaign
 router.post('/', (req, res) => {
     try {
