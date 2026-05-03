@@ -128,6 +128,25 @@ const translations = {
       collection: 'تحصيل',
       custom: 'مخصص'
     },
+    campaignReport: {
+      exportButton: 'تصدير التقرير',
+      modalTitle: 'تصدير تقرير الاستبيان',
+      captures: 'الأسئلة',
+      dateRange: 'النطاق الزمني',
+      from: 'من',
+      to: 'إلى',
+      digitRange: 'نطاق الأرقام',
+      export: 'تصدير',
+      exporting: 'جار التصدير...',
+      cancel: 'إلغاء',
+      empty: 'لا توجد أسئلة معرّفة في هذا المسار. أضف "تسمية التقرير" لأي عقدة جمع رقم واحد لتظهر هنا.',
+      noSelection: 'يجب اختيار سؤال واحد على الأقل.'
+    },
+    nodeProperties: {
+      reportLabelAr: 'تسمية التقرير (عربي)',
+      reportLabelEn: 'تسمية التقرير (إنجليزي)',
+      reportHelp: 'العقدات بحد أقصى رقم واحد ولها تسمية تقرير تظهر في تقرير الاستبيان.'
+    },
     templates: {
       title: 'قوالب الرد الآلي',
       subtitle: 'قوالب جاهزة لتبدأ بسرعة',
@@ -267,6 +286,25 @@ const translations = {
       reminder: 'Reminder',
       collection: 'Collection',
       custom: 'Custom'
+    },
+    campaignReport: {
+      exportButton: 'Export Report',
+      modalTitle: 'Export Survey Report',
+      captures: 'Questions',
+      dateRange: 'Date range',
+      from: 'From',
+      to: 'To',
+      digitRange: 'Digit range',
+      export: 'Export',
+      exporting: 'Exporting...',
+      cancel: 'Cancel',
+      empty: 'No labeled single-digit captures in this IVR. Add a "Report label" to any 1-digit collect node for it to appear here.',
+      noSelection: 'Select at least one question.'
+    },
+    nodeProperties: {
+      reportLabelAr: 'Report label (Arabic)',
+      reportLabelEn: 'Report label (English)',
+      reportHelp: 'Collect nodes with Max Digits = 1 and a report label appear in the campaign survey report.'
     },
     templates: {
       title: 'IVR Templates',
