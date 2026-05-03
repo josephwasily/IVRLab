@@ -571,9 +571,11 @@ router.get('/:id/report/export', (req, res) => {
         const { from, to, captures: capturesParam } = req.query;
         const digitMin = parseInt(req.query.digitMin || '1', 10);
         const digitMax = parseInt(req.query.digitMax || '5', 10);
-        const language = ['ar', 'en'].includes(req.query.language)
-            ? req.query.language
-            : (req.user.language || 'ar');
+        let language = ['ar', 'en'].includes(req.query.language) ? req.query.language : null;
+        if (!language) {
+            const userRow = db.prepare('SELECT language FROM users WHERE id = ?').get(req.user.userId);
+            language = (userRow && userRow.language === 'en') ? 'en' : 'ar';
+        }
 
         if (!from || !to) {
             return res.status(400).json({ error: '"from" and "to" are required' });
