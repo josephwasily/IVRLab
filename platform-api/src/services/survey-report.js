@@ -126,6 +126,7 @@ function aggregateSurveyData({ db, campaignId, captures, from, to, digitMin, dig
     counts[m.monthKey] = {};
     surveys[m.monthKey] = {};
     for (const c of captures) {
+      if (!c || !c.nodeId || !c.variable) continue;
       counts[m.monthKey][c.nodeId] = {};
       for (let d = digitMin; d <= digitMax; d++) {
         counts[m.monthKey][c.nodeId][String(d)] = 0;
@@ -134,29 +135,39 @@ function aggregateSurveyData({ db, campaignId, captures, from, to, digitMin, dig
     }
   }
 
-  // Pull all rows once. The dataset is small (single campaign, bounded date
-  // range) and json_extract per-capture would mean N queries.
-  const rangeStart = `${from}T00:00:00.000Z`;
-  // Inclusive end-of-day: add 1 day to `to` and use strict less-than.
+  // `outbound_calls.dial_start_time` is set via SQLite's CURRENT_TIMESTAMP,
+  // which stores `YYYY-MM-DD HH:MM:SS` in UTC. We compare with julianday()
+  // to match the format-agnostic pattern used in analytics.js, and extract
+  // YYYY-MM directly from the string so we don't have to parse it.
+  const rangeStart = `${from} 00:00:00`;
+  // Inclusive end-of-day: cover up to (and including) `to` 23:59:59 by
+  // bounding strictly less than the next day's midnight.
   const toDate = new Date(`${to}T00:00:00Z`);
-  const dayAfterTo = new Date(Date.UTC(
-    toDate.getUTCFullYear(), toDate.getUTCMonth(), toDate.getUTCDate() + 1
-  )).toISOString();
+  const dayAfterTo = (() => {
+    const next = new Date(Date.UTC(
+      toDate.getUTCFullYear(), toDate.getUTCMonth(), toDate.getUTCDate() + 1
+    ));
+    const y = next.getUTCFullYear();
+    const m = String(next.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(next.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d} 00:00:00`;
+  })();
 
   const rows = db.prepare(`
     SELECT dial_start_time, variables
     FROM outbound_calls
     WHERE campaign_id = ?
-      AND dial_start_time >= ?
-      AND dial_start_time <  ?
+      AND julianday(dial_start_time) >= julianday(?)
+      AND julianday(dial_start_time) <  julianday(?)
   `).all(campaignId, rangeStart, dayAfterTo);
 
   for (const row of rows) {
     if (!row.dial_start_time) continue;
-    const ts = new Date(row.dial_start_time);
-    if (Number.isNaN(ts.getTime())) continue;
-
-    const monthKey = `${ts.getUTCFullYear()}-${String(ts.getUTCMonth() + 1).padStart(2, '0')}`;
+    // Both 'YYYY-MM-DD HH:MM:SS' and 'YYYY-MM-DDTHH:MM:SS.sssZ' start with
+    // YYYY-MM. Avoid Date parsing here — for non-Z strings, Node would
+    // interpret as local time and shift the month.
+    const monthKey = String(row.dial_start_time).slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(monthKey)) continue;
     if (!counts[monthKey]) continue; // outside enumerated months
 
     let vars = {};
@@ -167,6 +178,7 @@ function aggregateSurveyData({ db, campaignId, captures, from, to, digitMin, dig
     }
 
     for (const cap of captures) {
+      if (!cap || !cap.nodeId || !cap.variable) continue;
       const raw = vars[cap.variable];
       // Variables can be stored as { value: '3' } or '3'.
       const val = (raw && typeof raw === 'object' && 'value' in raw) ? raw.value : raw;
