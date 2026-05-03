@@ -282,6 +282,7 @@ function buildSurveyWorkbook({ language, captures, digitMin, digitMax, aggregati
   const merges = [];
 
   for (const monthBlock of aggregation.months) {
+    if (captures.length === 0) continue;
     const blockStartRow = aoa.length; // 0-based
     const headerRow1 = new Array(totalCols).fill('');
     headerRow1[0] = tr.number;
@@ -390,11 +391,12 @@ function buildSurveyWorkbook({ language, captures, digitMin, digitMax, aggregati
     ...digitColumns.flatMap(() => [{ wch: 8 }, { wch: 12 }])
   ];
 
-  // Promote { f, z } objects to proper cell objects with numFmt.
+  // Mark every formula cell as numeric so Excel evaluates it (not as text).
+  // Some readers don't auto-infer the type from `{ f: '...' }` alone.
   for (const cellAddr of Object.keys(ws)) {
     if (cellAddr.startsWith('!')) continue;
     const cell = ws[cellAddr];
-    if (cell && typeof cell === 'object' && cell.f && cell.z && !cell.t) {
+    if (cell && typeof cell === 'object' && cell.f && !cell.t) {
       cell.t = 'n';
     }
   }
