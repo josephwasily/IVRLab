@@ -17,6 +17,7 @@ import {
 import { ArrowLeft, Save, Loader2, Pause, Play, Square, ExternalLink, Key, Copy, RefreshCw, Download } from 'lucide-react'
 import clsx from 'clsx'
 import CampaignReportExportModal from '../components/CampaignReportExportModal'
+import CampaignInstanceForm from '../components/CampaignInstanceForm'
 import { useI18n } from '../contexts/I18nContext'
 
 const campaignTypeKeys = ['survey', 'notification', 'reminder', 'collection', 'custom']
@@ -175,12 +176,6 @@ export default function CampaignEdit() {
             {t('campaignReport.exportButton')}
           </button>
         )}
-        {!isNew && (
-          <Link to={`/campaigns/${id}/instances/new`} className="inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700 hover:bg-green-100">
-            <Play className="mr-2 h-4 w-4" />
-            {t('campaignEdit.startInstance')}
-          </Link>
-        )}
         {isEditable && (
           <button onClick={() => saveMutation.mutate(formData)} disabled={saveMutation.isLoading || !formData.name || !formData.ivr_id} className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50">
             {saveMutation.isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
@@ -188,6 +183,20 @@ export default function CampaignEdit() {
           </button>
         )}
       </div>
+
+      {!isNew && (
+        <>
+          <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="rounded-lg bg-white p-4 shadow"><div className="text-sm text-gray-500">{t('campaignEdit.totalInstances')}</div><div className="mt-1 text-2xl font-bold text-gray-900">{instances?.length || 0}</div></div>
+            <div className="rounded-lg bg-white p-4 shadow"><div className="text-sm text-gray-500">{t('campaignEdit.runningInstances')}</div><div className="mt-1 text-2xl font-bold text-green-600">{instances?.filter((instance) => instance.status === 'running').length || 0}</div></div>
+            <div className="rounded-lg bg-white p-4 shadow"><div className="text-sm text-gray-500">{t('campaignEdit.latestInstance')}</div><div className="mt-1 text-sm font-medium text-gray-900">{instances?.[0] ? t('campaignEdit.runHash', { number: instances[0].run_number }) : t('campaignEdit.noRuns')}</div><div className="text-xs text-gray-500">{instances?.[0] ? formatDateTime(instances[0].started_at) : t('campaignEdit.startFromWizard')}</div></div>
+          </div>
+
+          <div className="mb-6">
+            <CampaignInstanceForm campaign={campaign} instances={instances} />
+          </div>
+        </>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-lg bg-white p-6 shadow">
@@ -317,12 +326,6 @@ export default function CampaignEdit() {
 
       {!isNew && (
         <>
-          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="rounded-lg bg-white p-4 shadow"><div className="text-sm text-gray-500">{t('campaignEdit.totalInstances')}</div><div className="mt-1 text-2xl font-bold text-gray-900">{instances?.length || 0}</div></div>
-            <div className="rounded-lg bg-white p-4 shadow"><div className="text-sm text-gray-500">{t('campaignEdit.runningInstances')}</div><div className="mt-1 text-2xl font-bold text-green-600">{instances?.filter((instance) => instance.status === 'running').length || 0}</div></div>
-            <div className="rounded-lg bg-white p-4 shadow"><div className="text-sm text-gray-500">{t('campaignEdit.latestInstance')}</div><div className="mt-1 text-sm font-medium text-gray-900">{instances?.[0] ? t('campaignEdit.runHash', { number: instances[0].run_number }) : t('campaignEdit.noRuns')}</div><div className="text-xs text-gray-500">{instances?.[0] ? formatDateTime(instances[0].started_at) : t('campaignEdit.startFromWizard')}</div></div>
-          </div>
-
           <div className="mt-6 rounded-lg bg-white p-6 shadow">
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
@@ -330,10 +333,6 @@ export default function CampaignEdit() {
                 <p className="mt-1 text-sm text-gray-500">{t('campaignEdit.instanceHistorySub')}</p>
               </div>
               <div className="flex gap-2">
-                <Link to={`/campaigns/${id}/instances/new`} className="inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 hover:bg-green-100">
-                  <Play className="mr-2 h-4 w-4" />
-                  {t('campaignEdit.startInstance')}
-                </Link>
                 {activeInstance?.status === 'running' && <button onClick={() => pauseMutation.mutate()} className="inline-flex items-center rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-700 hover:bg-yellow-100"><Pause className="mr-2 h-4 w-4" />{t('campaignEdit.pause')}</button>}
                 {activeInstance?.status === 'paused' && <button onClick={() => resumeMutation.mutate()} className="inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 hover:bg-green-100"><Play className="mr-2 h-4 w-4" />{t('campaignEdit.resume')}</button>}
                 {activeInstance?.status === 'paused' && <button onClick={() => cancelMutation.mutate()} className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 hover:bg-red-100"><Square className="mr-2 h-4 w-4" />{t('campaignEdit.cancel')}</button>}
