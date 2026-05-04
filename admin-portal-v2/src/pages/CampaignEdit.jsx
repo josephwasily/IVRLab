@@ -19,13 +19,7 @@ import clsx from 'clsx'
 import CampaignReportExportModal from '../components/CampaignReportExportModal'
 import { useI18n } from '../contexts/I18nContext'
 
-const campaignTypes = [
-  { value: 'survey', label: 'Survey', description: 'Collect responses via IVR' },
-  { value: 'notification', label: 'Notification', description: 'Play announcements' },
-  { value: 'reminder', label: 'Reminder', description: 'Appointment reminders' },
-  { value: 'collection', label: 'Collection', description: 'Payment reminders' },
-  { value: 'custom', label: 'Custom', description: 'Custom IVR flow' }
-]
+const campaignTypeKeys = ['survey', 'notification', 'reminder', 'collection', 'custom']
 
 const instanceStatusClasses = {
   running: 'bg-green-100 text-green-800',
@@ -169,8 +163,8 @@ export default function CampaignEdit() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">{isNew ? 'New Campaign' : campaign?.name}</h1>
-          {campaign && <p className="text-sm text-gray-500">Campaign design is managed here. Start instances from the dedicated wizard.</p>}
+          <h1 className="text-2xl font-bold text-gray-900">{isNew ? t('campaignEdit.newCampaign') : campaign?.name}</h1>
+          {campaign && <p className="text-sm text-gray-500">{t('campaignEdit.managedHere')}</p>}
         </div>
         {!isNew && instances?.length > 0 && (
           <button
@@ -184,39 +178,39 @@ export default function CampaignEdit() {
         {!isNew && (
           <Link to={`/campaigns/${id}/instances/new`} className="inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm text-green-700 hover:bg-green-100">
             <Play className="mr-2 h-4 w-4" />
-            Start Instance
+            {t('campaignEdit.startInstance')}
           </Link>
         )}
         {isEditable && (
           <button onClick={() => saveMutation.mutate(formData)} disabled={saveMutation.isLoading || !formData.name || !formData.ivr_id} className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50">
             {saveMutation.isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-            Save
+            {t('campaignEdit.save')}
           </button>
         )}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-lg bg-white p-6 shadow">
-          <h3 className="mb-4 font-medium text-gray-900">Campaign Details</h3>
+          <h3 className="mb-4 font-medium text-gray-900">{t('campaignEdit.details')}</h3>
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Campaign Name *</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.campaignName')} *</label>
               <input value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} disabled={!isEditable} className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.description')}</label>
               <textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} disabled={!isEditable} rows={2} className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100" />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Campaign Type</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.campaignType')}</label>
               <select value={formData.campaign_type} onChange={(e) => setFormData({ ...formData, campaign_type: e.target.value })} disabled={!isEditable} className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100">
-                {campaignTypes.map((type) => <option key={type.value} value={type.value}>{type.label} - {type.description}</option>)}
+                {campaignTypeKeys.map((key) => <option key={key} value={key}>{t(`campaigns.${key}`)}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">IVR Flow *</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.ivrFlow')} *</label>
               <select value={formData.ivr_id} onChange={(e) => setFormData({ ...formData, ivr_id: e.target.value })} disabled={!isEditable} className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100">
-                <option value="">Select IVR Flow...</option>
+                <option value="">{t('campaignEdit.selectIvr')}</option>
                 {ivrFlows?.filter((flow) => flow.status === 'active').map((flow) => <option key={flow.id} value={flow.id}>{flow.name}</option>)}
               </select>
             </div>
@@ -224,31 +218,31 @@ export default function CampaignEdit() {
         </div>
 
         <div className="rounded-lg bg-white p-6 shadow">
-          <h3 className="mb-4 font-medium text-gray-900">Dialing Configuration</h3>
+          <h3 className="mb-4 font-medium text-gray-900">{t('campaignEdit.dialing')}</h3>
           <div className="space-y-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">SIP Trunk *</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.sipTrunk')} *</label>
               <select value={formData.trunk_id} onChange={(e) => setFormData({ ...formData, trunk_id: e.target.value })} disabled={!isEditable} className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100">
-                <option value="">Select Trunk...</option>
+                <option value="">{t('campaignEdit.selectTrunk')}</option>
                 {trunks?.filter((trunk) => trunk.status === 'active').map((trunk) => <option key={trunk.id} value={trunk.id}>{trunk.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Caller ID</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.callerId')}</label>
               <input value={formData.caller_id} onChange={(e) => setFormData({ ...formData, caller_id: e.target.value })} disabled={!isEditable} className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Max Concurrent Calls</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.maxConcurrent')}</label>
                 <input type="number" min="1" value={formData.max_concurrent_calls} onChange={(e) => setFormData({ ...formData, max_concurrent_calls: parseInt(e.target.value, 10) || 1 })} disabled={!isEditable} className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100" />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Retry Attempts</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.retryAttempts')}</label>
                 <input type="number" min="0" value={formData.max_attempts} onChange={(e) => setFormData({ ...formData, max_attempts: parseInt(e.target.value, 10) || 0 })} disabled={!isEditable} className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100" />
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Retry Delay (minutes)</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.retryDelay')}</label>
               <input type="number" min="1" value={formData.retry_delay_minutes} onChange={(e) => setFormData({ ...formData, retry_delay_minutes: parseInt(e.target.value, 10) || 1 })} disabled={!isEditable} className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100" />
             </div>
           </div>
@@ -258,43 +252,43 @@ export default function CampaignEdit() {
       {!isNew && (
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="rounded-lg bg-white p-6 shadow">
-            <h3 className="mb-4 flex items-center gap-2 font-medium text-gray-900"><Key className="h-4 w-4" />Webhook Integration</h3>
-            <p className="mb-4 text-sm text-gray-500">Allow external systems to trigger campaign runs and retrieve results via API.</p>
+            <h3 className="mb-4 flex items-center gap-2 font-medium text-gray-900"><Key className="h-4 w-4" />{t('campaignEdit.webhookIntegration')}</h3>
+            <p className="mb-4 text-sm text-gray-500">{t('campaignEdit.webhookSubtitle')}</p>
             <div className="space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">API Key</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.apiKey')}</label>
                 {campaign?.webhook_api_key ? (
                   <div className="flex items-center gap-2">
                     <input readOnly value={campaign.webhook_api_key} className="flex-1 rounded-md border-gray-300 bg-gray-50 font-mono text-xs shadow-sm" />
-                    <button onClick={() => copyToClipboard(campaign.webhook_api_key, 'apiKey')} className="rounded-md border border-gray-300 p-2 hover:bg-gray-50" title="Copy">
+                    <button onClick={() => copyToClipboard(campaign.webhook_api_key, 'apiKey')} className="rounded-md border border-gray-300 p-2 hover:bg-gray-50" title={t('campaignEdit.copy')}>
                       <Copy className="h-4 w-4 text-gray-500" />
                     </button>
-                    <button onClick={() => apiKeyMutation.mutate()} disabled={apiKeyMutation.isLoading} className="rounded-md border border-gray-300 p-2 hover:bg-gray-50" title="Regenerate">
+                    <button onClick={() => apiKeyMutation.mutate()} disabled={apiKeyMutation.isLoading} className="rounded-md border border-gray-300 p-2 hover:bg-gray-50" title={t('campaignEdit.regenerate')}>
                       <RefreshCw className={clsx('h-4 w-4 text-gray-500', apiKeyMutation.isLoading && 'animate-spin')} />
                     </button>
                   </div>
                 ) : (
                   <button onClick={() => apiKeyMutation.mutate()} disabled={apiKeyMutation.isLoading} className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-700 hover:bg-blue-100">
                     {apiKeyMutation.isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Key className="mr-2 h-4 w-4" />}
-                    Generate API Key
+                    {t('campaignEdit.generateApiKey')}
                   </button>
                 )}
-                {copiedField === 'apiKey' && <p className="mt-1 text-xs text-green-600">Copied!</p>}
+                {copiedField === 'apiKey' && <p className="mt-1 text-xs text-green-600">{t('campaignEdit.copied')}</p>}
               </div>
               {campaign?.webhook_api_key && (
                 <>
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">Trigger URL</label>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.triggerUrl')}</label>
                     <div className="flex items-center gap-2">
                       <code className="flex-1 rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-700">POST /api/webhooks/campaigns/{id}/trigger</code>
                       <button onClick={() => copyToClipboard(`${window.location.origin}/api/webhooks/campaigns/${id}/trigger`, 'triggerUrl')} className="rounded-md border border-gray-300 p-2 hover:bg-gray-50">
                         <Copy className="h-4 w-4 text-gray-500" />
                       </button>
                     </div>
-                    {copiedField === 'triggerUrl' && <p className="mt-1 text-xs text-green-600">Copied!</p>}
+                    {copiedField === 'triggerUrl' && <p className="mt-1 text-xs text-green-600">{t('campaignEdit.copied')}</p>}
                   </div>
                   <div>
-                    <label className="mb-1 block text-sm font-medium text-gray-700">Results URL</label>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.resultsUrl')}</label>
                     <code className="block rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-700">GET /api/webhooks/campaigns/{id}/runs/{'<run_id>'}/results</code>
                   </div>
                 </>
@@ -303,18 +297,18 @@ export default function CampaignEdit() {
           </div>
 
           <div className="rounded-lg bg-white p-6 shadow">
-            <h3 className="mb-4 font-medium text-gray-900">Result Flag Configuration</h3>
-            <p className="mb-4 text-sm text-gray-500">Configure a variable from the IVR flow to produce a true/false flag per contact in the results API.</p>
+            <h3 className="mb-4 font-medium text-gray-900">{t('campaignEdit.flagConfig')}</h3>
+            <p className="mb-4 text-sm text-gray-500">{t('campaignEdit.flagSubtitle')}</p>
             <div className="space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Flag Variable Name</label>
-                <input value={formData.flag_variable} onChange={(e) => setFormData({ ...formData, flag_variable: e.target.value })} placeholder="e.g. confirm_payment" className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
-                <p className="mt-1 text-xs text-gray-400">The IVR variable name captured during the call (from a collect or branch node).</p>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.flagVariable')}</label>
+                <input value={formData.flag_variable} onChange={(e) => setFormData({ ...formData, flag_variable: e.target.value })} placeholder="confirm_payment" className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+                <p className="mt-1 text-xs text-gray-400">{t('campaignEdit.flagVariableHelp')}</p>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Flag True Value</label>
-                <input value={formData.flag_value} onChange={(e) => setFormData({ ...formData, flag_value: e.target.value })} placeholder="e.g. 1" className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
-                <p className="mt-1 text-xs text-gray-400">When the variable equals this value, the flag will be true.</p>
+                <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.flagValue')}</label>
+                <input value={formData.flag_value} onChange={(e) => setFormData({ ...formData, flag_value: e.target.value })} placeholder="1" className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+                <p className="mt-1 text-xs text-gray-400">{t('campaignEdit.flagValueHelp')}</p>
               </div>
             </div>
           </div>
@@ -324,37 +318,37 @@ export default function CampaignEdit() {
       {!isNew && (
         <>
           <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="rounded-lg bg-white p-4 shadow"><div className="text-sm text-gray-500">Total Instances</div><div className="mt-1 text-2xl font-bold text-gray-900">{instances?.length || 0}</div></div>
-            <div className="rounded-lg bg-white p-4 shadow"><div className="text-sm text-gray-500">Running Instances</div><div className="mt-1 text-2xl font-bold text-green-600">{instances?.filter((instance) => instance.status === 'running').length || 0}</div></div>
-            <div className="rounded-lg bg-white p-4 shadow"><div className="text-sm text-gray-500">Latest Instance</div><div className="mt-1 text-sm font-medium text-gray-900">{instances?.[0] ? `Run #${instances[0].run_number}` : 'No instances yet'}</div><div className="text-xs text-gray-500">{instances?.[0] ? formatDateTime(instances[0].started_at) : 'Start one from the wizard'}</div></div>
+            <div className="rounded-lg bg-white p-4 shadow"><div className="text-sm text-gray-500">{t('campaignEdit.totalInstances')}</div><div className="mt-1 text-2xl font-bold text-gray-900">{instances?.length || 0}</div></div>
+            <div className="rounded-lg bg-white p-4 shadow"><div className="text-sm text-gray-500">{t('campaignEdit.runningInstances')}</div><div className="mt-1 text-2xl font-bold text-green-600">{instances?.filter((instance) => instance.status === 'running').length || 0}</div></div>
+            <div className="rounded-lg bg-white p-4 shadow"><div className="text-sm text-gray-500">{t('campaignEdit.latestInstance')}</div><div className="mt-1 text-sm font-medium text-gray-900">{instances?.[0] ? t('campaignEdit.runHash', { number: instances[0].run_number }) : t('campaignEdit.noRuns')}</div><div className="text-xs text-gray-500">{instances?.[0] ? formatDateTime(instances[0].started_at) : t('campaignEdit.startFromWizard')}</div></div>
           </div>
 
           <div className="mt-6 rounded-lg bg-white p-6 shadow">
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
-                <h3 className="font-medium text-gray-900">Instance History</h3>
-                <p className="mt-1 text-sm text-gray-500">Use Start Instance to launch a new run with a new contact list.</p>
+                <h3 className="font-medium text-gray-900">{t('campaignEdit.instanceHistory')}</h3>
+                <p className="mt-1 text-sm text-gray-500">{t('campaignEdit.instanceHistorySub')}</p>
               </div>
               <div className="flex gap-2">
                 <Link to={`/campaigns/${id}/instances/new`} className="inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 hover:bg-green-100">
                   <Play className="mr-2 h-4 w-4" />
-                  Start Instance
+                  {t('campaignEdit.startInstance')}
                 </Link>
-                {activeInstance?.status === 'running' && <button onClick={() => pauseMutation.mutate()} className="inline-flex items-center rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-700 hover:bg-yellow-100"><Pause className="mr-2 h-4 w-4" />Pause</button>}
-                {activeInstance?.status === 'paused' && <button onClick={() => resumeMutation.mutate()} className="inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 hover:bg-green-100"><Play className="mr-2 h-4 w-4" />Resume</button>}
-                {activeInstance?.status === 'paused' && <button onClick={() => cancelMutation.mutate()} className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 hover:bg-red-100"><Square className="mr-2 h-4 w-4" />Cancel</button>}
+                {activeInstance?.status === 'running' && <button onClick={() => pauseMutation.mutate()} className="inline-flex items-center rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-700 hover:bg-yellow-100"><Pause className="mr-2 h-4 w-4" />{t('campaignEdit.pause')}</button>}
+                {activeInstance?.status === 'paused' && <button onClick={() => resumeMutation.mutate()} className="inline-flex items-center rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 hover:bg-green-100"><Play className="mr-2 h-4 w-4" />{t('campaignEdit.resume')}</button>}
+                {activeInstance?.status === 'paused' && <button onClick={() => cancelMutation.mutate()} className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 hover:bg-red-100"><Square className="mr-2 h-4 w-4" />{t('campaignEdit.cancel')}</button>}
               </div>
             </div>
 
             {instances?.length ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
-                  <thead><tr className="border-b">{['Instance', 'Status', 'Contacts', 'Completed', 'Failed', 'Started', 'Results URL', 'Actions'].map((label) => <th key={label} className="px-2 py-2 text-left">{label}</th>)}</tr></thead>
+                  <thead><tr className="border-b">{[t('campaignEdit.tableInstance'), t('campaignEdit.tableStatus'), t('campaignEdit.tableContacts'), t('campaignEdit.tableCompleted'), t('campaignEdit.tableFailed'), t('campaignEdit.tableStarted'), t('campaignEdit.tableResultsUrl'), t('campaignEdit.tableActions')].map((label) => <th key={label} className="px-2 py-2 text-left">{label}</th>)}</tr></thead>
                   <tbody>
                     {instances.map((instance) => (
                       <tr key={instance.id} className={clsx('border-b hover:bg-gray-50', selectedInstanceId === instance.id && 'bg-blue-50')}>
-                        <td className="px-2 py-3 font-medium">{`Run #${instance.run_number}`}</td>
-                        <td className="px-2 py-3"><span className={clsx('rounded-full px-2 py-1 text-xs font-medium', instanceStatusClasses[instance.status] || 'bg-gray-100 text-gray-700')}>{instance.status}</span></td>
+                        <td className="px-2 py-3 font-medium">{t('campaignEdit.runHash', { number: instance.run_number })}</td>
+                        <td className="px-2 py-3"><span className={clsx('rounded-full px-2 py-1 text-xs font-medium', instanceStatusClasses[instance.status] || 'bg-gray-100 text-gray-700')}>{t(`common.${instance.status}`)}</span></td>
                         <td className="px-2 py-3">{instance.total_contacts || 0}</td>
                         <td className="px-2 py-3 text-green-600">{instance.contacts_completed || 0}</td>
                         <td className="px-2 py-3 text-red-600">{instance.contacts_failed || 0}</td>
@@ -364,16 +358,16 @@ export default function CampaignEdit() {
                             <code className="max-w-[200px] truncate rounded bg-gray-100 px-2 py-1 text-[10px] text-gray-600" title={`${window.location.origin}/api/webhooks/campaigns/${id}/runs/${instance.id}/results`}>
                               /api/webhooks/campaigns/{id}/runs/{instance.id}/results
                             </code>
-                            <button onClick={() => copyToClipboard(`${window.location.origin}/api/webhooks/campaigns/${id}/runs/${instance.id}/results`, `resultsUrl-${instance.id}`)} className="shrink-0 rounded border border-gray-200 p-1 hover:bg-gray-50" title="Copy Results URL">
+                            <button onClick={() => copyToClipboard(`${window.location.origin}/api/webhooks/campaigns/${id}/runs/${instance.id}/results`, `resultsUrl-${instance.id}`)} className="shrink-0 rounded border border-gray-200 p-1 hover:bg-gray-50" title={t('campaignEdit.copy')}>
                               <Copy className="h-3 w-3 text-gray-500" />
                             </button>
-                            {copiedField === `resultsUrl-${instance.id}` && <span className="text-[10px] text-green-600">Copied!</span>}
+                            {copiedField === `resultsUrl-${instance.id}` && <span className="text-[10px] text-green-600">{t('campaignEdit.copied')}</span>}
                           </div>
                         </td>
                         <td className="px-2 py-3">
                           <div className="flex justify-end gap-2">
-                            <button onClick={() => setSelectedInstanceId(instance.id)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">View Contacts</button>
-                            <Link to={`/outbound-calls?campaign=${id}&run=${instance.id}`} className="inline-flex items-center rounded-lg border border-blue-200 px-3 py-1.5 text-xs text-blue-700 hover:bg-blue-50"><ExternalLink className="mr-1 h-3 w-3" />Call History</Link>
+                            <button onClick={() => setSelectedInstanceId(instance.id)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50">{t('campaignEdit.viewContacts')}</button>
+                            <Link to={`/outbound-calls?campaign=${id}&run=${instance.id}`} className="inline-flex items-center rounded-lg border border-blue-200 px-3 py-1.5 text-xs text-blue-700 hover:bg-blue-50"><ExternalLink className="mr-1 h-3 w-3" />{t('campaignEdit.callHistory')}</Link>
                           </div>
                         </td>
                       </tr>
@@ -381,30 +375,30 @@ export default function CampaignEdit() {
                   </tbody>
                 </table>
               </div>
-            ) : <div className="rounded-lg border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">No instances yet. Start the first one from the wizard.</div>}
-            {refreshingInstances && <div className="mt-3 text-xs text-gray-400">Refreshing instance history...</div>}
+            ) : <div className="rounded-lg border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">{t('campaignEdit.noInstances')}</div>}
+            {refreshingInstances && <div className="mt-3 text-xs text-gray-400">{t('campaignEdit.refreshing')}</div>}
           </div>
 
           <div className="mt-6 rounded-lg bg-white p-6 shadow">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h3 className="font-medium text-gray-900">Instance Contacts</h3>
-                <p className="mt-1 text-sm text-gray-500">{selectedInstance ? `Contacts and results for Run #${selectedInstance.run_number}.` : 'Select an instance to inspect its contacts.'}</p>
+                <h3 className="font-medium text-gray-900">{t('campaignEdit.instanceContacts')}</h3>
+                <p className="mt-1 text-sm text-gray-500">{selectedInstance ? t('campaignEdit.contactsForRun', { number: selectedInstance.run_number }) : t('campaignEdit.selectInstance')}</p>
               </div>
               {selectedInstance && (
                 <div className="flex gap-2">
-                  <button onClick={() => refetchContacts()} className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">Refresh</button>
-                  <Link to={`/outbound-calls?campaign=${id}&run=${selectedInstance.id}`} className="inline-flex items-center rounded-lg border border-blue-200 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50"><ExternalLink className="mr-2 h-4 w-4" />View Call History</Link>
+                  <button onClick={() => refetchContacts()} className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">{t('campaignEdit.refreshContacts')}</button>
+                  <Link to={`/outbound-calls?campaign=${id}&run=${selectedInstance.id}`} className="inline-flex items-center rounded-lg border border-blue-200 px-3 py-2 text-sm text-blue-700 hover:bg-blue-50"><ExternalLink className="mr-2 h-4 w-4" />{t('campaignEdit.viewCallHistory')}</Link>
                 </div>
               )}
             </div>
 
             {!selectedInstance ? (
-              <div className="rounded-lg border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">Select an instance above to review its uploaded contacts.</div>
+              <div className="rounded-lg border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">{t('campaignEdit.selectInstanceEmpty')}</div>
             ) : instanceContacts?.contacts?.length ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
-                  <thead className="border-b bg-gray-50"><tr>{['Phone', 'Name', 'Status', 'Attempts', 'Outcome', 'Last Attempt'].map((label) => <th key={label} className="px-3 py-2 text-left text-gray-600">{label}</th>)}</tr></thead>
+                  <thead className="border-b bg-gray-50"><tr>{[t('campaignEdit.colPhone'), t('campaignEdit.colName'), t('campaignEdit.tableStatus'), t('campaignEdit.colAttempts'), t('campaignEdit.colOutcome'), t('campaignEdit.colLastAttempt')].map((label) => <th key={label} className="px-3 py-2 text-left text-gray-600">{label}</th>)}</tr></thead>
                   <tbody>
                     {instanceContacts.contacts.map((contact) => (
                       <tr key={contact.id} className="border-b hover:bg-gray-50">
@@ -419,8 +413,8 @@ export default function CampaignEdit() {
                   </tbody>
                 </table>
               </div>
-            ) : <div className="rounded-lg border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">No contacts found for this instance.</div>}
-            {refreshingContacts && <div className="mt-3 text-xs text-gray-400">Refreshing instance contacts...</div>}
+            ) : <div className="rounded-lg border border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">{t('campaignEdit.noContactsForInstance')}</div>}
+            {refreshingContacts && <div className="mt-3 text-xs text-gray-400">{t('campaignEdit.refreshing2')}</div>}
           </div>
         </>
       )}

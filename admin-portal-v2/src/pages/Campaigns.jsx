@@ -5,14 +5,16 @@ import { getCampaigns, deleteCampaign, pauseCampaign, resumeCampaign, cancelCamp
 import { useI18n } from '../contexts/I18nContext'
 import {
   Plus, Trash2, Edit2, Play, Pause, Square, Phone,
-  CheckCircle, XCircle, Clock, PhoneOutgoing, History, Activity, ExternalLink
+  CheckCircle, XCircle, Clock, PhoneOutgoing, History, Activity, ExternalLink, Download
 } from 'lucide-react'
 import clsx from 'clsx'
+import CampaignReportExportModal from '../components/CampaignReportExportModal'
 
 export default function Campaigns() {
   const queryClient = useQueryClient()
   const { t, formatNumber, language } = useI18n()
   const [filterStatus, setFilterStatus] = useState('')
+  const [reportCampaign, setReportCampaign] = useState(null)
 
   const statusConfig = {
     draft: { color: 'gray', icon: Edit2, label: t('common.draft') },
@@ -193,6 +195,13 @@ export default function Campaigns() {
                     <Link to={`/campaigns/${campaign.id}`} className="rounded-lg p-2 text-blue-600 hover:bg-blue-50" title={labels.manage}>
                       <Edit2 className="h-5 w-5" />
                     </Link>
+                    <button
+                      onClick={() => setReportCampaign(campaign)}
+                      className="rounded-lg p-2 text-blue-600 hover:bg-blue-50"
+                      title={t('campaignsExtra.exportReport')}
+                    >
+                      <Download className="h-5 w-5" />
+                    </button>
                     <Link to={`/outbound-calls?campaign=${campaign.id}${activeRun?.id ? `&run=${activeRun.id}` : ''}`} className="rounded-lg p-2 text-gray-600 hover:bg-gray-50" title={labels.results}>
                       <ExternalLink className="h-5 w-5" />
                     </Link>
@@ -214,6 +223,12 @@ export default function Campaigns() {
           })}
         </div>
       )}
+      <CampaignReportExportModal
+        campaignId={reportCampaign?.id}
+        campaignName={reportCampaign?.name || ''}
+        open={!!reportCampaign}
+        onClose={() => setReportCampaign(null)}
+      />
     </div>
   )
 }

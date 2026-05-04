@@ -153,38 +153,46 @@ function aggregateSurveyData({ db, campaignId, captures, from, to, digitMin, dig
     return `${y}-${m}-${d} 00:00:00`;
   })();
 
+  // The IVR engine writes captured digits into `outbound_calls.result` JSON
+  // (see ivr-node/dynamic-ivr.js — `result: { ...variables, call_outcome }`).
+  // `outbound_calls.variables` only holds the contact's pre-call data
+  // (name, etc.) and never receives DTMF responses. Use COALESCE on the
+  // timestamp so calls without dial_start_time still get bucketed.
   const rows = db.prepare(`
-    SELECT dial_start_time, variables
+    SELECT COALESCE(dial_start_time, created_at) AS event_time, result
     FROM outbound_calls
     WHERE campaign_id = ?
-      AND julianday(dial_start_time) >= julianday(?)
-      AND julianday(dial_start_time) <  julianday(?)
+      AND julianday(COALESCE(dial_start_time, created_at)) >= julianday(?)
+      AND julianday(COALESCE(dial_start_time, created_at)) <  julianday(?)
   `).all(campaignId, rangeStart, dayAfterTo);
 
   for (const row of rows) {
-    if (!row.dial_start_time) continue;
-    // Both 'YYYY-MM-DD HH:MM:SS' and 'YYYY-MM-DDTHH:MM:SS.sssZ' start with
-    // YYYY-MM. Avoid Date parsing here — for non-Z strings, Node would
-    // interpret as local time and shift the month.
-    const monthKey = String(row.dial_start_time).slice(0, 7);
+    if (!row.event_time) continue;
+    const monthKey = String(row.event_time).slice(0, 7);
     if (!/^\d{4}-\d{2}$/.test(monthKey)) continue;
-    if (!counts[monthKey]) continue; // outside enumerated months
+    if (!counts[monthKey]) continue;
 
-    let vars = {};
+    let res = {};
     try {
-      vars = row.variables ? JSON.parse(row.variables) : {};
+      res = row.result ? JSON.parse(row.result) : {};
     } catch (_e) {
       continue;
     }
+    if (!res || typeof res !== 'object') continue;
 
     for (const cap of captures) {
       if (!cap || !cap.nodeId || !cap.variable) continue;
-      const raw = vars[cap.variable];
-      // Variables can be stored as { value: '3' } or '3'.
-      const val = (raw && typeof raw === 'object' && 'value' in raw) ? raw.value : raw;
-      if (val === null || val === undefined) continue;
+      // Prefer the raw digit when branch normalization mapped the value to
+      // a display name (e.g. "1" -> "نعم"). Fall back to the bare variable
+      // when no branch was attached.
+      const rawCandidate = res[`${cap.variable}_raw`];
+      const valueCandidate = res[cap.variable];
+      const picked = (rawCandidate !== undefined && rawCandidate !== null)
+        ? rawCandidate
+        : valueCandidate;
+      if (picked === null || picked === undefined) continue;
 
-      const str = String(val).trim();
+      const str = String(picked).trim();
       if (str.length !== 1) continue;
       if (!/^[0-9]$/.test(str)) continue;
       const digit = Number(str);
@@ -281,9 +289,8 @@ function buildSurveyWorkbook({ language, captures, digitMin, digitMax, aggregati
   const aoa = [];
   const merges = [];
 
-  for (const monthBlock of aggregation.months) {
-    if (captures.length === 0) continue;
-    const blockStartRow = aoa.length; // 0-based
+  // Render the two-row header ONCE at the top, shared across all months.
+  if (captures.length > 0) {
     const headerRow1 = new Array(totalCols).fill('');
     headerRow1[0] = tr.number;
     headerRow1[1] = tr.month;
@@ -301,22 +308,25 @@ function buildSurveyWorkbook({ language, captures, digitMin, digitMax, aggregati
     });
     aoa.push(headerRow2);
 
-    // Merge digit headers across their 2 sub-cols on row 1.
+    // Merge digit headers across their 2 sub-cols on header row 1.
     digitColumns.forEach((_d, i) => {
       const c = baseCols + i * 2;
       merges.push({
-        s: { r: blockStartRow, c },
-        e: { r: blockStartRow, c: c + 1 }
+        s: { r: 0, c },
+        e: { r: 0, c: c + 1 }
       });
     });
-
-    // Merge headers vertically (col A, B, C, D rows 1-2).
+    // Merge the four leading columns vertically across the two header rows.
     for (const c of [0, 1, 2, 3]) {
       merges.push({
-        s: { r: blockStartRow, c },
-        e: { r: blockStartRow + 1, c }
+        s: { r: 0, c },
+        e: { r: 1, c }
       });
     }
+  }
+
+  for (const monthBlock of aggregation.months) {
+    if (captures.length === 0) continue;
 
     // Question rows.
     const firstQuestionRow = aoa.length; // 0-based
