@@ -51,7 +51,7 @@ function buildPjsipChannel(trunk, phoneNumber) {
 const DIAL_PREFIX_PATTERN = /^[0-9*#]{0,15}$/;
 
 function normalizeDialPrefix(value) {
-    if (value === undefined) return undefined;
+    if (value === undefined) return undefined; // not in request body — leave field alone
     if (value === null || value === '') return null;
     const trimmed = String(value).trim();
     if (trimmed === '') return null;
