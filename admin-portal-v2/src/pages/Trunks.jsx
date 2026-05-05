@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getTrunks, createTrunk, updateTrunk, deleteTrunk, testTrunk } from '../lib/api'
 import { Plus, Trash2, Edit2, Phone, CheckCircle, XCircle, RefreshCw, X, Server } from 'lucide-react'
 import clsx from 'clsx'
+import { useI18n } from '../contexts/I18nContext'
 
 const transports = [
   { value: 'udp', label: 'UDP' },
@@ -12,6 +13,7 @@ const transports = [
 
 export default function Trunks() {
   const queryClient = useQueryClient()
+  const { t } = useI18n()
   const [showModal, setShowModal] = useState(false)
   const [editingTrunk, setEditingTrunk] = useState(null)
 
@@ -93,6 +95,11 @@ export default function Trunks() {
                     <div className="flex items-center">
                       <Phone className="w-5 h-5 text-gray-400 mr-3" />
                       <div className="font-medium text-gray-900">{trunk.name}</div>
+                      {trunk.dial_prefix && (
+                        <span className="ml-2 inline-flex items-center rounded bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                          {t('trunks.dialPrefixColumn')}: {trunk.dial_prefix}
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500 font-mono">
@@ -159,6 +166,7 @@ export default function Trunks() {
 
 function TrunkModal({ trunk, onClose }) {
   const queryClient = useQueryClient()
+  const { t } = useI18n()
   const [form, setForm] = useState({
     name: trunk?.name || '',
     host: trunk?.host || '',
@@ -167,6 +175,7 @@ function TrunkModal({ trunk, onClose }) {
     username: trunk?.username || '',
     password: '',
     caller_id: trunk?.caller_id || '',
+    dial_prefix: trunk?.dial_prefix || '',
     codecs: trunk?.codecs || 'ulaw,alaw',
     max_channels: trunk?.max_channels || 10
   })
@@ -293,6 +302,20 @@ function TrunkModal({ trunk, onClose }) {
                 placeholder="+1234567890"
                 className="w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{t('trunks.dialPrefix')}</label>
+              <input
+                type="text"
+                pattern="[0-9*#]{0,15}"
+                maxLength={15}
+                value={form.dial_prefix}
+                onChange={(e) => setForm({ ...form, dial_prefix: e.target.value })}
+                placeholder="9"
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              />
+              <p className="mt-1 text-xs text-gray-500">{t('trunks.dialPrefixHelp')}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
