@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS campaigns (
     trunk_id TEXT,  -- SIP trunk to use for outbound calls
     status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'active', 'archived')),  -- Campaign lifecycle (not run status)
     caller_id TEXT,  -- Override trunk caller ID
+    dial_prefix TEXT,  -- Override trunk dial prefix; null = no prefix on this campaign
     max_concurrent_calls INTEGER DEFAULT 5,
     calls_per_minute INTEGER DEFAULT 10,
     max_attempts INTEGER DEFAULT 3,
@@ -218,6 +219,7 @@ CREATE TABLE IF NOT EXISTS sip_trunks (
     username TEXT,
     password TEXT,  -- Should be encrypted in production
     caller_id TEXT,  -- Default caller ID for this trunk
+    dial_prefix TEXT,  -- Digits prepended to outbound numbers on this trunk (e.g., "9")
     codecs TEXT DEFAULT 'ulaw,alaw',  -- Comma-separated codec list
     max_channels INTEGER DEFAULT 10,  -- Max concurrent calls
     status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive', 'testing')),

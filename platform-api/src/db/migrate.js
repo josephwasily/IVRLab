@@ -56,6 +56,10 @@ ensureColumn('campaigns', 'webhook_api_key', 'TEXT');
 ensureColumn('campaigns', 'flag_variable', 'TEXT');
 ensureColumn('campaigns', 'flag_value', 'TEXT');
 
+// Dial prefix (per-trunk default + per-campaign override)
+ensureColumn('sip_trunks', 'dial_prefix', 'TEXT');
+ensureColumn('campaigns', 'dial_prefix', 'TEXT');
+
 // Initialize extension pool (2000-2999 for inbound IVRs)
 console.log('Initializing extension pool...');
 const insertExt = db.prepare('INSERT OR IGNORE INTO extensions (extension, status) VALUES (?, ?)');
