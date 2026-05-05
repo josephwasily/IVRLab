@@ -51,6 +51,7 @@ export default function CampaignEdit() {
     ivr_id: '',
     trunk_id: '',
     caller_id: '',
+    dial_prefix: '',
     max_concurrent_calls: 1,
     max_attempts: 3,
     retry_delay_minutes: 30,
@@ -96,6 +97,7 @@ export default function CampaignEdit() {
       ivr_id: campaign.ivr_id || '',
       trunk_id: campaign.trunk_id || '',
       caller_id: campaign.caller_id || '',
+      dial_prefix: campaign.dial_prefix || '',
       max_concurrent_calls: campaign.max_concurrent_calls || 1,
       max_attempts: campaign.max_attempts || 3,
       retry_delay_minutes: campaign.retry_delay_minutes || 30,
@@ -231,7 +233,16 @@ export default function CampaignEdit() {
           <div className="space-y-4">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.sipTrunk')} *</label>
-              <select value={formData.trunk_id} onChange={(e) => setFormData({ ...formData, trunk_id: e.target.value })} disabled={!isEditable} className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100">
+              <select value={formData.trunk_id} onChange={(e) => {
+                const newTrunkId = e.target.value;
+                const newTrunk = trunks?.find((trunk) => trunk.id === newTrunkId);
+                setFormData((prev) => ({
+                  ...prev,
+                  trunk_id: newTrunkId,
+                  // Only autofill the prefix when the user has not typed one.
+                  dial_prefix: prev.dial_prefix?.trim() ? prev.dial_prefix : (newTrunk?.dial_prefix || '')
+                }));
+              }} disabled={!isEditable} className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100">
                 <option value="">{t('campaignEdit.selectTrunk')}</option>
                 {trunks?.filter((trunk) => trunk.status === 'active').map((trunk) => <option key={trunk.id} value={trunk.id}>{trunk.name}</option>)}
               </select>
@@ -239,6 +250,20 @@ export default function CampaignEdit() {
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.callerId')}</label>
               <input value={formData.caller_id} onChange={(e) => setFormData({ ...formData, caller_id: e.target.value })} disabled={!isEditable} className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100" />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.dialPrefix')}</label>
+              <input
+                type="text"
+                pattern="[0-9*#]{0,15}"
+                maxLength={15}
+                value={formData.dial_prefix}
+                onChange={(e) => setFormData({ ...formData, dial_prefix: e.target.value })}
+                disabled={!isEditable}
+                placeholder="9"
+                className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-100"
+              />
+              <p className="mt-1 text-xs text-gray-500">{t('campaignEdit.dialPrefixHelp')}</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
