@@ -8,6 +8,7 @@
 const AriClient = require('ari-client');
 const db = require('../db');
 const { v4: uuidv4 } = require('uuid');
+const { resolveDialPrefix, applyDialPrefix } = require('./dialPrefix');
 
 function parseTrunkSettings(trunk) {
     if (!trunk || !trunk.settings) return {};
@@ -31,8 +32,8 @@ function resolveTrunkEndpointName(trunk) {
     return null;
 }
 
-function buildPjsipDialString(trunk, phoneNumber) {
-    const target = String(phoneNumber || '').trim();
+function buildPjsipDialString(trunk, phoneNumber, dialPrefix = '') {
+    const target = applyDialPrefix(dialPrefix, phoneNumber);
     const endpoint = resolveTrunkEndpointName(trunk);
     if (endpoint) {
         return `PJSIP/${target}@${endpoint}`;
@@ -385,10 +386,17 @@ class OutboundDialer {
         const { campaignId, contactId, phoneNumber, trunk, ivrId, callerId, variables, attempt, maxAttempts } = options;
 
         const callId = uuidv4();
-        
+
+        // Resolve the dial prefix. Campaign (when present) is authoritative;
+        // trunk is the fallback for single-call API / webhook paths.
+        const campaign = campaignId
+            ? db.prepare('SELECT dial_prefix FROM campaigns WHERE id = ?').get(campaignId)
+            : null;
+        const dialPrefix = resolveDialPrefix({ campaign, trunk });
+
         // Build dial string
-        const dialString = buildPjsipDialString(trunk, phoneNumber);
-        
+        const dialString = buildPjsipDialString(trunk, phoneNumber, dialPrefix);
+
         console.log(`[Dialer] Originating call: ${dialString}`);
 
         try {
