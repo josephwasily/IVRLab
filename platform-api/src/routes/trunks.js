@@ -8,11 +8,26 @@ const { syncTrunksToAsterisk } = require('../services/asteriskConfigManager');
 // Apply auth middleware
 router.use(authMiddleware);
 
+const DIAL_PREFIX_PATTERN = /^[0-9*#]{0,15}$/;
+
+function normalizeDialPrefix(value) {
+    if (value === undefined) return undefined; // not in request body — leave field alone
+    if (value === null || value === '') return null;
+    const trimmed = String(value).trim();
+    if (trimmed === '') return null;
+    if (!DIAL_PREFIX_PATTERN.test(trimmed)) {
+        const err = new Error('dial_prefix must be 0-15 chars of digits or * #');
+        err.status = 400;
+        throw err;
+    }
+    return trimmed;
+}
+
 // List all SIP trunks for tenant
 router.get('/', (req, res) => {
     try {
         const trunks = db.prepare(`
-            SELECT id, name, host, port, transport, username, caller_id, codecs,
+            SELECT id, name, host, port, transport, username, caller_id, dial_prefix, codecs,
                    max_channels, status, last_tested_at, test_result, created_at, updated_at
             FROM sip_trunks
             WHERE tenant_id = ?
@@ -37,7 +52,7 @@ router.get('/', (req, res) => {
 router.get('/:id', (req, res) => {
     try {
         const trunk = db.prepare(`
-            SELECT id, name, host, port, transport, username, caller_id, codecs,
+            SELECT id, name, host, port, transport, username, caller_id, dial_prefix, codecs,
                    max_channels, status, settings, last_tested_at, test_result, created_at, updated_at
             FROM sip_trunks
             WHERE id = ? AND tenant_id = ?
@@ -74,6 +89,13 @@ router.post('/', requireRole('admin', 'editor'), async (req, res) => {
             return res.status(400).json({ error: 'Name and host are required' });
         }
 
+        let dial_prefix;
+        try {
+            dial_prefix = normalizeDialPrefix(req.body.dial_prefix);
+        } catch (err) {
+            return res.status(err.status || 400).json({ error: err.message });
+        }
+
         // Auto-set Asterisk endpoint name from trunk name if not provided
         const resolvedSettings = { ...settings };
         if (!resolvedSettings.endpoint) {
@@ -83,13 +105,12 @@ router.post('/', requireRole('admin', 'editor'), async (req, res) => {
         const id = uuidv4();
 
         db.prepare(`
-            INSERT INTO sip_trunks (id, tenant_id, name, host, port, transport, username, password, caller_id, codecs, max_channels, settings)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(id, req.user.tenantId, name, host, port, transport, username, password, caller_id, codecs, max_channels, JSON.stringify(resolvedSettings));
+            INSERT INTO sip_trunks (id, tenant_id, name, host, port, transport, username, password, caller_id, dial_prefix, codecs, max_channels, settings)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(id, req.user.tenantId, name, host, port, transport, username, password, caller_id, dial_prefix ?? null, codecs, max_channels, JSON.stringify(resolvedSettings));
 
         const trunk = db.prepare('SELECT * FROM sip_trunks WHERE id = ?').get(id);
 
-        // Sync to Asterisk pjsip config and reload
         const syncResult = await syncTrunksToAsterisk();
         console.log(`[Trunks] Created trunk "${name}" -> Asterisk sync:`, syncResult);
 
@@ -115,6 +136,13 @@ router.put('/:id', requireRole('admin', 'editor'), async (req, res) => {
             caller_id, codecs, max_channels, status, settings
         } = req.body;
 
+        let dial_prefix;
+        try {
+            dial_prefix = normalizeDialPrefix(req.body.dial_prefix);
+        } catch (err) {
+            return res.status(err.status || 400).json({ error: err.message });
+        }
+
         const updates = [];
         const values = [];
 
@@ -125,6 +153,7 @@ router.put('/:id', requireRole('admin', 'editor'), async (req, res) => {
         if (username !== undefined) { updates.push('username = ?'); values.push(username); }
         if (password !== undefined) { updates.push('password = ?'); values.push(password); }
         if (caller_id !== undefined) { updates.push('caller_id = ?'); values.push(caller_id); }
+        if (dial_prefix !== undefined) { updates.push('dial_prefix = ?'); values.push(dial_prefix); }
         if (codecs !== undefined) { updates.push('codecs = ?'); values.push(codecs); }
         if (max_channels !== undefined) { updates.push('max_channels = ?'); values.push(max_channels); }
         if (status !== undefined) { updates.push('status = ?'); values.push(status); }
