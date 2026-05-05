@@ -68,7 +68,7 @@ ALTER TABLE campaigns  ADD COLUMN dial_prefix TEXT;
   - **Default-on-create**: if the request omits `dial_prefix` and provides a `trunk_id`, copy that trunk's current `dial_prefix` into the new campaign row.
   - If the request explicitly provides `dial_prefix` (including empty string), respect that value (empty → NULL).
 - `PATCH /campaigns/:id` accepts `dial_prefix`. Empty string → NULL.
-- `GET /campaigns` and `GET /campaigns/:id` return `dial_prefix`. The detail response should also include the trunk's `dial_prefix` so the campaign instance wizard can show an effective-prefix banner without a second fetch.
+- `GET /campaigns` and `GET /campaigns/:id` return `dial_prefix`. The campaign's own `dial_prefix` is sufficient for the instance-wizard banner; no need to enrich with the trunk's value (snapshot model means trunk isn't consulted at dial time).
 - Same validation regex as trunks.
 
 ### Shared dial-string helper
@@ -128,7 +128,7 @@ Existing `[Dialer] Calling 0123... via PJSIP/901234@trunk` log lines already sho
 
 - Read-only banner shown above the contact-entry area when the effective prefix is non-empty. Example:
   > 🛈 Numbers will be dialed with prefix `9`. Example: `01234567` → `901234567`. Edit the campaign to change.
-- Effective prefix comes from `campaign.dial_prefix ?? campaign.trunk.dial_prefix` (the campaign GET response includes trunk prefix per the API section).
+- Effective prefix comes from `campaign.dial_prefix` only — never falling back to the trunk. This mirrors the dialer's snapshot semantics: when a campaign is in scope, the trunk's prefix is not consulted, so showing it in the banner would mislead users whose campaigns have explicitly cleared the field.
 - No edit control here — the wizard stays focused on contacts.
 - Localize both English and Arabic.
 
