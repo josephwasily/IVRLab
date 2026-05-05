@@ -9,6 +9,7 @@ const multer = require('multer');
 const csv = require('csv-parse/sync');
 const XLSX = require('xlsx');
 const surveyReport = require('../services/survey-report');
+const { resolveDialPrefix, applyDialPrefix } = require('../services/dialPrefix');
 const net = require('net');
 
 // AMI Configuration
@@ -39,8 +40,8 @@ function resolveTrunkEndpointName(trunk) {
     return null;
 }
 
-function buildPjsipChannel(trunk, phoneNumber) {
-    const target = String(phoneNumber || '').trim();
+function buildPjsipChannel(trunk, phoneNumber, dialPrefix = '') {
+    const target = applyDialPrefix(dialPrefix, phoneNumber);
     const endpoint = resolveTrunkEndpointName(trunk);
     if (endpoint) {
         return `PJSIP/${target}@${endpoint}`;
@@ -206,6 +207,7 @@ function getCampaignExecutionContext(campaign) {
         ivrId: campaign.ivr_id || null,
         ivrExtension,
         callerId: campaign.caller_id || settings.caller_id || trunk.caller_id || '1000',
+        dialPrefix: resolveDialPrefix({ campaign, trunk }),
         maxConcurrent: campaign.max_concurrent_calls || settings.max_concurrent_calls || 5,
         maxAttempts,
         runSettings
@@ -358,6 +360,7 @@ function startCampaignInstance({ campaign, contacts, startedBy }) {
         ivrId: execution.ivrId,
         ivrExtension: execution.ivrExtension,
         callerId: execution.callerId,
+        dialPrefix: execution.dialPrefix,
         maxConcurrent: execution.maxConcurrent,
         maxAttempts: execution.maxAttempts,
         contactScope: 'run'
@@ -1324,7 +1327,7 @@ router.post('/:id/cancel', (req, res) => {
  * @param {object} options 
  */
 async function processCampaignContacts(campaignId, runId, options) {
-    const { trunk, ivrId, ivrExtension, callerId, maxConcurrent, maxAttempts, contactScope = 'campaign' } = options;
+    const { trunk, ivrId, ivrExtension, callerId, dialPrefix = '', maxConcurrent, maxAttempts, contactScope = 'campaign' } = options;
     const contactScopeWhere = contactScope === 'run'
         ? 'run_id = ?'
         : 'campaign_id = ? AND run_id IS NULL';
@@ -1392,7 +1395,7 @@ async function processCampaignContacts(campaignId, runId, options) {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued', CURRENT_TIMESTAMP, ?)
         `).run(callId, campaignId, contact.id, runId, trunk.id, contact.phone_number, callerId, ivrId, attemptNumber);
         
-        const dialString = buildPjsipChannel(trunk, contact.phone_number);
+        const dialString = buildPjsipChannel(trunk, contact.phone_number, dialPrefix);
         
         // Determine extension to call when answered
         const extension = ivrExtension || '1000';
