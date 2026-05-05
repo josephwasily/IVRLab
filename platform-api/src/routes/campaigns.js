@@ -48,6 +48,21 @@ function buildPjsipChannel(trunk, phoneNumber) {
     return `PJSIP/${target}`;
 }
 
+const DIAL_PREFIX_PATTERN = /^[0-9*#]{0,15}$/;
+
+function normalizeDialPrefix(value) {
+    if (value === undefined) return undefined;
+    if (value === null || value === '') return null;
+    const trimmed = String(value).trim();
+    if (trimmed === '') return null;
+    if (!DIAL_PREFIX_PATTERN.test(trimmed)) {
+        const err = new Error('dial_prefix must be 0-15 chars of digits or * #');
+        err.status = 400;
+        throw err;
+    }
+    return trimmed;
+}
+
 /**
  * Send AMI command to Asterisk
  */
@@ -662,14 +677,21 @@ router.get('/:id/report/export', (req, res) => {
 // Create new campaign
 router.post('/', (req, res) => {
     try {
-        const { 
+        const {
             name, description, campaign_type = 'survey',
             ivr_id, trunk_id, caller_id,
             max_concurrent_calls = 5, calls_per_minute = 10,
             max_attempts = 3, retry_delay_minutes = 30,
             settings = {}
         } = req.body;
-        
+
+        let dial_prefix;
+        try {
+            dial_prefix = normalizeDialPrefix(req.body.dial_prefix);
+        } catch (err) {
+            return res.status(err.status || 400).json({ error: err.message });
+        }
+
         if (!name || !ivr_id) {
             return res.status(400).json({ error: 'Name and IVR are required' });
         }
@@ -681,23 +703,26 @@ router.post('/', (req, res) => {
             return res.status(400).json({ error: 'IVR flow not found' });
         }
         
-        // Verify trunk if provided
+        // Verify trunk if provided; snapshot its dial_prefix when caller didn't specify one.
         if (trunk_id) {
-            const trunk = db.prepare('SELECT id FROM sip_trunks WHERE id = ? AND tenant_id = ?')
+            const trunk = db.prepare('SELECT id, dial_prefix FROM sip_trunks WHERE id = ? AND tenant_id = ?')
                 .get(trunk_id, req.user.tenantId);
             if (!trunk) {
                 return res.status(400).json({ error: 'SIP trunk not found' });
+            }
+            if (dial_prefix === undefined) {
+                dial_prefix = trunk.dial_prefix ?? null;
             }
         }
         
         const id = uuidv4();
         
         db.prepare(`
-            INSERT INTO campaigns (id, tenant_id, name, description, campaign_type, ivr_id, trunk_id, caller_id,
+            INSERT INTO campaigns (id, tenant_id, name, description, campaign_type, ivr_id, trunk_id, caller_id, dial_prefix,
                 max_concurrent_calls, calls_per_minute, max_attempts, retry_delay_minutes, settings, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(id, req.user.tenantId, name, description, campaign_type, ivr_id, trunk_id, caller_id,
-            max_concurrent_calls, calls_per_minute, max_attempts, retry_delay_minutes, 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(id, req.user.tenantId, name, description, campaign_type, ivr_id, trunk_id, caller_id, dial_prefix ?? null,
+            max_concurrent_calls, calls_per_minute, max_attempts, retry_delay_minutes,
             JSON.stringify(settings), req.user.userId);
         
         const campaign = db.prepare('SELECT * FROM campaigns WHERE id = ?').get(id);
@@ -727,7 +752,14 @@ router.put('/:id', (req, res) => {
             max_concurrent_calls, calls_per_minute, max_attempts, retry_delay_minutes, settings,
             flag_variable, flag_value
         } = req.body;
-        
+
+        let dial_prefix;
+        try {
+            dial_prefix = normalizeDialPrefix(req.body.dial_prefix);
+        } catch (err) {
+            return res.status(err.status || 400).json({ error: err.message });
+        }
+
         const updates = [];
         const values = [];
         
@@ -737,6 +769,7 @@ router.put('/:id', (req, res) => {
         if (ivr_id !== undefined) { updates.push('ivr_id = ?'); values.push(ivr_id); }
         if (trunk_id !== undefined) { updates.push('trunk_id = ?'); values.push(trunk_id); }
         if (caller_id !== undefined) { updates.push('caller_id = ?'); values.push(caller_id); }
+        if (dial_prefix !== undefined) { updates.push('dial_prefix = ?'); values.push(dial_prefix); }
         if (max_concurrent_calls !== undefined) { updates.push('max_concurrent_calls = ?'); values.push(max_concurrent_calls); }
         if (calls_per_minute !== undefined) { updates.push('calls_per_minute = ?'); values.push(calls_per_minute); }
         if (max_attempts !== undefined) { updates.push('max_attempts = ?'); values.push(max_attempts); }
