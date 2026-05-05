@@ -4,6 +4,7 @@ const db = require('../db');
 const { v4: uuidv4 } = require('uuid');
 const { authMiddleware, requireRole } = require('../middleware/auth');
 const net = require('net');
+const { resolveDialPrefix, applyDialPrefix } = require('../services/dialPrefix');
 
 // Apply auth middleware
 router.use(authMiddleware);
@@ -34,8 +35,8 @@ function resolveTrunkEndpointName(trunk) {
     return null;
 }
 
-function buildPjsipChannel(trunk, phoneNumber) {
-    const target = String(phoneNumber || '').trim();
+function buildPjsipChannel(trunk, phoneNumber, dialPrefix = '') {
+    const target = applyDialPrefix(dialPrefix, phoneNumber);
     const endpoint = resolveTrunkEndpointName(trunk);
     if (endpoint) {
         return `PJSIP/${target}@${endpoint}`;
@@ -159,7 +160,8 @@ router.post('/call', requireRole('admin', 'editor'), async (req, res) => {
         if (ivrExtension) {
             try {
                 console.log(`Originating call to ${phone_number} with IVR extension ${ivrExtension}`);
-                const channel = buildPjsipChannel(trunk, phone_number);
+                const dialPrefix = resolveDialPrefix({ campaign: null, trunk });
+                const channel = buildPjsipChannel(trunk, phone_number, dialPrefix);
                 
                 await sendAMICommand('Originate', {
                     Channel: channel,
@@ -285,7 +287,9 @@ async function processCampaignContacts(campaignId, runId, options) {
         // Originate the call
         try {
             console.log(`[Campaign ${campaignId}] Calling ${contact.phone_number} via ${trunk.name}`);
-            const dialString = buildPjsipChannel(trunk, contact.phone_number);
+            const campaign = db.prepare('SELECT dial_prefix FROM campaigns WHERE id = ?').get(campaignId);
+            const dialPrefix = resolveDialPrefix({ campaign, trunk });
+            const dialString = buildPjsipChannel(trunk, contact.phone_number, dialPrefix);
             
             await sendAMICommand('Originate', {
                 Channel: dialString,
