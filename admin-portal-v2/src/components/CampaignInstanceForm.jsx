@@ -31,6 +31,10 @@ export default function CampaignInstanceForm({ campaign, instances }) {
   const activeInstance = instances?.find((instance) => ['running', 'paused'].includes(instance.status)) || null
   const canCreate = !!campaign?.trunk_id && !!campaign?.ivr_id && !activeInstance
 
+  // Banner mirrors actual dial behavior: campaign.dial_prefix is the sole source of truth.
+  // trunk_dial_prefix is intentionally NOT used here.
+  const effectivePrefix = campaign?.dial_prefix || ''
+
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ['campaigns'] })
     queryClient.invalidateQueries({ queryKey: ['campaign', campaignId] })
@@ -162,6 +166,16 @@ export default function CampaignInstanceForm({ campaign, instances }) {
         )}
       </div>
 
+      {effectivePrefix && (
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+          {t('instanceWizard.dialPrefixBanner', {
+            prefix: effectivePrefix,
+            example: '01234567',
+            prefixed: `${effectivePrefix}01234567`
+          })}{' '}
+          <span className="text-blue-700/80">{t('instanceWizard.dialPrefixBannerHint')}</span>
+        </div>
+      )}
       {!campaign?.trunk_id && <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">{t('instanceWizard.noTrunk')}</div>}
       {!campaign?.ivr_id && <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">{t('instanceWizard.noIvr')}</div>}
       {activeInstance && <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">{t('instanceWizard.activeInstance', { number: activeInstance.run_number, status: t(`common.${activeInstance.status}`) })}</div>}
