@@ -210,7 +210,9 @@ const translations = {
       colName: 'الاسم',
       colAttempts: 'المحاولات',
       colOutcome: 'النتيجة',
-      colLastAttempt: 'آخر محاولة'
+      colLastAttempt: 'آخر محاولة',
+      dialPrefix: 'بادئة الاتصال',
+      dialPrefixHelp: 'اختياري. يضاف قبل كل رقم في هذه الحملة. اتركه فارغاً لعدم استخدام بادئة. تُنسخ من بادئة الترانك عند إنشاء الحملة.'
     },
     campaignsExtra: {
       exportReport: 'تصدير التقرير'
@@ -240,7 +242,9 @@ const translations = {
       readFileFailed: 'تعذر قراءة الملف: {{message}}',
       downloadFailed: 'تعذر تحميل القالب: {{message}}',
       createFailed: 'تعذر إنشاء التشغيل: {{message}}',
-      createSuccess: 'تم بدء التشغيل #{{number}} بـ {{count}} جهة اتصال.'
+      createSuccess: 'تم بدء التشغيل #{{number}} بـ {{count}} جهة اتصال.',
+      dialPrefixBanner: 'سيتم الاتصال بالأرقام مع البادئة {{prefix}}. مثال: {{example}} → {{prefixed}}.',
+      dialPrefixBannerHint: 'لتغيير البادئة عدّل الحملة.'
     },
     nodeProperties: {
       reportLabelAr: 'تسمية التقرير (عربي)',
@@ -261,6 +265,11 @@ const translations = {
       loading: 'جار تحميل السجلات...',
       failed: 'تعذر تحميل السجلات: {{message}}',
       empty: 'لا توجد أسطر سجلات متاحة.'
+    },
+    trunks: {
+      dialPrefix: 'بادئة الاتصال',
+      dialPrefixHelp: 'أرقام تضاف قبل كل رقم خارجي على هذا الترانك (مثل 9). اتركها فارغة لعدم استخدام بادئة.',
+      dialPrefixColumn: 'البادئة'
     }
   },
   en: {
@@ -469,7 +478,9 @@ const translations = {
       colName: 'Name',
       colAttempts: 'Attempts',
       colOutcome: 'Outcome',
-      colLastAttempt: 'Last Attempt'
+      colLastAttempt: 'Last Attempt',
+      dialPrefix: 'Dial Prefix',
+      dialPrefixHelp: 'Optional. Prepended to every number in this campaign. Leave empty for no prefix. Defaults to the trunk\'s prefix when the campaign is created.'
     },
     campaignsExtra: {
       exportReport: 'Export Report'
@@ -499,7 +510,9 @@ const translations = {
       readFileFailed: 'Could not read file: {{message}}',
       downloadFailed: 'Failed to download template: {{message}}',
       createFailed: 'Failed to create instance: {{message}}',
-      createSuccess: 'Instance #{{number}} started with {{count}} contacts.'
+      createSuccess: 'Instance #{{number}} started with {{count}} contacts.',
+      dialPrefixBanner: 'Numbers will be dialed with prefix {{prefix}}. Example: {{example}} → {{prefixed}}.',
+      dialPrefixBannerHint: 'Edit the campaign to change.'
     },
     nodeProperties: {
       reportLabelAr: 'Report label (Arabic)',
@@ -520,6 +533,11 @@ const translations = {
       loading: 'Loading logs...',
       failed: 'Failed to load logs: {{message}}',
       empty: 'No log lines available.'
+    },
+    trunks: {
+      dialPrefix: 'Dial Prefix',
+      dialPrefixHelp: 'Digits prepended to every outbound number on this trunk (e.g., 9). Leave empty for none.',
+      dialPrefixColumn: 'Prefix'
     }
   }
 }
