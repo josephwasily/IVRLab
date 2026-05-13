@@ -66,7 +66,9 @@ const updatedFlowData = {
             label: 'Fetch Invoice (Assuit ListBills)',
             method: 'GET',
             url: API_URL,
-            headers: {},
+            headers: {
+                Authorization: 'Basic YXNzdWl0OmFzc3VpdA=='
+            },
             resultVariable: 'bills_result',
             next: 'extract_total',
             onError: 'api_error'

@@ -559,7 +559,7 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
               )}
               <div className="space-y-2">
                 {Object.entries(formData.headers || {}).map(([headerKey, headerValue], idx) => (
-                  <div key={`${headerKey}-${idx}`} className="flex items-start gap-2">
+                  <div key={`header-row-${idx}`} className="flex items-start gap-2">
                     <input
                       type="text"
                       value={headerKey}
