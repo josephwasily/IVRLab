@@ -532,6 +532,77 @@ export default function NodeProperties({ node, onChange, onClose, onDelete }) {
                 placeholder="api_result"
               />
             </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700">Headers</label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const headers = { ...(formData.headers || {}) }
+                    let key = 'Header'
+                    let i = 1
+                    while (Object.prototype.hasOwnProperty.call(headers, key)) {
+                      i += 1
+                      key = `Header${i}`
+                    }
+                    headers[key] = ''
+                    handleChange('headers', headers)
+                  }}
+                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+                >
+                  <Plus size={14} />
+                  Add header
+                </button>
+              </div>
+              {Object.entries(formData.headers || {}).length === 0 && (
+                <p className="text-xs text-gray-500">No headers set. Click <span className="font-medium">Add header</span> to send custom headers (e.g. <span className="font-mono">Authorization</span>).</p>
+              )}
+              <div className="space-y-2">
+                {Object.entries(formData.headers || {}).map(([headerKey, headerValue], idx) => (
+                  <div key={`${headerKey}-${idx}`} className="flex items-start gap-2">
+                    <input
+                      type="text"
+                      value={headerKey}
+                      onChange={(e) => {
+                        const newKey = e.target.value
+                        const entries = Object.entries(formData.headers || {})
+                        const rebuilt = {}
+                        entries.forEach(([k, v], i) => {
+                          if (i === idx) rebuilt[newKey] = v
+                          else rebuilt[k] = v
+                        })
+                        handleChange('headers', rebuilt)
+                      }}
+                      className="w-2/5 px-2 py-2 border rounded-lg text-sm font-mono"
+                      placeholder="Header name"
+                    />
+                    <input
+                      type="text"
+                      value={headerValue ?? ''}
+                      onChange={(e) => {
+                        const headers = { ...(formData.headers || {}) }
+                        headers[headerKey] = e.target.value
+                        handleChange('headers', headers)
+                      }}
+                      className="flex-1 px-2 py-2 border rounded-lg text-sm font-mono"
+                      placeholder="Header value (supports {{vars}})"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const headers = { ...(formData.headers || {}) }
+                        delete headers[headerKey]
+                        handleChange('headers', headers)
+                      }}
+                      className="p-2 text-red-500 hover:text-red-700"
+                      title="Remove header"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           </>
         )}
 
