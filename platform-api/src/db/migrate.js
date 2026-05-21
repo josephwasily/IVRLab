@@ -60,6 +60,9 @@ ensureColumn('campaigns', 'flag_value', 'TEXT');
 ensureColumn('sip_trunks', 'dial_prefix', 'TEXT');
 ensureColumn('campaigns', 'dial_prefix', 'TEXT');
 
+// CMS ID for webhook-triggered runs
+ensureColumn('campaign_runs', 'cms_id', 'TEXT');
+
 // Initialize extension pool (2000-2999 for inbound IVRs)
 console.log('Initializing extension pool...');
 const insertExt = db.prepare('INSERT OR IGNORE INTO extensions (extension, status) VALUES (?, ?)');

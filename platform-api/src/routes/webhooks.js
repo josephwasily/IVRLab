@@ -34,7 +34,7 @@ router.post('/:campaignId/trigger', webhookAuth, (req, res) => {
     try {
         const campaign = req.campaign;
 
-        const { contacts } = req.body;
+        const { contacts, cms_id } = req.body;
         if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
             return res.status(400).json({ error: 'contacts array is required and must not be empty' });
         }
@@ -50,7 +50,8 @@ router.post('/:campaignId/trigger', webhookAuth, (req, res) => {
         const result = startCampaignInstance({
             campaign,
             contacts,
-            startedBy: null // webhook-triggered, no user
+            startedBy: null, // webhook-triggered, no user
+            cms_id: cms_id || null
         });
 
         res.status(201).json({
@@ -120,7 +121,8 @@ router.get('/:campaignId/runs/:runId/results', webhookAuth, (req, res) => {
             const dtmfInputs = call ? parseJsonSafe(call.dtmf_inputs, []) : [];
 
             // Compute flag: check the variable in the contact result or call result
-            let flag = null;
+            // Always returns true or false, never null
+            let flag = false;
             if (flagVariable && flagValue !== null) {
                 const varValue = contactResult[flagVariable]
                     ?? contactResult[`${flagVariable}_raw`]
@@ -149,6 +151,7 @@ router.get('/:campaignId/runs/:runId/results', webhookAuth, (req, res) => {
         const summary = {
             run_id: run.id,
             run_number: run.run_number,
+            cms_id: run.cms_id || null,
             status: run.status,
             total_contacts: run.total_contacts,
             contacts_completed: run.contacts_completed,

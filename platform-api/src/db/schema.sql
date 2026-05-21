@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS campaign_runs (
     campaign_id TEXT NOT NULL,
     run_number INTEGER NOT NULL,  -- Sequential run number for this campaign
     status TEXT DEFAULT 'running' CHECK(status IN ('running', 'paused', 'completed', 'cancelled', 'failed')),
+    cms_id TEXT,  -- External CMS/system ID that triggered this run
     total_contacts INTEGER DEFAULT 0,
     contacts_called INTEGER DEFAULT 0,
     contacts_completed INTEGER DEFAULT 0,

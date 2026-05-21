@@ -214,7 +214,7 @@ function getCampaignExecutionContext(campaign) {
     };
 }
 
-function createCampaignRunRecord(campaignId, startedBy, totalContacts, runSettings) {
+function createCampaignRunRecord(campaignId, startedBy, totalContacts, runSettings, cms_id = null) {
     const lastRun = db.prepare(`
         SELECT MAX(run_number) as max_run FROM campaign_runs WHERE campaign_id = ?
     `).get(campaignId);
@@ -223,9 +223,9 @@ function createCampaignRunRecord(campaignId, startedBy, totalContacts, runSettin
     const runNumber = (lastRun?.max_run || 0) + 1;
 
     db.prepare(`
-        INSERT INTO campaign_runs (id, campaign_id, run_number, status, total_contacts, started_by, settings)
-        VALUES (?, ?, ?, 'running', ?, ?, ?)
-    `).run(runId, campaignId, runNumber, totalContacts, startedBy, JSON.stringify(runSettings));
+        INSERT INTO campaign_runs (id, campaign_id, run_number, status, cms_id, total_contacts, started_by, settings)
+        VALUES (?, ?, ?, 'running', ?, ?, ?, ?)
+    `).run(runId, campaignId, runNumber, cms_id, totalContacts, startedBy, JSON.stringify(runSettings));
 
     return { runId, runNumber };
 }
@@ -329,7 +329,7 @@ function parseCsvContactsFromRequest(file, phoneColumn = 'phone') {
     });
 }
 
-function startCampaignInstance({ campaign, contacts, startedBy }) {
+function startCampaignInstance({ campaign, contacts, startedBy, cms_id = null }) {
     const runningRun = db.prepare(`
         SELECT * FROM campaign_runs WHERE campaign_id = ? AND status = 'running'
     `).get(campaign.id);
@@ -343,7 +343,8 @@ function startCampaignInstance({ campaign, contacts, startedBy }) {
         campaign.id,
         startedBy,
         Array.isArray(contacts) ? contacts.length : 0,
-        execution.runSettings
+        execution.runSettings,
+        cms_id
     );
 
     const importStats = insertContactsForRun({ campaignId: campaign.id, runId, contacts });
