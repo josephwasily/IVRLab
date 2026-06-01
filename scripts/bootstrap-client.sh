@@ -56,6 +56,15 @@ fi
 
 REAL_USER="${SUDO_USER:-root}"
 
+# ---- 0. base dependencies -------------------------------------------------
+# Minimal Ubuntu images ship without curl/openssl; install them before anything
+# else so the steps below (IP prompt, compose download, JWT secret) all work.
+log "Installing base dependencies (curl, ca-certificates, openssl, iproute2)"
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y curl ca-certificates openssl iproute2
+ok "Base dependencies present"
+
 # ---- 1. detect / collect IPs ---------------------------------------------
 log "Detecting host IP"
 DETECTED_IP=$(ip -4 addr show \
@@ -80,13 +89,35 @@ ok "EXTERNAL_IP=$EXTERNAL_IP"
 ok "SIP_TRUNK_IP=$SIP_TRUNK_IP  SIP_TRUNK_PORT=$SIP_TRUNK_PORT"
 
 # ---- 2. install docker ----------------------------------------------------
-if command -v docker >/dev/null 2>&1; then
+if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
     ok "Docker already installed ($(docker --version))"
 else
-    log "Installing Docker"
+    log "Installing Docker from official apt repo"
+    # NOTE: we don't use `curl get.docker.com | sh` — on Ubuntu 20.04 (focal)
+    # it tries to install `docker-model-plugin`, which isn't published for
+    # focal, and the whole install aborts. We install the same packages
+    # directly, minus that one.
+
+    UBUNTU_CODENAME="$(. /etc/os-release && echo "${VERSION_CODENAME:-focal}")"
+    ARCH="$(dpkg --print-architecture)"
+
+    # remove any old/conflicting packages from Ubuntu's own repo
+    apt-get remove -y docker docker-engine docker.io containerd runc 2>/dev/null || true
+
+    apt-get install -y gnupg lsb-release
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+        -o /etc/apt/keyrings/docker.asc
+    chmod a+r /etc/apt/keyrings/docker.asc
+
+    echo "deb [arch=$ARCH signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $UBUNTU_CODENAME stable" \
+        > /etc/apt/sources.list.d/docker.list
+
     apt-get update -y
-    apt-get install -y curl ca-certificates
-    curl -fsSL https://get.docker.com | sh
+    apt-get install -y \
+        docker-ce docker-ce-cli containerd.io \
+        docker-buildx-plugin docker-compose-plugin
+
     systemctl enable --now docker
     ok "Docker installed"
 fi
@@ -121,6 +152,16 @@ if [ -f docker-compose.yml ]; then
 else
     log "Downloading docker-compose.prod.yml"
     curl -fSL "$COMPOSE_URL" -o docker-compose.yml
+
+    # Strip balance-api: it's a legacy demo service nothing depends on, and its
+    # image often trips FortiGuard's heuristic AV on client firewalls. Skip via
+    # SKIP_BALANCE_API=0 if you actually need the demo backend.
+    if [ "${SKIP_BALANCE_API:-1}" = "1" ]; then
+        log "Removing balance-api from docker-compose.yml (legacy demo service)"
+        sed -i '/^  balance-api:/,/^  [a-z]/{/^  [a-z]/!d;}' docker-compose.yml
+        sed -i '/^  balance-api:/d' docker-compose.yml
+        ok "balance-api stripped (set SKIP_BALANCE_API=0 to keep it)"
+    fi
     chown "$REAL_USER":"$REAL_USER" docker-compose.yml
     ok "docker-compose.yml downloaded"
 fi
@@ -158,7 +199,10 @@ fi
 
 # ---- 7. pull + start ------------------------------------------------------
 log "Pulling images"
-docker compose pull
+# --ignore-pull-failures: tolerate a single image being blocked by a client
+# firewall AV (e.g. FortiGuard flagging the balance-api blob). Other services
+# don't depend on it; the stack still comes up.
+docker compose pull --ignore-pull-failures
 
 log "Starting stack"
 docker compose up -d
