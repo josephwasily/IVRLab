@@ -121,14 +121,17 @@ chown "$REAL_USER":"$REAL_USER" "$INSTALL_DIR"
 if [ ! -f "$INSTALL_DIR/docker-compose.yml" ]; then
     log "Installing docker-compose.prod.yml → docker-compose.yml"
     cp "$SOURCE_DIR/docker-compose.prod.yml" "$INSTALL_DIR/docker-compose.yml"
-
-    if [ "${SKIP_BALANCE_API:-1}" = "1" ]; then
-        log "Stripping balance-api service (legacy demo, not needed)"
-        sed -i '/^  balance-api:/,/^  [a-z]/{/^  [a-z]/!d;}' "$INSTALL_DIR/docker-compose.yml"
-        sed -i '/^  balance-api:/d' "$INSTALL_DIR/docker-compose.yml"
-    fi
 else
-    ok "docker-compose.yml already present (leaving untouched)"
+    ok "docker-compose.yml already present (preserving)"
+fi
+
+# Always re-check the balance-api strip — guards against a stale file from
+# a previous run that predated SKIP_BALANCE_API support.
+if [ "${SKIP_BALANCE_API:-1}" = "1" ] && grep -q '^  balance-api:' "$INSTALL_DIR/docker-compose.yml"; then
+    log "Stripping balance-api service from docker-compose.yml"
+    sed -i '/^  balance-api:/,/^  [a-z]/{/^  [a-z]/!d;}' "$INSTALL_DIR/docker-compose.yml"
+    sed -i '/^  balance-api:/d' "$INSTALL_DIR/docker-compose.yml"
+    ok "balance-api stripped"
 fi
 
 if [ ! -f "$INSTALL_DIR/.env" ]; then
@@ -155,7 +158,9 @@ fi
 # ---- 6. start the stack -------------------------------------------------
 cd "$INSTALL_DIR"
 log "Starting stack (using locally-built images, no pull)"
-docker compose up -d --no-build
+# --pull never  : never reach out to a registry; safe behind FortiGuard etc.
+# --no-build    : we already built above; don't rebuild here.
+docker compose up -d --pull never --no-build
 
 # ---- 7. first-run DB init -----------------------------------------------
 if [ "${SKIP_DB_INIT:-0}" = "1" ]; then
