@@ -127,11 +127,35 @@ fi
 
 # Always re-check the balance-api strip — guards against a stale file from
 # a previous run that predated SKIP_BALANCE_API support.
+#
+# We use awk (not sed) because the previous sed pattern ^  [a-z] matched
+# both service names under services: and network names under networks:,
+# so stripping balance-api accidentally consumed the top-level networks:
+# key and left ivrnet: orphaned under services: (compose error:
+# "services.ivrnet: Additional property ipam is not allowed").
+#
+# Block ends at EITHER the next service at 2-space indent OR the next
+# top-level key at 0-space indent. Both correctly terminate the block.
 if [ "${SKIP_BALANCE_API:-1}" = "1" ] && grep -q '^  balance-api:' "$INSTALL_DIR/docker-compose.yml"; then
     log "Stripping balance-api service from docker-compose.yml"
-    sed -i '/^  balance-api:/,/^  [a-z]/{/^  [a-z]/!d;}' "$INSTALL_DIR/docker-compose.yml"
-    sed -i '/^  balance-api:/d' "$INSTALL_DIR/docker-compose.yml"
-    ok "balance-api stripped"
+    awk '
+        /^  balance-api:/                       { in_block=1; next }
+        in_block && (/^[^ ]/ || /^  [^ ]/)      { in_block=0 }
+        !in_block                               { print }
+    ' "$INSTALL_DIR/docker-compose.yml" > "$INSTALL_DIR/docker-compose.yml.new"
+
+    # Sanity-check the result before swapping in
+    if grep -q '^networks:' "$INSTALL_DIR/docker-compose.yml.new" \
+       && grep -q '^services:' "$INSTALL_DIR/docker-compose.yml.new" \
+       && ! grep -q '^  balance-api:' "$INSTALL_DIR/docker-compose.yml.new"; then
+        mv "$INSTALL_DIR/docker-compose.yml.new" "$INSTALL_DIR/docker-compose.yml"
+        ok "balance-api stripped"
+    else
+        rm -f "$INSTALL_DIR/docker-compose.yml.new"
+        warn "Strip failed sanity check — left docker-compose.yml untouched."
+        warn "Bringing up explicit services instead."
+        SKIP_BY_SERVICE_LIST=1
+    fi
 fi
 
 if [ ! -f "$INSTALL_DIR/.env" ]; then
@@ -160,7 +184,13 @@ cd "$INSTALL_DIR"
 log "Starting stack (using locally-built images, no pull)"
 # --pull never  : never reach out to a registry; safe behind FortiGuard etc.
 # --no-build    : we already built above; don't rebuild here.
-docker compose up -d --pull never --no-build
+if [ "${SKIP_BY_SERVICE_LIST:-0}" = "1" ]; then
+    # Compose file still defines balance-api but we deliberately don't start it.
+    docker compose up -d --pull never --no-build \
+        prompts-init asterisk platform-api ivr-node admin-portal-v2
+else
+    docker compose up -d --pull never --no-build
+fi
 
 # ---- 7. first-run DB init -----------------------------------------------
 if [ "${SKIP_DB_INIT:-0}" = "1" ]; then
