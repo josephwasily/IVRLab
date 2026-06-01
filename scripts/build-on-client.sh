@@ -122,7 +122,14 @@ if [ ! -f "$INSTALL_DIR/docker-compose.yml" ]; then
     log "Installing docker-compose.prod.yml → docker-compose.yml"
     cp "$SOURCE_DIR/docker-compose.prod.yml" "$INSTALL_DIR/docker-compose.yml"
 else
-    ok "docker-compose.yml already present (preserving)"
+    # Re-validate. If the existing file is broken (e.g. mangled by a previous
+    # version of this script's sed-based strip), replace it from source.
+    if (cd "$INSTALL_DIR" && docker compose config >/dev/null 2>&1); then
+        ok "docker-compose.yml already present and valid (preserving)"
+    else
+        warn "Existing docker-compose.yml fails validation — replacing from source"
+        cp "$SOURCE_DIR/docker-compose.prod.yml" "$INSTALL_DIR/docker-compose.yml"
+    fi
 fi
 
 # Always re-check the balance-api strip — guards against a stale file from
