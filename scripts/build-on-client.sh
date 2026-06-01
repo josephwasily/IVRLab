@@ -89,9 +89,47 @@ ok "Source ready"
 # ---- 3. build each service ----------------------------------------------
 PREFIX="$REGISTRY_HOST/$PROJECT"
 
-# image-name : build-context (matches docker-compose.prod.yml exactly)
+# --- ivr-prompts: special staging build (matches scripts/build-push-images.sh) ---
+# The prompts image must include the `prompts/` tree AND the three `new sounds*`
+# folders (which seed-ivr-flows.js consumes to generate billing/survey ulaw files).
+# Building straight from prompts/ misses them and leaves the IVR silent.
+log "Staging prompts (prompts/ + new sounds*)"
+PROMPTS_STAGING=$(mktemp -d)
+trap 'rm -rf "$PROMPTS_STAGING"' EXIT
+cp -a "$SOURCE_DIR/prompts/"* "$PROMPTS_STAGING/" 2>/dev/null || true
+rm -f "$PROMPTS_STAGING/Dockerfile"
+for DIR in "new sounds" "new sounds 2" "new sounds 3"; do
+    if [ -d "$SOURCE_DIR/$DIR" ]; then
+        DEST="$PROMPTS_STAGING/$(echo "$DIR" | tr ' ' '-')"
+        mkdir -p "$DEST"
+        cp -a "$SOURCE_DIR/$DIR/"* "$DEST/"
+    fi
+done
+cat > "$PROMPTS_STAGING/init.sh" <<'IEOF'
+#!/bin/sh
+set -e
+mkdir -p /out/custom /out/ar
+cd /data
+find . -maxdepth 1 ! -name ar ! -name . -exec cp -a {} /out/custom/ \;
+cp -a /data/ar/. /out/ar/ 2>/dev/null || true
+echo '[prompts-init] Done'
+IEOF
+cat > "$PROMPTS_STAGING/Dockerfile" <<'DEOF'
+FROM alpine:3.20
+COPY . /data/
+RUN rm -f /data/Dockerfile /data/init.sh
+COPY init.sh /init.sh
+RUN chmod +x /init.sh
+CMD ["/init.sh"]
+DEOF
+log "Building ivr-prompts  ($PROMPTS_STAGING → $PREFIX/ivr-prompts:$TAG)"
+docker build --pull -t "$PREFIX/ivr-prompts:$TAG" "$PROMPTS_STAGING"
+rm -rf "$PROMPTS_STAGING"
+trap - EXIT
+ok "Built $PREFIX/ivr-prompts:$TAG"
+
+# --- everything else: plain directory builds ---
 declare -A BUILD_MAP=(
-    [ivr-prompts]=prompts
     [ivr-asterisk]=asterisk
     [ivr-node]=ivr-node
     [ivr-platform-api]=platform-api
