@@ -339,11 +339,13 @@ curl -X POST http://localhost:3001/api/campaigns/CAMPAIGN_ID/generate-api-key \
   -H "Authorization: Bearer $JWT"
 # → { "webhook_api_key": "KEY", ... }
 
-# 2. Trigger a run.
+# 2. Trigger a run. cms_id is optional — pass your external system's run id so
+#    you can correlate later when polling /results (it comes back in summary).
 RUN=$(curl -s -X POST \
   http://localhost:3001/api/webhooks/campaigns/CAMPAIGN_ID/trigger \
   -H "X-API-Key: KEY" -H "Content-Type: application/json" \
-  -d '{"contacts":[{"phone_number":"+201001234567","name":"Ahmed",
+  -d '{"cms_id":"external-run-12345",
+       "contacts":[{"phone_number":"+201001234567","name":"Ahmed",
         "variables":{"account_id":"ACCT-123"}}]}')
 echo "$RUN"   # → { "run_id": "RUN_ID", "run_number": 5, ... }
 
