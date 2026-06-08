@@ -1,12 +1,12 @@
 {
-  "_comment": "Edit reportLabelAr/reportLabelEn before running scripts/migrate-menia-surveys.sh. Placeholders provided where audio wasn't transcribed.",
+  "_comment": "Labels filled in from Whisper transcription of the Arabic audio. Survey 1's question file is named '1_Are you satisfied' but the audio actually asks 'was the complaint resolved (yes/no)' — labels reflect what callers will hear.",
   "language": "ar",
   "category": "menia",
   "surveys": [
     {
       "id": "menia-survey-1",
-      "name": "Menia Survey 1",
-      "description": "Menia client survey #1 (single satisfaction question)",
+      "name": "استطلاع حل الشكاوى - المنيا",
+      "description": "Menia Water & Sanitation — complaint-closure satisfaction survey (single yes/no question)",
       "extension": "2030",
       "welcomePrompt": "menia_s1_welcome",
       "thanksPrompt": "menia_s1_thanks",
@@ -18,12 +18,12 @@
         },
         {
           "file": "1_Are you satisfied .mp3",
-          "name": "menia_s1_satisfaction",
+          "name": "menia_s1_complaint_resolved",
           "role": "question",
-          "variable": "satisfaction",
-          "validDigits": "12345",
-          "reportLabelAr": "هل أنت راضي عن الخدمة؟",
-          "reportLabelEn": "Are you satisfied with the service?"
+          "variable": "complaint_resolved",
+          "validDigits": "12",
+          "reportLabelAr": "هل تم حل الشكوى الخاصة بكم؟",
+          "reportLabelEn": "Was your complaint resolved?"
         },
         {
           "file": "1_Thanks.mp3",
@@ -34,8 +34,8 @@
     },
     {
       "id": "menia-survey-2",
-      "name": "Menia Survey 2",
-      "description": "Menia client survey #2 (four-question rating survey)",
+      "name": "استطلاع رضا الخدمة - المنيا",
+      "description": "Menia Water & Sanitation — service satisfaction survey (4 questions: 2 ratings 1-5, 2 yes/no)",
       "extension": "2031",
       "welcomePrompt": "menia_s2_welcome",
       "thanksPrompt": "menia_s2_thanks",
@@ -47,39 +47,39 @@
         },
         {
           "file": "2_ Question1.mp3",
-          "name": "menia_s2_q1",
+          "name": "menia_s2_q1_service_satisfaction",
           "role": "question",
-          "variable": "q1",
+          "variable": "service_satisfaction",
           "validDigits": "12345",
-          "reportLabelAr": "السؤال الأول",
-          "reportLabelEn": "Question 1"
+          "reportLabelAr": "ما مدى رضاك عن الخدمة المقدمة؟ (1-5)",
+          "reportLabelEn": "Service satisfaction (1-5)"
         },
         {
           "file": "2_ Question2.mp3",
-          "name": "menia_s2_q2",
+          "name": "menia_s2_q2_rep_professionalism",
           "role": "question",
-          "variable": "q2",
+          "variable": "rep_professionalism",
           "validDigits": "12345",
-          "reportLabelAr": "السؤال الثاني",
-          "reportLabelEn": "Question 2"
+          "reportLabelAr": "ما مدى تقييمكم لاحترافية ممثل خدمة العملاء؟ (1-5)",
+          "reportLabelEn": "Customer-service rep professionalism (1-5)"
         },
         {
           "file": "2_ Question3.mp3",
-          "name": "menia_s2_q3",
+          "name": "menia_s2_q3_service_time",
           "role": "question",
-          "variable": "q3",
-          "validDigits": "12345",
-          "reportLabelAr": "السؤال الثالث",
-          "reportLabelEn": "Question 3"
+          "variable": "service_time_appropriate",
+          "validDigits": "12",
+          "reportLabelAr": "هل استغرقت الخدمة وقتاً مناسباً؟",
+          "reportLabelEn": "Did the service take an appropriate time?"
         },
         {
           "file": "2_ Question4.mp3",
-          "name": "menia_s2_q4",
+          "name": "menia_s2_q4_multiple_contacts",
           "role": "question",
-          "variable": "q4",
-          "validDigits": "12345",
-          "reportLabelAr": "السؤال الرابع",
-          "reportLabelEn": "Question 4"
+          "variable": "multiple_contacts_needed",
+          "validDigits": "12",
+          "reportLabelAr": "هل احتجت إلى التواصل أكثر من مرة لحل المشكلة؟",
+          "reportLabelEn": "Did you need to contact more than once?"
         },
         {
           "file": "2_ Thanks.mp3",
