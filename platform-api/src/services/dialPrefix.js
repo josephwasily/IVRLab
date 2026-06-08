@@ -1,8 +1,8 @@
 function resolveDialPrefix({ campaign, trunk } = {}) {
-  // Campaign in scope: campaign value is authoritative (snapshot model).
-  // NULL or empty on the campaign means "no prefix" — do NOT fall back to trunk.
-  if (campaign) return campaign.dial_prefix || '';
-  // No campaign (single-call API / webhook): use trunk default.
+  // Trunk is the source of truth (default "9" on new trunks). A campaign
+  // may explicitly override the trunk's prefix by setting its own non-empty
+  // dial_prefix; a NULL/empty campaign prefix means "inherit from trunk".
+  if (campaign && campaign.dial_prefix) return campaign.dial_prefix;
   if (trunk && trunk.dial_prefix) return trunk.dial_prefix;
   return '';
 }

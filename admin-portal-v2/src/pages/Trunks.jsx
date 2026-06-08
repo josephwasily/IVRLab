@@ -175,7 +175,10 @@ function TrunkModal({ trunk, onClose }) {
     username: trunk?.username || '',
     password: '',
     caller_id: trunk?.caller_id || '',
-    dial_prefix: trunk?.dial_prefix || '',
+    // New trunk defaults to "9" (outside-line access on most PBXs). When editing
+    // an existing trunk, show whatever is stored — including empty string, which
+    // means "no prefix" and is a deliberate choice.
+    dial_prefix: trunk ? (trunk.dial_prefix || '') : '9',
     codecs: trunk?.codecs || 'ulaw,alaw',
     max_channels: trunk?.max_channels || 10
   })

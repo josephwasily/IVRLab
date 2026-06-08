@@ -220,7 +220,7 @@ CREATE TABLE IF NOT EXISTS sip_trunks (
     username TEXT,
     password TEXT,  -- Should be encrypted in production
     caller_id TEXT,  -- Default caller ID for this trunk
-    dial_prefix TEXT,  -- Digits prepended to outbound numbers on this trunk (e.g., "9")
+    dial_prefix TEXT DEFAULT '9',  -- Digits prepended to outbound numbers on this trunk (e.g., "9" for outside-line access)
     codecs TEXT DEFAULT 'ulaw,alaw',  -- Comma-separated codec list
     max_channels INTEGER DEFAULT 10,  -- Max concurrent calls
     status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive', 'testing')),

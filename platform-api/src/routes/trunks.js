@@ -91,7 +91,11 @@ router.post('/', requireRole('admin', 'editor'), async (req, res) => {
 
         let dial_prefix;
         try {
-            dial_prefix = normalizeDialPrefix(req.body.dial_prefix);
+            // Default to "9" if the client omits dial_prefix entirely.
+            // Explicit "" or null in the body still means "no prefix" — only `undefined` triggers the default.
+            dial_prefix = req.body.dial_prefix === undefined
+                ? '9'
+                : normalizeDialPrefix(req.body.dial_prefix);
         } catch (err) {
             return res.status(err.status || 400).json({ error: err.message });
         }
