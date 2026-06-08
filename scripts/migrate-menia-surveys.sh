@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# ============================================================================
+#  Migrate Menia surveys (audio prompts + IVR flows + report labels).
+#
+#  Run on the Menia client server after `git pull` to fetch the latest
+#  "new sounds 5/" + manifest + migration script.
+#
+#  What it does:
+#    1. Copies the host "new sounds 5/" folder into the platform-api
+#       container at /app/prompts/menia-surveys/ and copies manifest.json
+#       in alongside it.
+#    2. Runs platform-api/src/db/migrate-menia-surveys.js inside the
+#       container, which:
+#         a. converts each mp3 to ulaw (sox / ffmpeg)
+#         b. inserts a prompts row per file
+#         c. creates two ivr_flows rows (extension 2030 + 2031) with
+#            reportLabelAr/En set on every question's collect node so the
+#            Excel survey report renders them
+#    3. Restarts asterisk if it was running, so any cached sound list
+#       refreshes (optional — only if the user wants it).
+#
+#  Idempotent. Re-runs skip already-imported prompts and update existing
+#  flows in place.
+#
+#  Usage:
+#    sudo ./scripts/migrate-menia-surveys.sh
+#    sudo ./scripts/migrate-menia-surveys.sh /opt/ivr-lab-src/"new sounds 5"
+# ============================================================================
+set -euo pipefail
+
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
+log()  { printf "${CYAN}==>${NC} %s\n" "$*"; }
+ok()   { printf "${GREEN}[OK]${NC} %s\n" "$*"; }
+warn() { printf "${YELLOW}[!]${NC}  %s\n" "$*"; }
+die()  { printf "${RED}[X]${NC}  %s\n" "$*" >&2; exit 1; }
+
+SRC="${1:-/opt/ivr-lab-src/new sounds 5}"
+INSTALL_DIR="${INSTALL_DIR:-/opt/ivr-lab}"
+
+[ -d "$SRC" ] || die "Source folder not found: $SRC"
+[ -f "$SRC/manifest.json" ] || die "manifest.json missing from $SRC. Did you git pull?"
+
+cd "$INSTALL_DIR"
+
+# Verify platform-api is up — docker cp needs a running container
+if ! docker compose ps platform-api 2>/dev/null | grep -q 'Up'; then
+    die "platform-api isn't running. Start the stack first: cd $INSTALL_DIR && docker compose up -d"
+fi
+
+log "Preparing /app/prompts/menia-surveys/ inside platform-api"
+docker compose exec -T platform-api sh -c 'mkdir -p /app/prompts/menia-surveys && rm -f /app/prompts/menia-surveys/manifest.json'
+
+# Copy every file from the host folder (handles names with spaces)
+COPIED=0
+shopt -s nullglob
+for f in "$SRC"/*; do
+    [ -f "$f" ] || continue
+    name=$(basename "$f")
+    docker compose cp "$f" "platform-api:/app/prompts/menia-surveys/$name"
+    COPIED=$((COPIED + 1))
+done
+shopt -u nullglob
+[ $COPIED -gt 0 ] || die "No files copied from $SRC"
+ok "Copied $COPIED files into /app/prompts/menia-surveys/"
+
+log "Running migration (audio → ulaw + DB prompts + IVR flows)"
+docker compose exec -T platform-api node src/db/migrate-menia-surveys.js
+
+log "Done. Verify in the admin portal:"
+echo "    • Prompts tab — 9 new entries under category 'menia'"
+echo "    • IVR Flows  — 'Menia Survey 1' (ext 2030) and 'Menia Survey 2' (ext 2031)"
+echo "    • Each question collect node will show its Arabic + English report label"
+echo ""
+echo "  Dial 2030 or 2031 from the trunk to test."
+echo "  Pull the survey Excel report from a campaign using these flows."
