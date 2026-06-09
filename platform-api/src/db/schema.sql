@@ -134,7 +134,8 @@ CREATE TABLE IF NOT EXISTS campaign_runs (
     campaign_id TEXT NOT NULL,
     run_number INTEGER NOT NULL,  -- Sequential run number for this campaign
     status TEXT DEFAULT 'running' CHECK(status IN ('running', 'paused', 'completed', 'cancelled', 'failed')),
-    cms_id TEXT,  -- External CMS/system ID that triggered this run
+    cms_id TEXT,  -- DEPRECATED: legacy per-run CMS ID. New integrations send cms_id per contact (see campaign_contacts.cms_id).
+    survey_id TEXT,  -- External CMS survey identifier (per-run); the calling CMS uses this to group/query runs
     total_contacts INTEGER DEFAULT 0,
     contacts_called INTEGER DEFAULT 0,
     contacts_completed INTEGER DEFAULT 0,
@@ -158,6 +159,7 @@ CREATE TABLE IF NOT EXISTS campaign_contacts (
     run_id TEXT,
     phone_number TEXT NOT NULL,
     variables TEXT DEFAULT '{}',  -- JSON custom variables
+    cms_id TEXT,  -- External CMS identifier for THIS contact (e.g. case ID, ticket ID)
     status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'calling', 'completed', 'failed', 'skipped')),
     attempts INTEGER DEFAULT 0,
     last_attempt_at DATETIME,

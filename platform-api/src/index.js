@@ -105,7 +105,7 @@ app.use('/api/trunks', trunksRoutes);
 app.use('/api/campaigns', campaignsRoutes);
 app.use('/api/triggers', triggersRoutes);
 app.use('/api/system', systemRoutes);
-app.use('/api/webhooks/campaigns', webhooksRoutes);
+app.use('/api/webhooks', webhooksRoutes);
 
 // IVR Engine endpoint - called by Asterisk ARI
 app.get('/api/engine/flow/:extension', async (req, res) => {

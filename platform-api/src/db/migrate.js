@@ -60,8 +60,15 @@ ensureColumn('campaigns', 'flag_value', 'TEXT');
 ensureColumn('sip_trunks', 'dial_prefix', 'TEXT');
 ensureColumn('campaigns', 'dial_prefix', 'TEXT');
 
-// CMS ID for webhook-triggered runs
+// CMS ID for webhook-triggered runs (legacy, retained for backwards compat).
+// New webhook integrations should send cms_id per contact (campaign_contacts.cms_id below).
 ensureColumn('campaign_runs', 'cms_id', 'TEXT');
+
+// Survey ID — per-run external survey identifier from the calling CMS
+ensureColumn('campaign_runs', 'survey_id', 'TEXT');
+
+// Per-contact CMS ID — replaces run-level cms_id for new integrations
+ensureColumn('campaign_contacts', 'cms_id', 'TEXT');
 
 // Initialize extension pool (2000-2999 for inbound IVRs)
 console.log('Initializing extension pool...');

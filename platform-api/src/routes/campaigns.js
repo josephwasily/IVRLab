@@ -214,7 +214,7 @@ function getCampaignExecutionContext(campaign) {
     };
 }
 
-function createCampaignRunRecord(campaignId, startedBy, totalContacts, runSettings, cms_id = null) {
+function createCampaignRunRecord(campaignId, startedBy, totalContacts, runSettings, { cms_id = null, survey_id = null } = {}) {
     const lastRun = db.prepare(`
         SELECT MAX(run_number) as max_run FROM campaign_runs WHERE campaign_id = ?
     `).get(campaignId);
@@ -222,18 +222,21 @@ function createCampaignRunRecord(campaignId, startedBy, totalContacts, runSettin
     const runId = uuidv4();
     const runNumber = (lastRun?.max_run || 0) + 1;
 
+    // cms_id is retained on the run for backwards compatibility with older
+    // webhook callers; new integrations send cms_id per contact and pass
+    // survey_id at the run level.
     db.prepare(`
-        INSERT INTO campaign_runs (id, campaign_id, run_number, status, cms_id, total_contacts, started_by, settings)
-        VALUES (?, ?, ?, 'running', ?, ?, ?, ?)
-    `).run(runId, campaignId, runNumber, cms_id, totalContacts, startedBy, JSON.stringify(runSettings));
+        INSERT INTO campaign_runs (id, campaign_id, run_number, status, cms_id, survey_id, total_contacts, started_by, settings)
+        VALUES (?, ?, ?, 'running', ?, ?, ?, ?, ?)
+    `).run(runId, campaignId, runNumber, cms_id, survey_id, totalContacts, startedBy, JSON.stringify(runSettings));
 
     return { runId, runNumber };
 }
 
 function insertContactsForRun({ campaignId, runId, contacts }) {
     const insertStmt = db.prepare(`
-        INSERT INTO campaign_contacts (id, campaign_id, run_id, phone_number, variables)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO campaign_contacts (id, campaign_id, run_id, phone_number, variables, cms_id)
+        VALUES (?, ?, ?, ?, ?, ?)
     `);
 
     let imported = 0;
@@ -260,7 +263,9 @@ function insertContactsForRun({ campaignId, runId, contacts }) {
                 Object.assign(variables, contact.variables);
             }
 
-            insertStmt.run(uuidv4(), campaignId, runId, phone, JSON.stringify(variables));
+            const contactCmsId = contact.cms_id ? String(contact.cms_id).trim() || null : null;
+
+            insertStmt.run(uuidv4(), campaignId, runId, phone, JSON.stringify(variables), contactCmsId);
             seenPhones.add(phone);
             imported++;
         }
@@ -329,7 +334,7 @@ function parseCsvContactsFromRequest(file, phoneColumn = 'phone') {
     });
 }
 
-function startCampaignInstance({ campaign, contacts, startedBy, cms_id = null }) {
+function startCampaignInstance({ campaign, contacts, startedBy, cms_id = null, survey_id = null }) {
     const runningRun = db.prepare(`
         SELECT * FROM campaign_runs WHERE campaign_id = ? AND status = 'running'
     `).get(campaign.id);
@@ -344,7 +349,7 @@ function startCampaignInstance({ campaign, contacts, startedBy, cms_id = null })
         startedBy,
         Array.isArray(contacts) ? contacts.length : 0,
         execution.runSettings,
-        cms_id
+        { cms_id, survey_id }
     );
 
     const importStats = insertContactsForRun({ campaignId: campaign.id, runId, contacts });
