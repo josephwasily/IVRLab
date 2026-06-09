@@ -30,7 +30,16 @@
           "name": "menia_s1_thanks",
           "role": "thanks"
         }
-      ]
+      ],
+      "campaign": {
+        "id": "menia-complaint-resolution-campaign",
+        "name": "Menia - Complaint Resolution Survey",
+        "description": "Outbound campaign for Menia complaint-closure satisfaction survey",
+        "campaign_type": "survey",
+        "status": "draft",
+        "flag_variable": "complaint_resolved",
+        "flag_value": "1"
+      }
     },
     {
       "id": "menia-survey-2",
@@ -86,7 +95,14 @@
           "name": "menia_s2_thanks",
           "role": "thanks"
         }
-      ]
+      ],
+      "campaign": {
+        "id": "menia-service-satisfaction-campaign",
+        "name": "Menia - Service Satisfaction Survey",
+        "description": "Outbound campaign for Menia service satisfaction (4-question) survey",
+        "campaign_type": "survey",
+        "status": "draft"
+      }
     },
     {
       "id": "menia-survey-3",

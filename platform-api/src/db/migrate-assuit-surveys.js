@@ -1,21 +1,20 @@
 /**
- * Menia surveys migration.
+ * Assuit surveys migration.
  *
- * Reads /app/prompts/menia-surveys/manifest.json, converts every referenced
- * mp3 to ulaw, inserts a prompts row for each, then creates (or updates)
- * one ivr_flows row per survey with proper reportLabelAr/En on the question
- * `collect` nodes so the survey Excel report picks them up.
+ * Mirrors migrate-menia-surveys.js but for Assuit Water & Sanitation:
+ *  - Reads /app/prompts/assuit-surveys/assuit-manifest.json (default).
+ *  - Source audio stages from BOTH "new sounds 6/" (Assuit welcomes) and
+ *    "new sounds 5/" (question/thanks audio shared with Menia). The
+ *    wrapper script copies both folders into /app/prompts/assuit-surveys/.
+ *  - Converts each referenced source file to ulaw, inserts a prompts row,
+ *    upserts the IVR flow row (with reportLabelAr/En on each question),
+ *    and upserts the matching campaign in 'draft' status.
  *
- * Idempotent:
- *   - prompts whose name already exists are skipped
- *   - ivr_flows rows are upserted by id (FKs disabled briefly during the
- *     replace; that's safe here because no campaign references these flow
- *     ids yet)
+ * Idempotent — re-running skips prompts already in the DB and updates
+ * existing flows/campaigns in place.
  *
  * Usage inside platform-api container:
- *   node src/db/migrate-menia-surveys.js [manifest-path]
- *
- * Default manifest-path is /app/prompts/menia-surveys/manifest.json.
+ *   node src/db/migrate-assuit-surveys.js [manifest-path]
  */
 
 'use strict';
@@ -29,13 +28,12 @@ const { v4: uuidv4 } = require('uuid');
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../../data/platform.db');
 const PROMPTS_DIR = process.env.PROMPTS_PATH || process.env.PROMPTS_DIR || '/app/prompts';
 
+const AUDIO_SUBDIR = 'assuit-surveys';
 const MANIFEST_PATH = process.argv[2]
-    || path.join(PROMPTS_DIR, 'menia-surveys', 'manifest.json');
-
-const AUDIO_SUBDIR = 'menia-surveys';  // where the .mp3 sources live in the volume
+    || path.join(PROMPTS_DIR, AUDIO_SUBDIR, 'assuit-manifest.json');
 
 function die(msg) {
-    console.error(`[migrate-menia] ${msg}`);
+    console.error(`[migrate-assuit] ${msg}`);
     process.exit(1);
 }
 
@@ -54,9 +52,7 @@ function convertToUlaw(inputPath, outputPath) {
     }
 }
 
-if (!fs.existsSync(MANIFEST_PATH)) {
-    die(`Manifest not found: ${MANIFEST_PATH}`);
-}
+if (!fs.existsSync(MANIFEST_PATH)) die(`Manifest not found: ${MANIFEST_PATH}`);
 
 let manifest;
 try {
@@ -69,11 +65,11 @@ if (!Array.isArray(manifest.surveys) || manifest.surveys.length === 0) {
 }
 
 const language = manifest.language || 'ar';
-const category = manifest.category || 'menia';
+const category = manifest.category || 'assuit';
 const sourceDir = path.join(PROMPTS_DIR, AUDIO_SUBDIR);
 
 if (!fs.existsSync(sourceDir)) {
-    die(`Audio source dir not found: ${sourceDir}. Did the wrapper script copy "new sounds 5/" into the container?`);
+    die(`Audio source dir not found: ${sourceDir}. Did the wrapper copy the staging folders in?`);
 }
 
 const db = new Database(DB_PATH);
@@ -85,18 +81,16 @@ const tenantId = tenant.id;
 const userId = adminUser?.id || null;
 
 console.log('================================================================');
-console.log('Menia surveys migration');
+console.log('Assuit surveys migration');
 console.log('================================================================');
 console.log(`manifest: ${MANIFEST_PATH}`);
 console.log(`tenant:   ${tenantId}`);
 console.log(`language: ${language}  category: ${category}`);
 console.log('');
 
-let promptsImported = 0;
-let promptsSkipped = 0;
-let promptsFailed = 0;
+let promptsImported = 0, promptsSkipped = 0, promptsFailed = 0;
 
-// -------- 1. Import audio prompts -----------------------------------------
+// -------- 1. Import prompts -----------------------------------------------
 
 for (const survey of manifest.surveys) {
     console.log(`--- ${survey.name} (${survey.id}) ---`);
@@ -164,8 +158,7 @@ for (const survey of manifest.surveys) {
 
 // -------- 2. Build & upsert IVR flows -------------------------------------
 
-let flowsCreated = 0;
-let flowsUpdated = 0;
+let flowsCreated = 0, flowsUpdated = 0;
 
 for (const survey of manifest.surveys) {
     const questions = survey.prompts.filter(p => p.role === 'question');
@@ -174,18 +167,13 @@ for (const survey of manifest.surveys) {
     const thanksPromptName = survey.thanksPrompt
         || survey.prompts.find(p => p.role === 'thanks')?.name;
 
-    // Build nodes in order: welcome → q1 → q2 → ... → thanks → hangup.
     const nodes = {};
-    const order = [];
 
     nodes.welcome = {
-        id: 'welcome',
-        type: 'play',
-        label: 'Welcome',
+        id: 'welcome', type: 'play', label: 'Welcome',
         prompt: welcomePromptName,
         next: questions[0] ? questions[0].variable : 'thanks'
     };
-    order.push('welcome');
 
     questions.forEach((q, idx) => {
         const nextId = idx < questions.length - 1
@@ -206,33 +194,22 @@ for (const survey of manifest.surveys) {
             onTimeout: nextId,
             onEmpty: nextId
         };
-        order.push(q.variable);
     });
 
     nodes.thanks = {
-        id: 'thanks',
-        type: 'play',
-        label: 'Thanks',
-        prompt: thanksPromptName,
-        next: 'hangup'
+        id: 'thanks', type: 'play', label: 'Thanks',
+        prompt: thanksPromptName, next: 'hangup'
     };
-    order.push('thanks');
-
     nodes.hangup = { id: 'hangup', type: 'hangup', label: 'End Call' };
-    order.push('hangup');
 
     const flowData = { startNode: 'welcome', nodes };
 
-    // Ensure the extension exists (extensions pool: 2000-2099)
     const existsExt = db.prepare('SELECT extension FROM extensions WHERE extension = ?').get(survey.extension);
     if (!existsExt) {
         db.prepare("INSERT INTO extensions (extension, status) VALUES (?, 'available')").run(survey.extension);
         console.log(`  created extension ${survey.extension}`);
     }
 
-    // Upsert the flow. Disable FKs during the replace because the existing flow
-    // (if any) may have FK references from other rows; ON CONFLICT REPLACE
-    // would cascade-delete those. We want the dependent rows to keep pointing.
     const existingFlow = db.prepare("SELECT id FROM ivr_flows WHERE id = ?").get(survey.id);
     if (existingFlow) {
         db.prepare(`
@@ -257,18 +234,10 @@ for (const survey of manifest.surveys) {
     }
 }
 
-// -------- 3. Upsert outbound campaigns ------------------------------------
-// A campaign wraps a flow with the dialing config (trunk, concurrency,
-// retry, flag variable). We create it in 'draft' status so it doesn't
-// auto-dial — flip it to 'active' from the admin UI when you're ready.
+// -------- 3. Upsert campaigns ---------------------------------------------
 
-let campaignsCreated = 0;
-let campaignsUpdated = 0;
-let campaignsSkipped = 0;
+let campaignsCreated = 0, campaignsUpdated = 0, campaignsSkipped = 0;
 
-// Pick the first SIP trunk in the tenant as the default. If none exists,
-// the campaign is still created but trunk_id stays null — user attaches
-// a trunk via the UI later.
 const defaultTrunk = db.prepare(
     'SELECT id FROM sip_trunks WHERE tenant_id = ? ORDER BY created_at LIMIT 1'
 ).get(tenantId);
@@ -279,10 +248,7 @@ const defaultTrunkId = defaultTrunk?.id || null;
 
 for (const survey of manifest.surveys) {
     const c = survey.campaign;
-    if (!c) {
-        campaignsSkipped++;
-        continue;
-    }
+    if (!c) { campaignsSkipped++; continue; }
 
     const existing = db.prepare('SELECT id FROM campaigns WHERE id = ?').get(c.id);
     if (existing) {
@@ -291,16 +257,9 @@ for (const survey of manifest.surveys) {
             SET name = ?, description = ?, campaign_type = ?, ivr_id = ?,
                 flag_variable = ?, flag_value = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        `).run(
-            c.name,
-            c.description || '',
-            c.campaign_type || 'survey',
-            survey.id,
-            c.flag_variable || null,
-            c.flag_value || null,
-            c.id
-        );
-        console.log(`  ↻ updated campaign: ${c.id}  (status preserved)`);
+        `).run(c.name, c.description || '', c.campaign_type || 'survey',
+               survey.id, c.flag_variable || null, c.flag_value || null, c.id);
+        console.log(`  ↻ updated campaign: ${c.id}`);
         campaignsUpdated++;
     } else {
         db.prepare(`
@@ -308,19 +267,10 @@ for (const survey of manifest.surveys) {
                 (id, tenant_id, name, description, campaign_type, ivr_id,
                  trunk_id, status, flag_variable, flag_value, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-            c.id,
-            tenantId,
-            c.name,
-            c.description || '',
-            c.campaign_type || 'survey',
-            survey.id,
-            defaultTrunkId,
-            c.status || 'draft',
-            c.flag_variable || null,
-            c.flag_value || null,
-            userId
-        );
+        `).run(c.id, tenantId, c.name, c.description || '',
+               c.campaign_type || 'survey', survey.id, defaultTrunkId,
+               c.status || 'draft', c.flag_variable || null,
+               c.flag_value || null, userId);
         console.log(`  + created campaign: ${c.id}  → flow ${survey.id}  (status=${c.status || 'draft'})`);
         campaignsCreated++;
     }
@@ -335,12 +285,6 @@ console.log(`flows:     created=${flowsCreated}  updated=${flowsUpdated}`);
 console.log(`campaigns: created=${campaignsCreated}  updated=${campaignsUpdated}  skipped=${campaignsSkipped}`);
 console.log('----------------------------------------------------------------');
 console.log('');
-console.log('Campaigns are in DRAFT status. To activate:');
-console.log('  • open the Campaigns tab in the admin UI');
-console.log('  • verify trunk and dial settings (caller_id, calls_per_minute, max_attempts)');
-console.log('  • flip status from draft → active');
-console.log('  • upload contacts (CSV) or trigger via the webhook API');
-console.log('');
-console.log('Excel survey reports: /api/campaigns/<campaign_id>/survey-report?from=YYYY-MM-DD&to=YYYY-MM-DD');
+console.log('Campaigns are in DRAFT status. Activate from the admin UI when ready.');
 
 process.exit(promptsFailed > 0 ? 1 : 0);

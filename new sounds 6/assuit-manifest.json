@@ -1,0 +1,109 @@
+{
+  "_comment": "Assuit surveys manifest. The 2 Assuit welcomes live in 'new sounds 6/'. Question/thanks audio is shared with Menia and copied from 'new sounds 5/' — the migration wrapper stages both folders into /app/prompts/assuit-surveys/ so the migration finds every file by basename.",
+  "language": "ar",
+  "category": "assuit",
+  "audioSubdir": "assuit-surveys",
+  "surveys": [
+    {
+      "id": "assuit-survey-1",
+      "name": "استطلاع حل الشكاوى - أسيوط",
+      "description": "Assuit Water & Sanitation — complaint-closure satisfaction survey (single yes/no question)",
+      "extension": "2040",
+      "welcomePrompt": "assuit_s1_welcome",
+      "thanksPrompt": "assuit_s1_thanks",
+      "prompts": [
+        {
+          "file": "assuit_welcome_survey_1.mpeg",
+          "name": "assuit_s1_welcome",
+          "role": "welcome"
+        },
+        {
+          "file": "1_Are you satisfied .mp3",
+          "name": "assuit_s1_complaint_resolved",
+          "role": "question",
+          "variable": "complaint_resolved",
+          "validDigits": "12",
+          "reportLabelAr": "هل تم حل الشكوى الخاصة بكم؟",
+          "reportLabelEn": "Was your complaint resolved?"
+        },
+        {
+          "file": "1_Thanks.mp3",
+          "name": "assuit_s1_thanks",
+          "role": "thanks"
+        }
+      ],
+      "campaign": {
+        "id": "assuit-complaint-resolution-campaign",
+        "name": "Assuit - Complaint Resolution Survey",
+        "description": "Outbound campaign for Assuit complaint-closure satisfaction survey",
+        "campaign_type": "survey",
+        "status": "draft",
+        "flag_variable": "complaint_resolved",
+        "flag_value": "1"
+      }
+    },
+    {
+      "id": "assuit-survey-2",
+      "name": "استطلاع رضا الخدمة - أسيوط",
+      "description": "Assuit Water & Sanitation — service satisfaction survey (4 questions)",
+      "extension": "2041",
+      "welcomePrompt": "assuit_s2_welcome",
+      "thanksPrompt": "assuit_s2_thanks",
+      "prompts": [
+        {
+          "file": "assuit_welcome_survey2.mpeg",
+          "name": "assuit_s2_welcome",
+          "role": "welcome"
+        },
+        {
+          "file": "2_ Question1.mp3",
+          "name": "assuit_s2_q1_service_satisfaction",
+          "role": "question",
+          "variable": "service_satisfaction",
+          "validDigits": "12345",
+          "reportLabelAr": "ما مدى رضاك عن الخدمة المقدمة؟ (1-5)",
+          "reportLabelEn": "Service satisfaction (1-5)"
+        },
+        {
+          "file": "2_ Question2.mp3",
+          "name": "assuit_s2_q2_rep_professionalism",
+          "role": "question",
+          "variable": "rep_professionalism",
+          "validDigits": "12345",
+          "reportLabelAr": "ما مدى تقييمكم لاحترافية ممثل خدمة العملاء؟ (1-5)",
+          "reportLabelEn": "Customer-service rep professionalism (1-5)"
+        },
+        {
+          "file": "2_ Question3.mp3",
+          "name": "assuit_s2_q3_service_time",
+          "role": "question",
+          "variable": "service_time_appropriate",
+          "validDigits": "12",
+          "reportLabelAr": "هل استغرقت الخدمة وقتاً مناسباً؟",
+          "reportLabelEn": "Did the service take an appropriate time?"
+        },
+        {
+          "file": "2_ Question4.mp3",
+          "name": "assuit_s2_q4_multiple_contacts",
+          "role": "question",
+          "variable": "multiple_contacts_needed",
+          "validDigits": "12",
+          "reportLabelAr": "هل احتجت إلى التواصل أكثر من مرة لحل المشكلة؟",
+          "reportLabelEn": "Did you need to contact more than once?"
+        },
+        {
+          "file": "2_ Thanks.mp3",
+          "name": "assuit_s2_thanks",
+          "role": "thanks"
+        }
+      ],
+      "campaign": {
+        "id": "assuit-service-satisfaction-campaign",
+        "name": "Assuit - Service Satisfaction Survey",
+        "description": "Outbound campaign for Assuit service satisfaction (4-question) survey",
+        "campaign_type": "survey",
+        "status": "draft"
+      }
+    }
+  ]
+}

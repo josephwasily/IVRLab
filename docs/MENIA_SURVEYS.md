@@ -280,6 +280,50 @@ To replace audio for an existing prompt:
 
 ---
 
+## 6a. Outbound campaigns
+
+The migration also creates **two campaigns** (one per survey, surveys 1 and
+2 only — survey 3 stays as a free-standing flow). Each campaign is created
+in `status='draft'` so it doesn't auto-dial. Activate it from the admin
+UI once the trunk, contacts, and dial settings are right.
+
+| Campaign id                            | Name                                  | Wraps flow         | Flag variable          | Flag value |
+|----------------------------------------|---------------------------------------|--------------------|------------------------|------------|
+| `menia-complaint-resolution-campaign`  | Menia - Complaint Resolution Survey   | `menia-survey-1`   | `complaint_resolved`   | `1`        |
+| `menia-service-satisfaction-campaign`  | Menia - Service Satisfaction Survey   | `menia-survey-2`   | (none)                 | —          |
+
+### What "flag" means
+
+For the complaint-resolution campaign, `flag_variable='complaint_resolved'`
++ `flag_value='1'` means: the webhook results endpoint
+(`GET /api/webhooks/campaigns/{id}/runs/{run_id}/results`) returns
+`flag: true` for every contact that pressed 1 (yes), and `flag: false`
+otherwise. That gives the calling system a one-shot answer to "did this
+contact say their complaint was resolved?" without having to parse the
+full `variables` object.
+
+The service-satisfaction campaign doesn't have a single boolean outcome,
+so `flag_variable` is null and every contact's `flag` is `false`.
+
+### Default trunk
+
+The migration assigns the **first SIP trunk** in the tenant as the
+campaign's outbound trunk. If no trunk exists when the migration runs, it
+prints a warning and creates the campaign with `trunk_id=NULL`. Set the
+trunk in the Campaigns tab before activation.
+
+### Activating a campaign
+
+1. Open **Campaigns** in the admin UI.
+2. Click the campaign → review **Trunk**, **Caller ID**, **Calls per
+   minute**, **Max attempts**, **Time windows**.
+3. Upload contacts (CSV) or generate a webhook API key under the
+   campaign's Settings tab — see [WEBHOOK_INTEGRATION.md](WEBHOOK_INTEGRATION.md).
+4. Change **Status** from `draft` → `active`.
+5. Click **Start run**.
+
+---
+
 ## 7. Generating the Excel survey report
 
 Once you have a campaign that uses one of these flows and at least a few
