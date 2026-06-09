@@ -9,12 +9,20 @@ afterwards, and how to pull the Excel survey report.
 
 ## 1. Overview
 
-Two surveys were authored from the audio dropped into `new sounds 5/`:
+Three surveys were authored from the audio dropped into `new sounds 5/`
+and `new sounds 6/`:
 
-| ID                 | Name                         | Extension | Questions | Question types          |
-|--------------------|------------------------------|-----------|-----------|--------------------------|
-| `menia-survey-1`   | استطلاع حل الشكاوى - المنيا     | **2030**  | 1         | yes/no                   |
-| `menia-survey-2`   | استطلاع رضا الخدمة - المنيا     | **2031**  | 4         | 2 × rating (1-5) + 2 × yes/no |
+| ID                 | Name                              | Extension | Questions | Question types          | Source folder    |
+|--------------------|-----------------------------------|-----------|-----------|--------------------------|------------------|
+| `menia-survey-1`   | استطلاع حل الشكاوى - المنيا          | **2030**  | 1         | yes/no                   | `new sounds 5/`  |
+| `menia-survey-2`   | استطلاع رضا الخدمة - المنيا          | **2031**  | 4         | 2 × rating (1-5) + 2 × yes/no | `new sounds 5/`  |
+| `menia-survey-3`   | استطلاع متابعة حل الشكاوى - المنيا   | **2032**  | 1         | yes/no                   | `new sounds 6/`  |
+
+> Survey 3 is a parallel flow whose audio content is identical to Survey 1.
+> Both ask the same yes/no complaint-resolution question. They exist as
+> two separate flows on different extensions so a campaign can target one
+> without affecting the other (e.g. for A/B testing, follow-up campaigns,
+> or for a future content swap on Survey 3 once new audio arrives).
 
 A single migration script imports the audio, creates the IVR flows, and
 sets the report labels on every question. Each question's `collect` node
@@ -92,15 +100,57 @@ welcome  →  Q1 (1-5)  →  Q2 (1-5)  →  Q3 (yes/no)  →  Q4 (yes/no)  →  
 
 ---
 
+## 3a. Survey 3 — Follow-up Complaint Resolution (extension 2032)
+
+A parallel single-question flow that asks the same question as Survey 1
+but uses the more clearly-named audio in `new sounds 6/`. Useful for a
+second campaign run, or as a target you can repurpose by swapping the
+audio without disturbing Survey 1.
+
+### Call flow
+
+```
+welcome  →  ask "هل تم حل الشكوى الخاصة بكم؟" (1=yes, 2=no)  →  thanks  →  hangup
+```
+
+### Prompts
+
+| Prompt name (DB)             | Source file                                       | Role     |
+|------------------------------|---------------------------------------------------|----------|
+| `menia_s3_welcome`           | `menia _ survey_welcone.mpeg`                     | welcome  |
+| `menia_s3_problem_solved`    | `menia_survey_q1_was the problem solved.mpeg`     | question |
+| `menia_s3_thanks`            | `menia_survey_thanks.mpeg`                        | thanks   |
+
+### Question metadata
+
+| Field            | Value                                  |
+|------------------|----------------------------------------|
+| `variable`       | `problem_solved`                       |
+| `validDigits`    | `12` (yes = 1, no = 2)                 |
+| `reportLabelAr`  | `هل تم حل الشكوى الخاصة بكم؟`            |
+| `reportLabelEn`  | `Was your complaint resolved?`         |
+
+### When to use which
+
+| Scenario                                                | Use survey   |
+|---------------------------------------------------------|--------------|
+| Default complaint-resolution campaign                   | 1 (`2030`)   |
+| Follow-up / second-attempt campaign on the same contacts | 3 (`2032`)   |
+| Service satisfaction (4 questions)                      | 2 (`2031`)   |
+| Replace audio with newer recordings later               | repurpose 3 — swap files in `new sounds 6/`, keep 1 untouched |
+
+---
+
 ## 4. Architecture — where each piece lives
 
 | Path                                                | Purpose                                                                                  |
 |-----------------------------------------------------|------------------------------------------------------------------------------------------|
-| `new sounds 5/*.mp3`                                | Source audio. Committed to git for reproducibility.                                       |
-| `new sounds 5/manifest.json`                        | Single source of truth for prompt names, variables, `validDigits`, and report labels.    |
+| `new sounds 5/*.mp3`                                | Survey 1 + Survey 2 source audio. Committed to git for reproducibility.                  |
+| `new sounds 6/*.mpeg`                               | Survey 3 source audio.                                                                   |
+| `new sounds 5/manifest.json`                        | Single source of truth for **all three surveys** — prompt names, variables, `validDigits`, and report labels. The manifest lives in folder 5 even though survey 3 reads its audio from folder 6. |
 | `platform-api/src/db/migrate-menia-surveys.js`      | Node migration: mp3 → ulaw conversion, `prompts` table insert, `ivr_flows` row upsert.   |
-| `scripts/migrate-menia-surveys.sh`                  | Bash wrapper run on the Menia client. Copies audio into the container and runs the Node migration. |
-| `scripts/build-on-client.sh`                        | Build-on-client also stages `new sounds 5/` into the prompts image — so a fresh deploy bakes the audio in. |
+| `scripts/migrate-menia-surveys.sh`                  | Bash wrapper run on the Menia client. Copies audio from `new sounds 5/` **and** any additional staging folders (currently `new sounds 6/`) into the container, then runs the Node migration. |
+| `scripts/build-on-client.sh`                        | Build-on-client stages `new sounds 5/` and `new sounds 6/` into the prompts image — so a fresh deploy bakes both batches of audio in. |
 
 The migration writes to two existing tables:
 
@@ -135,13 +185,16 @@ sudo /opt/ivr-lab-src/scripts/migrate-menia-surveys.sh
 
 ### What the script does
 
-1. Copies the host folder `new sounds 5/` into the `platform-api`
-   container at `/app/prompts/menia-surveys/` (this is inside the
-   `prompts-custom` volume, so the audio is also visible to `asterisk` at
-   `/var/lib/asterisk/sounds/custom/menia-surveys/`).
+1. Copies the host folder `new sounds 5/` (and `new sounds 6/` if
+   present) into the `platform-api` container at
+   `/app/prompts/menia-surveys/` (this is inside the `prompts-custom`
+   volume, so the audio is also visible to `asterisk` at
+   `/var/lib/asterisk/sounds/custom/menia-surveys/`). Filenames don't
+   collide between the two folders.
 2. Runs `node src/db/migrate-menia-surveys.js` inside the container. That
    script:
-    - converts every `.mp3` to `.ulaw` via `sox` (with `ffmpeg` fallback);
+    - converts every `.mp3`/`.mpeg` to `.ulaw` via `sox` (with `ffmpeg`
+      fallback);
     - inserts a `prompts` row per audio file (idempotent — re-runs skip
       prompts that already exist by name);
     - builds the flow graph for each survey from the manifest;
@@ -152,18 +205,25 @@ sudo /opt/ivr-lab-src/scripts/migrate-menia-surveys.sh
 
 ```
 ==> Preparing /app/prompts/menia-surveys/ inside platform-api
-[OK] Copied 10 files into /app/prompts/menia-surveys/
+[OK] Copied 10 files from new sounds 5
+[OK] Copied 3 files from new sounds 6
 ==> Running migration (audio → ulaw + DB prompts + IVR flows)
 --- استطلاع حل الشكاوى - المنيا (menia-survey-1) ---
   converting: 1_Welcome.mp3 → menia_s1_welcome.ulaw
   ✓ imported: menia_s1_welcome  (12000B, ~1s)
-  converting: 1_Are you satisfied .mp3 → menia_s1_complaint_resolved.ulaw
-  ✓ imported: menia_s1_complaint_resolved ...
-  ... (and so on for all 9 audio files)
+  ...
+--- استطلاع رضا الخدمة - المنيا (menia-survey-2) ---
+  ... (6 prompts)
+--- استطلاع متابعة حل الشكاوى - المنيا (menia-survey-3) ---
+  converting: menia _ survey_welcone.mpeg → menia_s3_welcome.ulaw
+  ✓ imported: menia_s3_welcome ...
+  ✓ imported: menia_s3_problem_solved ...
+  ✓ imported: menia_s3_thanks ...
   + created flow: menia-survey-1  (ext 2030, 1 questions)
   + created flow: menia-survey-2  (ext 2031, 4 questions)
-prompts: imported=9 skipped=0 failed=0
-flows:   created=2  updated=0
+  + created flow: menia-survey-3  (ext 2032, 1 questions)
+prompts: imported=12 skipped=0 failed=0
+flows:   created=3  updated=0
 ```
 
 ### Verification
@@ -184,6 +244,7 @@ console.log(db.prepare('SELECT id, name, extension, status FROM ivr_flows WHERE 
 # 4. Admin portal: open IVR Flows → expect both menia flows listed
 # 5. Dial 2030 from the SIP trunk → survey 1 should play
 # 6. Dial 2031 → survey 2 should play
+# 7. Dial 2032 → survey 3 should play (same audio as survey 1)
 ```
 
 ---

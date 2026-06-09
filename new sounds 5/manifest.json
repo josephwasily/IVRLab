@@ -87,6 +87,36 @@
           "role": "thanks"
         }
       ]
+    },
+    {
+      "id": "menia-survey-3",
+      "name": "استطلاع متابعة حل الشكاوى - المنيا",
+      "description": "Menia follow-up complaint-resolution survey (uses new sounds 6 audio — same content as survey 1, parallel flow on a separate extension)",
+      "extension": "2032",
+      "welcomePrompt": "menia_s3_welcome",
+      "thanksPrompt": "menia_s3_thanks",
+      "_note": "Source files live in 'new sounds 6/' (cleaner naming convention). Audio is identical to survey 1 — both surveys ask the same yes/no complaint-resolution question. Keep both, retire survey 1, or repurpose survey 3 by replacing the source files later.",
+      "prompts": [
+        {
+          "file": "menia _ survey_welcone.mpeg",
+          "name": "menia_s3_welcome",
+          "role": "welcome"
+        },
+        {
+          "file": "menia_survey_q1_was the problem solved.mpeg",
+          "name": "menia_s3_problem_solved",
+          "role": "question",
+          "variable": "problem_solved",
+          "validDigits": "12",
+          "reportLabelAr": "هل تم حل الشكوى الخاصة بكم؟",
+          "reportLabelEn": "Was your complaint resolved?"
+        },
+        {
+          "file": "menia_survey_thanks.mpeg",
+          "name": "menia_s3_thanks",
+          "role": "thanks"
+        }
+      ]
     }
   ]
 }
