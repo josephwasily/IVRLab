@@ -325,6 +325,17 @@ export default function CampaignEdit() {
                     <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.resultsUrl')}</label>
                     <code className="block rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-700">GET /api/webhooks/campaigns/{id}/runs/{'<run_id>'}/results</code>
                   </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.runsQueryUrl')}</label>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-700">GET /api/webhooks/runs?survey_id={'<survey_id>'}</code>
+                      <button onClick={() => copyToClipboard(`${window.location.origin}/api/webhooks/runs?survey_id=<survey_id>`, 'runsQueryUrl')} className="rounded-md border border-gray-300 p-2 hover:bg-gray-50" title={t('campaignEdit.copy')}>
+                        <Copy className="h-4 w-4 text-gray-500" />
+                      </button>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">{t('campaignEdit.runsQueryHelp')}</p>
+                    {copiedField === 'runsQueryUrl' && <p className="mt-1 text-xs text-green-600">{t('campaignEdit.copied')}</p>}
+                  </div>
                 </>
               )}
             </div>

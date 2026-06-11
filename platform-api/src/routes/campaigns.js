@@ -907,7 +907,8 @@ router.post('/:id/generate-api-key', (req, res) => {
             success: true,
             webhook_api_key: apiKey,
             webhook_trigger_url: `/api/webhooks/campaigns/${req.params.id}/trigger`,
-            webhook_results_url: `/api/webhooks/campaigns/${req.params.id}/runs/{run_id}/results`
+            webhook_results_url: `/api/webhooks/campaigns/${req.params.id}/runs/{run_id}/results`,
+            webhook_runs_url: `/api/webhooks/runs?survey_id={survey_id}`
         });
     } catch (error) {
         console.error('Error generating API key:', error);
