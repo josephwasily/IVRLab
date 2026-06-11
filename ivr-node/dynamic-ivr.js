@@ -353,18 +353,18 @@ class DynamicFlowEngine {
       
       if (isEmpty || isTooShort) {
         this.retryCount[node.id] = (this.retryCount[node.id] || 0) + 1;
-        
+        const maxRetries = Number.isInteger(node.maxRetries) ? node.maxRetries : null;
+        if (maxRetries !== null && this.retryCount[node.id] >= maxRetries) {
+          if (node.onMaxRetries) return this.executeNode(node.onMaxRetries);
+          return this.hangup();
+        }
+
         if (isEmpty && node.onEmpty) return this.executeNode(node.onEmpty);
         if (isEmpty && node.onTimeout) return this.executeNode(node.onTimeout);
         if (isTooShort && node.onInvalid) return this.executeNode(node.onInvalid);
         
         // Default safe behavior: do not advance on empty input.
         // Retry the same collect node unless maxRetries is reached.
-        const maxRetries = Number.isInteger(node.maxRetries) ? node.maxRetries : null;
-        if (maxRetries !== null && this.retryCount[node.id] >= maxRetries) {
-          if (node.onMaxRetries) return this.executeNode(node.onMaxRetries);
-          return this.hangup();
-        }
         
         this.log('Collect input invalid, retrying same node', {
           nodeId: node.id,

@@ -331,24 +331,22 @@ function buildSurveyWorkbook({ language, captures, digitMin, digitMax, aggregati
     // Question rows.
     const firstQuestionRow = aoa.length; // 0-based
     captures.forEach((cap, idx) => {
-      const rowIdx = aoa.length;
-      const excelRow = rowIdx + 1; // 1-based for formulas
       const row = new Array(totalCols).fill('');
       row[0] = idx + 1;
       // col B (month) is filled only on the first question row; rest are '' so the merge doesn't show duplicate text.
       row[1] = idx === 0 ? formatMonthLabel(language, monthBlock) : '';
       row[2] = (language === 'ar' ? (cap.labelAr || cap.labelEn) : (cap.labelEn || cap.labelAr));
+      const surveyCount = aggregation.surveys[monthBlock.monthKey][cap.nodeId] || 0;
 
-      // Surveys formula: sum of all count cells in this row.
-      const countCells = digitColumns.map((_d, i) => `${colLetter(baseCols + i * 2)}${excelRow}`);
-      row[3] = { f: countCells.join('+') };
+      // Write static numeric values so exports display correctly even in viewers
+      // that do not eagerly recalculate workbook formulas.
+      row[3] = surveyCount;
 
       digitColumns.forEach((d, i) => {
         const c = baseCols + i * 2;
-        row[c] = aggregation.counts[monthBlock.monthKey][cap.nodeId][String(d)] || 0;
-        const countCell = `${colLetter(c)}${excelRow}`;
-        const surveysCell = `D${excelRow}`;
-        row[c + 1] = { f: `IFERROR(${countCell}/${surveysCell},0)`, z: '0.00%' };
+        const count = aggregation.counts[monthBlock.monthKey][cap.nodeId][String(d)] || 0;
+        row[c] = count;
+        row[c + 1] = { t: 'n', v: surveyCount > 0 ? count / surveyCount : 0, z: '0.00%' };
       });
       aoa.push(row);
     });
@@ -358,15 +356,21 @@ function buildSurveyWorkbook({ language, captures, digitMin, digitMax, aggregati
     const totalRowIdx = aoa.length;
     const totalRow = new Array(totalCols).fill('');
     totalRow[0] = tr.total;
-    // Sum each numeric column (D onward).
-    for (let c = 3; c < totalCols; c++) {
-      const colL = colLetter(c);
-      const isPercentCol = c >= baseCols && ((c - baseCols) % 2 === 1);
-      const cell = {
-        f: `SUM(${colL}${firstQuestionRow + 1}:${colL}${lastQuestionRow + 1})`
-      };
-      if (isPercentCol) cell.z = '0.00%';
-      totalRow[c] = cell;
+    const totalSurveys = captures.reduce(
+      (sum, cap) => sum + (aggregation.surveys[monthBlock.monthKey][cap.nodeId] || 0),
+      0
+    );
+    totalRow[3] = totalSurveys;
+    for (let i = 0; i < digitColumns.length; i++) {
+      const digit = String(digitColumns[i]);
+      const countCol = baseCols + i * 2;
+      const percentCol = countCol + 1;
+      const totalCount = captures.reduce(
+        (sum, cap) => sum + (aggregation.counts[monthBlock.monthKey][cap.nodeId][digit] || 0),
+        0
+      );
+      totalRow[countCol] = totalCount;
+      totalRow[percentCol] = { t: 'n', v: totalSurveys > 0 ? totalCount / totalSurveys : 0, z: '0.00%' };
     }
     aoa.push(totalRow);
 
@@ -400,16 +404,6 @@ function buildSurveyWorkbook({ language, captures, digitMin, digitMax, aggregati
     { wch: 16 },  // Surveys
     ...digitColumns.flatMap(() => [{ wch: 8 }, { wch: 12 }])
   ];
-
-  // Mark every formula cell as numeric so Excel evaluates it (not as text).
-  // Some readers don't auto-infer the type from `{ f: '...' }` alone.
-  for (const cellAddr of Object.keys(ws)) {
-    if (cellAddr.startsWith('!')) continue;
-    const cell = ws[cellAddr];
-    if (cell && typeof cell === 'object' && cell.f && !cell.t) {
-      cell.t = 'n';
-    }
-  }
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Report');

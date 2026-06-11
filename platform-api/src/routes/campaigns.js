@@ -335,11 +335,11 @@ function parseCsvContactsFromRequest(file, phoneColumn = 'phone') {
 }
 
 function startCampaignInstance({ campaign, contacts, startedBy, cms_id = null, survey_id = null }) {
-    const runningRun = db.prepare(`
-        SELECT * FROM campaign_runs WHERE campaign_id = ? AND status = 'running'
+    const activeRun = db.prepare(`
+        SELECT * FROM campaign_runs WHERE campaign_id = ? AND status IN ('running', 'paused')
     `).get(campaign.id);
 
-    if (runningRun) {
+    if (activeRun) {
         throw new Error('Campaign already has an active run in progress');
     }
 
@@ -379,6 +379,88 @@ function startCampaignInstance({ campaign, contacts, startedBy, cms_id = null, s
         duplicates: importStats.duplicates,
         skipped: importStats.skipped
     };
+}
+
+function restorePausedRunContacts(runId) {
+    return db.prepare(`
+        UPDATE campaign_contacts
+        SET status = 'pending'
+        WHERE run_id = ?
+          AND status = 'calling'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM outbound_calls oc
+              WHERE oc.contact_id = campaign_contacts.id
+                AND oc.run_id = campaign_contacts.run_id
+                AND oc.status IN ('queued', 'dialing', 'ringing', 'answered')
+          )
+    `).run(runId).changes;
+}
+
+function recoverStaleActiveCalls({ campaignId, runId, maxAttempts }) {
+    const staleThresholdMs = Math.max(CALL_RESULT_TIMEOUT_MS * 2, 5 * 60 * 1000);
+    const now = Date.now();
+    const activeCalls = db.prepare(`
+        SELECT
+            oc.id,
+            oc.contact_id,
+            oc.phone_number,
+            oc.status,
+            oc.answer_time,
+            oc.dial_start_time,
+            oc.created_at,
+            COALESCE(oc.attempt_number, cc.attempts, 1) as attempt_number
+        FROM outbound_calls oc
+        JOIN campaign_contacts cc ON cc.id = oc.contact_id
+        WHERE oc.run_id = ?
+          AND cc.run_id = ?
+          AND cc.status = 'calling'
+          AND oc.status IN ('queued', 'dialing', 'ringing', 'answered')
+    `).all(runId, runId);
+
+    let recovered = 0;
+
+    for (const call of activeCalls) {
+        const referenceTime = call.answer_time || call.dial_start_time || call.created_at;
+        const referenceMs = referenceTime ? new Date(referenceTime).getTime() : NaN;
+        if (!Number.isFinite(referenceMs) || (now - referenceMs) < staleThresholdMs) {
+            continue;
+        }
+
+        const attemptNumber = parseInt(call.attempt_number, 10) || 1;
+        const resultPayload = buildAttemptResult({
+            outcome: 'stale_active_call_recovered',
+            attemptNumber,
+            maxAttempts,
+            retryScheduled: false,
+            details: { previous_status: call.status, note: 'Recovered stale in-progress call record' }
+        });
+
+        db.prepare(`
+            UPDATE outbound_calls
+            SET status = 'failed',
+                end_time = CURRENT_TIMESTAMP,
+                duration = COALESCE(duration, 0),
+                hangup_cause = 'stale_active_call_recovered',
+                result = ?
+            WHERE id = ?
+              AND status IN ('queued', 'dialing', 'ringing', 'answered')
+        `).run(stringifyResult(resultPayload), call.id);
+
+        finalizeContactAfterAttempt({
+            campaignId,
+            runId,
+            contactId: call.contact_id,
+            attemptNumber,
+            maxAttempts,
+            finalStatus: 'failed',
+            resultPayload
+        });
+
+        recovered++;
+    }
+
+    return recovered;
 }
 
 function finalizeContactAfterAttempt({
@@ -751,9 +833,14 @@ router.put('/:id', (req, res) => {
         if (!existing) {
             return res.status(404).json({ error: 'Campaign not found' });
         }
-        
-        if (existing.status === 'running') {
-            return res.status(400).json({ error: 'Cannot modify running campaign' });
+
+        const activeRun = db.prepare(`
+            SELECT id FROM campaign_runs
+            WHERE campaign_id = ? AND status IN ('running', 'paused')
+        `).get(req.params.id);
+
+        if (activeRun) {
+            return res.status(400).json({ error: 'Cannot modify campaign with an active instance' });
         }
         
         const {
@@ -1265,8 +1352,26 @@ router.post('/:id/resume', (req, res) => {
         db.prepare(`
             UPDATE campaign_runs SET status = 'running' WHERE id = ?
         `).run(pausedRun.id);
+
+        const restoredContacts = restorePausedRunContacts(pausedRun.id);
+        const execution = getCampaignExecutionContext(campaign);
+        processCampaignContacts(campaign.id, pausedRun.id, {
+            trunk: execution.trunk,
+            ivrId: execution.ivrId,
+            ivrExtension: execution.ivrExtension,
+            callerId: execution.callerId,
+            dialPrefix: execution.dialPrefix,
+            maxConcurrent: execution.maxConcurrent,
+            maxAttempts: execution.maxAttempts,
+            contactScope: 'run'
+        });
         
-        res.json({ success: true, message: 'Campaign run resumed', run_id: pausedRun.id });
+        res.json({
+            success: true,
+            message: 'Campaign run resumed',
+            run_id: pausedRun.id,
+            restored_contacts: restoredContacts
+        });
     } catch (error) {
         console.error('Error resuming campaign:', error);
         res.status(500).json({ error: 'Failed to resume campaign' });
@@ -1348,6 +1453,11 @@ async function processCampaignContacts(campaignId, runId, options) {
         if (!run || run.status !== 'running') {
             console.log(`[Campaign ${campaignId}] Run ${runId} is no longer running (status: ${run?.status})`);
             return;
+        }
+
+        const recoveredCalls = recoverStaleActiveCalls({ campaignId, runId, maxAttempts });
+        if (recoveredCalls > 0) {
+            console.log(`[Campaign ${campaignId}] Recovered ${recoveredCalls} stale active call(s) for run ${runId}`);
         }
         
         // Count active calls
