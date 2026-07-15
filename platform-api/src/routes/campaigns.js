@@ -65,23 +65,63 @@ function normalizeDialPrefix(value) {
 }
 
 /**
- * Send AMI command to Asterisk
+ * Send AMI command to Asterisk.
+ *
+ * options (used to track Async Originate results):
+ *   actionId            - AMI ActionID header; Asterisk echoes it on the OriginateResponse event.
+ *   onOriginateResponse - callback({ response, reason }) invoked when the OriginateResponse event
+ *                         for actionId arrives (Success/4 = answered, Failure/5 = busy, 3 = ring
+ *                         timeout, 0/8 = failure/congestion). If the event never arrives the
+ *                         callback is NOT invoked - callers must keep their own fallback.
+ *   originateResponseTimeoutMs - how long the socket stays open waiting for the event.
+ *                         Must exceed the Originate ring Timeout (30s).
  */
-function sendAMICommand(action, params = {}) {
+function sendAMICommand(action, params = {}, options = {}) {
+    const { actionId = null, onOriginateResponse = null, originateResponseTimeoutMs = 40000 } = options;
+    const waitForEvent = !!(actionId && onOriginateResponse);
     return new Promise((resolve, reject) => {
         const client = new net.Socket();
         let response = '';
         let loggedIn = false;
-        
+        let commandAcked = false;
+
         client.setTimeout(10000);
-        
+
         client.connect(AMI_PORT, AMI_HOST, () => {
             console.log('Connected to AMI');
         });
-        
+
+        // Scan buffered frames for the OriginateResponse event matching our ActionID.
+        const tryConsumeOriginateResponse = () => {
+            const frames = response.split('\r\n\r\n');
+            response = frames.pop(); // keep incomplete tail in the buffer
+            for (const frame of frames) {
+                if (frame.includes('Event: OriginateResponse') && frame.includes(`ActionID: ${actionId}`)) {
+                    const responseMatch = frame.match(/^Response:\s*(\S+)/m);
+                    const reasonMatch = frame.match(/^Reason:\s*(\d+)/m);
+                    client.end();
+                    try {
+                        onOriginateResponse({
+                            response: responseMatch ? responseMatch[1] : null,
+                            reason: reasonMatch ? parseInt(reasonMatch[1], 10) : null
+                        });
+                    } catch (err) {
+                        console.error('onOriginateResponse handler error:', err.message);
+                    }
+                    return;
+                }
+            }
+        };
+
         client.on('data', (data) => {
             response += data.toString();
-            
+
+            // Command acked; socket stays open only to catch our OriginateResponse event.
+            if (commandAcked) {
+                tryConsumeOriginateResponse();
+                return;
+            }
+
             // First, login
             if (!loggedIn && response.includes('Asterisk Call Manager')) {
                 const loginCmd = `Action: Login\r\nUsername: ${AMI_USER}\r\nSecret: ${AMI_SECRET}\r\n\r\n`;
@@ -92,6 +132,9 @@ function sendAMICommand(action, params = {}) {
             // After login success, send the actual command
             else if (loggedIn && response.includes('Response: Success') && !response.includes('Message: Originate')) {
                 let cmd = `Action: ${action}\r\n`;
+                if (actionId) {
+                    cmd += `ActionID: ${actionId}\r\n`;
+                }
                 for (const [key, value] of Object.entries(params)) {
                     cmd += `${key}: ${value}\r\n`;
                 }
@@ -101,10 +144,21 @@ function sendAMICommand(action, params = {}) {
             }
             // Check for final response
             else if (response.includes('Message: Originate') || response.includes('Response: Error')) {
-                client.end();
                 if (response.includes('Response: Error')) {
+                    client.end();
                     reject(new Error(response));
+                } else if (waitForEvent) {
+                    const ackResponse = response;
+                    commandAcked = true;
+                    // Instant failures can land in the same TCP read as the ack:
+                    // keep whatever followed the ack frame and scan it right away.
+                    const ackEnd = response.indexOf('\r\n\r\n', response.indexOf('Message: Originate'));
+                    response = ackEnd >= 0 ? response.slice(ackEnd + 4) : '';
+                    client.setTimeout(originateResponseTimeoutMs);
+                    resolve(ackResponse);
+                    tryConsumeOriginateResponse();
                 } else {
+                    client.end();
                     resolve(response);
                 }
             }
@@ -504,6 +558,70 @@ function finalizeContactAfterAttempt({
             }
         }
     }
+}
+
+/**
+ * Classify a call from its AMI OriginateResponse event (arrives when the callee
+ * answers, is busy, or the dial fails - before the call ever reaches the IVR engine).
+ * Answered calls are left alone: the engine callback owns them. The 45s
+ * no-engine-callback timer stays as the fallback when the event never arrives.
+ * Returns the final status written, or null when nothing was changed.
+ */
+function classifyOriginateResult({ callId, campaignId, runId, contactId, attemptNumber, maxAttempts, response, reason }) {
+    if (response === 'Success' || reason === 4) {
+        return null;
+    }
+
+    const currentCall = db.prepare('SELECT status FROM outbound_calls WHERE id = ?').get(callId);
+    if (!currentCall || !['queued', 'dialing', 'ringing'].includes(currentCall.status)) {
+        return null;
+    }
+
+    let finalStatus;
+    let hangupCause;
+    if (reason === 5) {
+        finalStatus = 'busy';
+        hangupCause = 'busy';
+    } else if (reason === 3) {
+        finalStatus = 'no_answer';
+        hangupCause = 'ring_timeout';
+    } else if (reason === 8) {
+        finalStatus = 'no_answer';
+        hangupCause = 'congestion';
+    } else {
+        finalStatus = 'no_answer';
+        hangupCause = 'originate_failed';
+    }
+
+    const resultPayload = buildAttemptResult({
+        outcome: finalStatus,
+        attemptNumber,
+        maxAttempts,
+        retryScheduled: attemptNumber < maxAttempts,
+        details: { source: 'originate_response', reason_code: reason, response }
+    });
+
+    db.prepare(`
+        UPDATE outbound_calls
+        SET status = ?,
+            end_time = CURRENT_TIMESTAMP,
+            duration = COALESCE(duration, 0),
+            hangup_cause = ?,
+            result = ?
+        WHERE id = ? AND status IN ('queued', 'dialing', 'ringing')
+    `).run(finalStatus, hangupCause, stringifyResult(resultPayload), callId);
+
+    finalizeContactAfterAttempt({
+        campaignId,
+        runId,
+        contactId,
+        attemptNumber,
+        maxAttempts,
+        finalStatus,
+        resultPayload
+    });
+
+    return finalStatus;
 }
 
 // List all campaigns for tenant
@@ -1529,6 +1647,27 @@ async function processCampaignContacts(campaignId, runId, options) {
                 Timeout: '30000',
                 Async: 'true',
                 Variable: `CAMPAIGN_ID=${campaignId},CONTACT_ID=${contact.id},OUTBOUND_CALL_ID=${callId}`
+            }, {
+                actionId: callId,
+                onOriginateResponse: (evt) => {
+                    try {
+                        const classified = classifyOriginateResult({
+                            callId,
+                            campaignId,
+                            runId,
+                            contactId: contact.id,
+                            attemptNumber,
+                            maxAttempts,
+                            response: evt.response,
+                            reason: evt.reason
+                        });
+                        if (classified) {
+                            console.log(`[Campaign ${campaignId}] Call ${callId} classified '${classified}' from OriginateResponse (reason ${evt.reason})`);
+                        }
+                    } catch (err) {
+                        console.error(`[Campaign ${campaignId}] Failed to classify OriginateResponse for ${callId}:`, err.message);
+                    }
+                }
             });
             
             // Update call status (use 'dialing' which is valid in CHECK constraint)
@@ -1617,3 +1756,5 @@ async function processCampaignContacts(campaignId, runId, options) {
 module.exports = router;
 module.exports.startCampaignInstance = startCampaignInstance;
 module.exports.getCampaignExecutionContext = getCampaignExecutionContext;
+module.exports.sendAMICommand = sendAMICommand;
+module.exports.classifyOriginateResult = classifyOriginateResult;
