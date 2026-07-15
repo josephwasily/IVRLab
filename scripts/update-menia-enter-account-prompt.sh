@@ -26,8 +26,11 @@ die()  { printf "${RED}[X]${NC}  %s\n" "$*" >&2; exit 1; }
 
 SRC="${1:-/opt/ivr-lab-src/new sounds 7}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/ivr-lab}"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+NODE_SCRIPT="$REPO_ROOT/platform-api/src/db/update-menia-enter-account-prompt.js"
 
 [ -d "$SRC" ] || die "Source folder not found: $SRC. Did you git pull?"
+[ -f "$NODE_SCRIPT" ] || die "Node script not found: $NODE_SCRIPT. Did you git pull?"
 
 cd "$INSTALL_DIR"
 
@@ -47,6 +50,10 @@ done
 shopt -u nullglob
 [ "$COPIED" -gt 0 ] || die "No files copied from $SRC"
 ok "Copied $COPIED file(s)"
+
+# The running image may predate this script — always ship the current copy in.
+log "Copying update script into container"
+docker compose cp "$NODE_SCRIPT" platform-api:/app/src/db/update-menia-enter-account-prompt.js
 
 log "Converting audio + updating prompt row + patching billing-inquiry-flow"
 docker compose exec -T platform-api node src/db/update-menia-enter-account-prompt.js
