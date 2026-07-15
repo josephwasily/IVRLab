@@ -98,7 +98,7 @@ PROMPTS_STAGING=$(mktemp -d)
 trap 'rm -rf "$PROMPTS_STAGING"' EXIT
 cp -a "$SOURCE_DIR/prompts/"* "$PROMPTS_STAGING/" 2>/dev/null || true
 rm -f "$PROMPTS_STAGING/Dockerfile"
-for DIR in "new sounds" "new sounds 2" "new sounds 3" "new sounds 4" "new sounds 5" "new sounds 6"; do
+for DIR in "new sounds" "new sounds 2" "new sounds 3" "new sounds 4" "new sounds 5" "new sounds 6" "new sounds 7"; do
     if [ -d "$SOURCE_DIR/$DIR" ]; then
         DEST="$PROMPTS_STAGING/$(echo "$DIR" | tr ' ' '-')"
         mkdir -p "$DEST"
