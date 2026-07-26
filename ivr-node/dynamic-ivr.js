@@ -5,6 +5,7 @@
 
 import ari from "ari-client";
 import fetch from "node-fetch";
+import { pathToFileURL } from "url";
 
 const ARI_URL = process.env.ARI_URL;
 const ARI_USER = process.env.ARI_USER;
@@ -14,6 +15,10 @@ const BALANCE_API_URL = process.env.BALANCE_API_URL || "http://balance-api:3000"
 
 // Default language
 const DEFAULT_LANGUAGE = process.env.IVR_LANGUAGE || "ar";
+
+// Upper bound on how long a collect waits for PlaybackFinished before giving
+// up on the prompt and ending the collect (lost-event safety net).
+const COLLECT_PLAYBACK_SAFETY_MS = parseInt(process.env.COLLECT_PLAYBACK_SAFETY_MS || '60000', 10);
 
 // Sound paths based on language
 const SOUND_PATHS = {
@@ -61,7 +66,7 @@ async function updateOutboundCallStatus(callId, data) {
   }
 }
 
-class DynamicFlowEngine {
+export class DynamicFlowEngine {
   constructor(client, channel, flowConfig) {
     this.client = client;
     this.channel = channel;
@@ -867,16 +872,29 @@ class DynamicFlowEngine {
       if (done) return;
       
       this.channel.on('ChannelDtmfReceived', onDtmf);
-      resetTimeout();
-      
-      // Play collect prompt while already listening for DTMF.
+
+      // Play collect prompt while already listening for DTMF. The digit
+      // timeout must not run while the prompt plays: it arms when playback
+      // ends (or immediately when nothing plays), and each digit re-arms it
+      // via onDtmf. While waiting for PlaybackFinished, a generous safety
+      // cap guards against the event being lost so the collect cannot hang.
       const shouldPlayPrompt = !!promptPath && !(bargeIn && digits.length > 0);
-      if (shouldPlayPrompt) {
+      if (!shouldPlayPrompt) {
+        resetTimeout();
+      } else {
+        timeoutHandle = setTimeout(() => {
+          finish();
+        }, Math.max(COLLECT_PLAYBACK_SAFETY_MS, timeout * 1000));
         this.channel.play({ media: `sound:${promptPath}` }, (err, pb) => {
-          if (err || done) return;
+          if (done) return;
+          if (err) {
+            resetTimeout();
+            return;
+          }
           playback = pb;
           onPlaybackFinished = () => {
             playback = null;
+            resetTimeout();
           };
           pb.on('PlaybackFinished', onPlaybackFinished);
           
@@ -1169,7 +1187,12 @@ async function main() {
   }
 }
 
-main().catch(err => {
-  console.error("Fatal:", err);
-  process.exit(1);
-});
+// Only start the engine when run directly (node dynamic-ivr.js), not when
+// imported by tests.
+const runAsMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (runAsMain) {
+  main().catch(err => {
+    console.error("Fatal:", err);
+    process.exit(1);
+  });
+}
