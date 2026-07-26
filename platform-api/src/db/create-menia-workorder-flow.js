@@ -157,14 +157,14 @@ const flowData = {
         enter_order: {
             id: 'enter_order', type: 'collect', label: 'Work Order Number',
             prompt: 'menia_wo_welcome_enter_order', variable: 'work_order_number',
-            maxDigits: 10, timeout: 10, terminators: '#',
+            maxDigits: 10, timeout: 15, terminators: '#',
             reportLabelAr: 'رقم أمر الشغل', reportLabelEn: 'Work Order Number',
             next: 'region', onTimeout: 'region', onEmpty: 'region'
         },
         region: {
             id: 'region', type: 'collect', label: 'Region (1 north / 2 south)',
             prompt: 'menia_wo_region_menu', variable: 'region',
-            maxDigits: 1, timeout: 10, validDigits: '12',
+            maxDigits: 1, timeout: 15, validDigits: '12',
             reportLabelAr: 'المنطقة', reportLabelEn: 'Region',
             next: 'set_region_name', onTimeout: 'thanks', onEmpty: 'thanks'
         },
@@ -183,7 +183,7 @@ const flowData = {
         centers_north: {
             id: 'centers_north', type: 'collect', label: 'North Centers (1-5)',
             prompt: 'menia_wo_centers_north', variable: 'center',
-            maxDigits: 1, timeout: 10, validDigits: '12345',
+            maxDigits: 1, timeout: 30, validDigits: '12345',
             reportLabelAr: 'المركز', reportLabelEn: 'Center',
             next: 'set_center_north', onTimeout: 'status', onEmpty: 'status'
         },
@@ -196,7 +196,7 @@ const flowData = {
         centers_south: {
             id: 'centers_south', type: 'collect', label: 'South Centers (1-4)',
             prompt: 'menia_wo_centers_south', variable: 'center',
-            maxDigits: 1, timeout: 10, validDigits: '1234',
+            maxDigits: 1, timeout: 25, validDigits: '1234',
             reportLabelAr: 'المركز', reportLabelEn: 'Center',
             next: 'set_center_south', onTimeout: 'status', onEmpty: 'status'
         },
@@ -209,7 +209,7 @@ const flowData = {
         status: {
             id: 'status', type: 'collect', label: 'Problem Status (1/2/3)',
             prompt: 'menia_wo_status', variable: 'status_digit',
-            maxDigits: 1, timeout: 10, validDigits: '123',
+            maxDigits: 1, timeout: 15, validDigits: '123',
             reportLabelAr: 'حالة المشكلة', reportLabelEn: 'Problem Status',
             next: 'set_status_name', onTimeout: 'thanks', onEmpty: 'thanks'
         },
