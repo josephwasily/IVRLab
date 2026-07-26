@@ -235,21 +235,27 @@ const flowData = {
 
 // -------- 3. Upsert extension + flow ----------------------------------------
 
-const existsExt = db.prepare('SELECT extension FROM extensions WHERE extension = ?').get(EXTENSION);
+// Match by fixed id OR by tenant+name, so a flow already created through the
+// portal/API (auto-assigned uuid + extension) is updated instead of duplicated.
+const existingFlow = db.prepare('SELECT id, extension FROM ivr_flows WHERE id = ?').get(FLOW_ID)
+    || db.prepare("SELECT id, extension FROM ivr_flows WHERE tenant_id = ? AND name = ? AND status != 'archived'")
+        .get(tenantId, FLOW_NAME);
+
+const targetExt = existingFlow?.extension || EXTENSION;
+const existsExt = db.prepare('SELECT extension FROM extensions WHERE extension = ?').get(targetExt);
 if (!existsExt) {
-    db.prepare("INSERT INTO extensions (extension, status) VALUES (?, 'available')").run(EXTENSION);
-    console.log(`  created extension ${EXTENSION}`);
+    db.prepare("INSERT INTO extensions (extension, status) VALUES (?, 'available')").run(targetExt);
+    console.log(`  created extension ${targetExt}`);
 }
 
-const existingFlow = db.prepare('SELECT id FROM ivr_flows WHERE id = ?').get(FLOW_ID);
 if (existingFlow) {
     db.prepare(`
         UPDATE ivr_flows
         SET name = ?, description = ?, extension = ?, language = 'ar',
             flow_data = ?, status = 'active', updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-    `).run(FLOW_NAME, FLOW_DESCRIPTION, EXTENSION, JSON.stringify(flowData), FLOW_ID);
-    console.log(`  ↻ flow updated: ${FLOW_ID} (ext ${EXTENSION})`);
+    `).run(FLOW_NAME, FLOW_DESCRIPTION, targetExt, JSON.stringify(flowData), existingFlow.id);
+    console.log(`  ↻ flow updated: ${existingFlow.id} (ext ${targetExt})`);
 } else {
     db.prepare(`
         INSERT INTO ivr_flows
