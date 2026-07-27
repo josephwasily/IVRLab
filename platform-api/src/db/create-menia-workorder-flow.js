@@ -3,10 +3,11 @@
  *
  * Call path (ext 2032, inbound):
  *   1. welcome + collect work_order_number (up to 10 digits, # to finish)
- *   2. region menu: 1 = north / 2 = south
- *   3. center menu (north: 5 centers, south: 4 centers)
- *   4. problem status: 1 solved / 2 pending / 3 not found
- *   5. thanks (reuses menia_s1_thanks from the surveys) -> hangup
+ *   2. read the number back (play_digits) + confirm: 1 = continue, 2 = re-enter
+ *   3. region menu: 1 = north / 2 = center / 3 = south
+ *   4. center menu (north: 5 centers, center: Menia city, south: 3 centers)
+ *   5. problem status: 1 solved / 2 pending / 3 not found
+ *   6. thanks (reuses menia_s1_thanks from the surveys) -> hangup
  *
  * Region/center/status digits are mapped to Arabic names via set_variable
  * nodes so reports show the actual Minya center names, and the collect
@@ -45,11 +46,14 @@ const sourceDir = process.argv[2] || path.join(PROMPTS_DIR, AUDIO_SUBDIR);
 // Recordings matched by leading filename pattern so the awkward original
 // names (spaces, apostrophes) don't have to be reproduced exactly.
 const RECORDINGS = [
-    { match: /^1/i,          name: 'menia_wo_welcome_enter_order', description: 'Menia WO: welcome + enter work order number' },
-    { match: /^2/i,          name: 'menia_wo_region_menu',         description: 'Menia WO: region menu (1 north / 2 south)' },
-    { match: /^3.*if 1/i,    name: 'menia_wo_centers_north',       description: 'Menia WO: north centers menu (1-5)' },
-    { match: /^3.*if 2/i,    name: 'menia_wo_centers_south',       description: 'Menia WO: south centers menu (1-4)' },
-    { match: /^4/i,          name: 'menia_wo_status',              description: 'Menia WO: problem status (1 solved / 2 pending / 3 not found)' },
+    { match: /^1/i,                        name: 'menia_wo_welcome_enter_order', description: 'Menia WO: welcome + enter work order number' },
+    { match: /number you have entered/i,   name: 'menia_wo_number_entered',      description: 'Menia WO: the number you entered is' },
+    { match: /confirm/i,                   name: 'menia_wo_confirm',             description: 'Menia WO: press 1 to confirm, 2 to re-enter' },
+    { match: /^for north/i,                name: 'menia_wo_region_menu',         description: 'Menia WO: region menu (1 north / 2 center / 3 south)' },
+    { match: /^3.*if 1/i,                  name: 'menia_wo_centers_north',       description: 'Menia WO: north centers menu (1-5)' },
+    { match: /^for center/i,               name: 'menia_wo_centers_center',      description: 'Menia WO: center region menu (1 = Menia city)' },
+    { match: /^for south/i,                name: 'menia_wo_centers_south',       description: 'Menia WO: south centers menu (1-3)' },
+    { match: /^4/i,                        name: 'menia_wo_status',              description: 'Menia WO: problem status (1 solved / 2 pending / 3 not found)' },
 ];
 
 function die(msg) {
@@ -148,7 +152,7 @@ for (const rec of resolved) {
 // -------- 2. Build the flow -------------------------------------------------
 
 const NORTH_CENTERS = ['سمالوط', 'مطاي', 'بني مزار', 'مغاغة', 'العدوة'];
-const SOUTH_CENTERS = ['المنيا', 'أبو قرقاص', 'ملوي', 'دير مواس'];
+const SOUTH_CENTERS = ['أبو قرقاص', 'ملوي', 'دير مواس'];
 const STATUS_NAMES = { 1: 'تم حل المشكلة', 2: 'جاري العمل', 3: 'لم يتم العثور على المشكلة' };
 
 const flowData = {
@@ -159,25 +163,44 @@ const flowData = {
             prompt: 'menia_wo_welcome_enter_order', variable: 'work_order_number',
             maxDigits: 10, timeout: 10, terminators: '#',
             reportLabelAr: 'رقم أمر الشغل', reportLabelEn: 'Work Order Number',
-            next: 'region', onTimeout: 'region', onEmpty: 'region'
+            maxRetries: 3, onMaxRetries: 'thanks',
+            next: 'readback'
+        },
+        readback: {
+            id: 'readback', type: 'play_digits', label: 'Read Back Number',
+            prefix: 'menia_wo_number_entered', variable: 'work_order_number',
+            next: 'ask_confirm'
+        },
+        ask_confirm: {
+            id: 'ask_confirm', type: 'collect', label: 'Confirm (1) / Re-enter (2)',
+            prompt: 'menia_wo_confirm', variable: 'confirm',
+            maxDigits: 1, timeout: 10, validDigits: '12',
+            maxRetries: 3, onMaxRetries: 'thanks',
+            next: 'branch_confirm'
+        },
+        branch_confirm: {
+            id: 'branch_confirm', type: 'branch', label: 'Confirm Decision',
+            variable: 'confirm',
+            branches: { '1': 'region', '2': 'enter_order' },
+            default: 'ask_confirm'
         },
         region: {
-            id: 'region', type: 'collect', label: 'Region (1 north / 2 south)',
+            id: 'region', type: 'collect', label: 'Region (1 north / 2 center / 3 south)',
             prompt: 'menia_wo_region_menu', variable: 'region',
-            maxDigits: 1, timeout: 10, validDigits: '12',
+            maxDigits: 1, timeout: 10, validDigits: '123',
             reportLabelAr: 'المنطقة', reportLabelEn: 'Region',
             next: 'set_region_name', onTimeout: 'thanks', onEmpty: 'thanks'
         },
         set_region_name: {
             id: 'set_region_name', type: 'set_variable', label: 'Region Name',
             variable: 'region_name',
-            expression: "vars.region === '1' ? 'شمال' : vars.region === '2' ? 'جنوب' : ''",
+            expression: "vars.region === '1' ? 'الشمال' : vars.region === '2' ? 'الوسط' : vars.region === '3' ? 'الجنوب' : ''",
             next: 'branch_region'
         },
         branch_region: {
             id: 'branch_region', type: 'branch', label: 'Region Branch',
             variable: 'region',
-            branches: { '1': 'centers_north', '2': 'centers_south' },
+            branches: { '1': 'centers_north', '2': 'centers_center', '3': 'centers_south' },
             default: 'thanks'
         },
         centers_north: {
@@ -193,10 +216,23 @@ const flowData = {
             expression: `${JSON.stringify(NORTH_CENTERS)}[Number(vars.center) - 1] || ''`,
             next: 'status'
         },
+        centers_center: {
+            id: 'centers_center', type: 'collect', label: 'Center Region (1 = Menia city)',
+            prompt: 'menia_wo_centers_center', variable: 'center',
+            maxDigits: 1, timeout: 10, validDigits: '1',
+            reportLabelAr: 'المركز', reportLabelEn: 'Center',
+            next: 'set_center_center', onTimeout: 'status', onEmpty: 'status'
+        },
+        set_center_center: {
+            id: 'set_center_center', type: 'set_variable', label: 'Center Name (center)',
+            variable: 'center_name',
+            expression: "vars.center === '1' ? 'مركز المنيا' : ''",
+            next: 'status'
+        },
         centers_south: {
-            id: 'centers_south', type: 'collect', label: 'South Centers (1-4)',
+            id: 'centers_south', type: 'collect', label: 'South Centers (1-3)',
             prompt: 'menia_wo_centers_south', variable: 'center',
-            maxDigits: 1, timeout: 10, validDigits: '1234',
+            maxDigits: 1, timeout: 10, validDigits: '123',
             reportLabelAr: 'المركز', reportLabelEn: 'Center',
             next: 'set_center_south', onTimeout: 'status', onEmpty: 'status'
         },
