@@ -19,10 +19,13 @@ const statusConfig = {
   no_answer: { color: 'orange', icon: PhoneMissed, label: 'No Answer' },
   failed: { color: 'red', icon: XCircle, label: 'Failed' },
   cancelled: { color: 'gray', icon: AlertTriangle, label: 'Cancelled' },
-  abrupt_end: { color: 'rose', icon: AlertTriangle, label: 'Aborted After Answer' }
+  abrupt_end: { color: 'rose', icon: AlertTriangle, label: 'Aborted After Answer' },
+  captured_then_hangup: { color: 'emerald', icon: CheckCircle, label: 'Completed (Hung Up At Thanks)' }
 }
 
-const filterStatusOptions = Object.entries(statusConfig).filter(([status]) => status !== 'abrupt_end')
+// Synthetic statuses derived from hangup_cause — not real values to filter on.
+const derivedStatuses = ['abrupt_end', 'captured_then_hangup']
+const filterStatusOptions = Object.entries(statusConfig).filter(([status]) => !derivedStatuses.includes(status))
 
 export default function OutboundCalls() {
   const { user } = useAuth()
@@ -244,7 +247,9 @@ export default function OutboundCalls() {
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white">
               {calls.map((call) => {
-                const displayStatus = call.status === 'failed' && call.hangup_cause === 'caller_hangup_early' ? 'abrupt_end' : call.status
+                const displayStatus = call.status === 'failed' && call.hangup_cause === 'caller_hangup_early'
+                  ? 'abrupt_end'
+                  : (call.status === 'completed' && call.hangup_cause === 'captured_then_hangup' ? 'captured_then_hangup' : call.status)
                 const config = statusConfig[displayStatus] || statusConfig.queued
                 const StatusIcon = config.icon
                 const attemptInfo = getAttemptInfo(call)

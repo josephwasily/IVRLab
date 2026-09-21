@@ -20,6 +20,18 @@ const DEFAULT_LANGUAGE = process.env.IVR_LANGUAGE || "ar";
 // up on the prompt and ending the collect (lost-event safety net).
 const COLLECT_PLAYBACK_SAFETY_MS = parseInt(process.env.COLLECT_PLAYBACK_SAFETY_MS || '60000', 10);
 
+// Caller hung up after every question had been answered. The flow never
+// reached its hangup node, but no data is missing, so the call counts as a
+// completed survey rather than an abort.
+const CAPTURED_THEN_HANGUP = "captured_then_hangup";
+
+// Flow outcomes that mean "the caller got through the flow" for reporting.
+const COMPLETED_FLOW_STATUSES = new Set([
+  "flow_completed",
+  "flow_ended",
+  CAPTURED_THEN_HANGUP
+]);
+
 // Sound paths based on language
 const SOUND_PATHS = {
   en: { prompts: "custom", digits: "digits" },
@@ -147,7 +159,7 @@ export class DynamicFlowEngine {
     } catch (error) {
       this.log('Flow execution error', { error: error.message });
       if (error?.message === 'Channel gone') {
-        this.finalStatus = 'caller_hangup_early';
+        this.finalStatus = this.resolveHangupStatus();
       } else {
         this.finalStatus = 'error';
         await this.hangup();
@@ -215,7 +227,7 @@ export class DynamicFlowEngine {
     } catch (error) {
       this.log(`Node error`, { nodeId, error: error.message });
       if (error?.message === 'Channel gone') {
-        this.finalStatus = 'caller_hangup_early';
+        this.finalStatus = this.resolveHangupStatus(nodeId);
         return;
       }
       if (node.onError) {
@@ -930,6 +942,78 @@ export class DynamicFlowEngine {
     return normalized;
   }
   
+  /**
+   * Collect nodes still ahead of the caller that have no captured value.
+   * Walks every outgoing edge (next, branch targets, and the timeout/retry
+   * handlers) from `fromNodeId` inclusive, so a branching flow only counts
+   * the questions on paths the caller could still have reached.
+   */
+  getPendingCollectNodes(fromNodeId) {
+    const nodes = (this.flow && this.flow.nodes) || {};
+    const pending = [];
+    const visited = new Set();
+    const queue = [fromNodeId];
+    
+    while (queue.length > 0) {
+      const nodeId = queue.shift();
+      if (!nodeId || visited.has(nodeId)) continue;
+      visited.add(nodeId);
+      
+      const node = nodes[nodeId];
+      if (!node) continue;
+      
+      if (node.type === 'collect') {
+        const variable = node.variable
+          || (node.id && node.id.includes('account') ? 'account_number' : null);
+        const value = variable ? this.variables[variable] : undefined;
+        if (value === undefined || value === null || value === '') {
+          pending.push(nodeId);
+        }
+      }
+      
+      const targets = [
+        node.next, node.onTimeout, node.onEmpty, node.onInvalid,
+        node.onError, node.onMaxRetries, node.default
+      ];
+      if (node.branches && typeof node.branches === 'object') {
+        targets.push(...Object.values(node.branches));
+      }
+      for (const target of targets) {
+        if (target) queue.push(target);
+      }
+    }
+    
+    return pending;
+  }
+  
+  /**
+   * Classify a mid-flow hangup. Survey callers routinely hang up the moment
+   * they press the last digit, before the thank-you prompt finishes — every
+   * answer is already stored, so that is a completed survey, not an abort.
+   */
+  resolveHangupStatus(nodeId = this.currentNode?.id) {
+    if (this.dtmfInputs.length === 0) return 'caller_hangup_early';
+    // Unknown position in the flow — cannot prove the data is complete.
+    if (!nodeId || !(this.flow?.nodes || {})[nodeId]) return 'caller_hangup_early';
+    
+    const pending = this.getPendingCollectNodes(nodeId);
+    if (pending.length > 0) {
+      this.log('Caller hung up with questions still pending', {
+        nodeId,
+        pending,
+        captured: this.dtmfInputs.length
+      });
+      return 'caller_hangup_early';
+    }
+    
+    this.log('Caller hung up after all data was captured', {
+      nodeId,
+      captured: this.dtmfInputs.length
+    });
+    this.completedFlow = true;
+    return CAPTURED_THEN_HANGUP;
+  }
+  
   getSummary() {
     return {
       ivrId: this.ivrId,
@@ -950,7 +1034,7 @@ export class DynamicFlowEngine {
   
   async logCallToAPI() {
     const summary = this.getSummary();
-    const analyticsStatus = (summary.finalStatus === 'flow_completed' || summary.finalStatus === 'flow_ended')
+    const analyticsStatus = COMPLETED_FLOW_STATUSES.has(summary.finalStatus)
       ? 'completed'
       : 'failed';
     try {
@@ -1147,7 +1231,7 @@ async function main() {
       if (outboundCallId) {
         const duration = Math.round((Date.now() - startTime) / 1000);
         const flowFinalStatus = ivrResult?.finalStatus || 'error';
-        const outboundStatus = (flowFinalStatus === 'flow_completed' || flowFinalStatus === 'flow_ended')
+        const outboundStatus = COMPLETED_FLOW_STATUSES.has(flowFinalStatus)
           ? 'completed'
           : 'failed';
         const callOutcome = outboundStatus === 'completed'
