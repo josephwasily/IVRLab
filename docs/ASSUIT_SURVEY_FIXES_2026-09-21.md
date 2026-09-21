@@ -335,6 +335,18 @@ Run it by hand any time with `sudo /opt/ivr-lab-src/scripts/auto-update.sh`.
   `seed-ivr-flows.js`, `seed-new-sounds-2-template.js`, `update-billing-flow*.js`). They
   only affect demo and template data, and `retune-collect-timeouts.js` corrects whatever
   reaches the database, but they are worth cleaning up when next touched.
+- **Untracking `asterisk/log/` broke its bind mount until Asterisk is recreated.**
+  Docker resolves a bind mount to the directory's inode at container start. Git deleted and
+  recreated `asterisk/log/` when the files left the index, so the running Asterisk is still
+  mounted on the old, now-orphaned directory and writes its log where nothing can read it.
+  Calls, SIP and ARI are unaffected — only the log trail. It is repaired by recreating the
+  container, which is safe here: the image is unchanged, the trunk is IP-identified with no
+  registrations to lose, and it takes a few seconds.
+  ```bash
+  docker compose -p ivr-lab up -d --force-recreate asterisk
+  ```
+  Now that the directory is gitignored this cannot recur. The same trap applies to any
+  bind-mounted path that git or a script replaces wholesale rather than editing in place.
 - **`asterisk/pjsip.conf` carries a site-specific IP** as a local modification, so the
   auto-update job will skip if upstream ever edits that file. Generating it from `.env`
   (as `update-ip.sh` does) would remove the conflict.
