@@ -77,7 +77,7 @@ async function runCollect(digitsToPress) {
 
 // T2 — THE BUG: a key outside validDigits must not become the answer.
 {
-  const e = await runCollect(['7', '7']);
+  const e = await runCollect(['7', '7', '7']);
   check('out-of-range digit not stored', e.variables.ans, undefined);
   check('  -> no dtmf recorded as an answer', e.dtmfInputs.length, 0);
 }
@@ -90,11 +90,53 @@ async function runCollect(digitsToPress) {
 
 // T4 — a caller leaning on a wrong key must not loop forever.
 {
-  const e = await runCollect(['8', '8', '8', '8', '8']);
+  const e = await runCollect(['8', '8', '8', '8', '8', '8', '8']);
   check('stuck wrong key terminates', e.variables.ans, undefined);
   const visits = e.nodeHistory.filter(n => n === 'q').length;
-  if (visits <= 3) console.log(`pass retry cap honoured (${visits} visits)`);
-  else { failures++; console.log(`FAIL retry cap: ${visits} visits to q`); }
+  if (visits <= 3) console.log(`pass attempt cap honoured (${visits} visits)`);
+  else { failures++; console.log(`FAIL attempt cap: ${visits} visits to q`); }
+}
+
+// T4b — silence must RE-ASK the question, not skip it. Three attempts, then
+// the flow follows onEmpty. (Before this, the first silence skipped straight
+// to the next question, which is how survey answers went missing.)
+{
+  const e = await runCollect([]);
+  const visits = e.nodeHistory.filter(n => n === 'q').length;
+  check('silence re-asks then gives up', visits, 3);
+  check('  -> reached onEmpty target', e.nodeHistory.includes('done'), true);
+  check('  -> nothing stored', e.variables.ans, undefined);
+}
+
+// T4c — a node may opt out of re-asking with maxAttempts: 1.
+{
+  const once = JSON.parse(JSON.stringify(flow));
+  once.nodes.q.maxAttempts = 1;
+  const ch = makeChannel();
+  const engine = new DynamicFlowEngine({}, ch, {
+    id: 't', name: 'test', extension: '9999', flow: once, promptCache: {}
+  });
+  engine.hangup = async () => {};
+  await engine.executeNode('q');
+  check('maxAttempts:1 skips immediately', engine.nodeHistory.filter(n => n === 'q').length, 1);
+}
+
+// T4d — a short retryPrompt replaces the full question on re-asks.
+{
+  const withRetry = JSON.parse(JSON.stringify(flow));
+  withRetry.nodes.q.prompt = 'long_question';
+  withRetry.nodes.q.retryPrompt = 'short_reask';
+  const ch = makeChannel();
+  const played = [];
+  const origPlay = ch.play;
+  ch.play = (opts, cb) => { played.push(opts.media); return origPlay(opts, cb); };
+  const engine = new DynamicFlowEngine({}, ch, {
+    id: 't', name: 'test', extension: '9999', flow: withRetry, promptCache: {}
+  });
+  engine.hangup = async () => {};
+  await engine.executeNode('q');
+  check('first ask uses the question', played[0], 'sound:ar/long_question');
+  check('re-asks use the short prompt', played.slice(1), ['sound:ar/short_reask', 'sound:ar/short_reask']);
 }
 
 // T5 — no validDigits declared: any digit is accepted, as before.

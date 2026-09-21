@@ -232,6 +232,39 @@ retry is capped (`COLLECT_INVALID_RETRIES`, default 2) so a caller leaning on a
 wrong key cannot loop the node forever when the flow declares no `maxRetries`.
 A node with no `validDigits` accepts anything, exactly as before.
 
+### Silence re-asks the question instead of skipping it
+
+The Assuit flows wired `onEmpty` and `onTimeout` straight to the *next*
+question, so the first silence skipped the question outright — no reprompt, no
+second chance. That is the single biggest reason answers went missing: combined
+with the timeout bug, a caller who hesitated simply lost the question.
+
+Every mainstream IVR re-asks instead. VoiceXML models it as `noinput` /
+`nomatch` events with `catch count="3"`: ask, re-ask, re-ask, then give up and
+escalate. The engine now does the same.
+
+- `COLLECT_MAX_ATTEMPTS` (default **3**) governs how many times a question is
+  asked before the flow follows its handler. Silence and a rejected key share
+  one budget, as on the platforms that treat `noinput` and `nomatch` together.
+- `onEmpty` / `onTimeout` / `onInvalid` are now the **giving-up** path, reached
+  only once the attempts are spent — not the first-silence path.
+- A node can opt out with `maxAttempts: 1`, restoring the old skip-immediately
+  behaviour where a flow genuinely wants it (a menu where silence means
+  "no selection", for instance).
+- A node may set `retryPrompt` to a short re-ask ("press 1 for yes, 2 for no")
+  so a re-ask does not replay the entire question. Without one, the full
+  question is replayed.
+
+The flows that already had their own retry nodes (ext 2020's `q1_retry`, ext
+2001/2010's `invalid_input`) keep working — those handlers now fire after the
+attempts are used rather than on the first silence.
+
+> **Tune this for long prompts.** The Assuit questions run 8–12 seconds, so
+> three attempts plus three 5-second waits is ~50 seconds spent on a caller
+> who is not answering. `COLLECT_MAX_ATTEMPTS=2`, or `maxAttempts: 2` on the
+> survey nodes, is likely the better trade for these flows. Recording short
+> `retryPrompt` audio would help more.
+
 ### One wait per digit-count, not one wait for everything
 
 Every generated flow baked `timeout: 10` into each collect node. That is one
@@ -260,7 +293,7 @@ explicitly keeps working. The flow generators no longer bake in a flat value;
 `platform-api/src/db/retune-collect-timeouts.js` strips it from flows already in
 the database (dry run by default, `--keep <nodeId>` to preserve one).
 
-Covered by `ivr-node/test-collect-validation.js` (10 assertions).
+Covered by `ivr-node/test-collect-validation.js` (16 assertions).
 
 ---
 

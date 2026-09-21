@@ -32,9 +32,12 @@ const COLLECT_PLAYBACK_SAFETY_MS = parseInt(process.env.COLLECT_PLAYBACK_SAFETY_
 // The effective budget therefore scales with how much the caller has to
 // enter -- first + (maxDigits - 1) x inter -- instead of granting a single
 // digit the same window as a 9-digit account number.
-// How many times a caller may press a key the question does not accept
-// before the flow moves on, when the node itself sets no maxRetries.
-const DEFAULT_INVALID_RETRIES = parseInt(process.env.COLLECT_INVALID_RETRIES || '2', 10);
+// How many times a question is asked before the flow gives up on an answer
+// and follows its onEmpty / onTimeout / onInvalid handler. Three total tries
+// is the long-standing IVR convention (VoiceXML catch count="3"): ask, re-ask,
+// re-ask, then move on. Silence and a rejected key are counted together,
+// matching the platforms that treat noinput and nomatch as one budget.
+const COLLECT_MAX_ATTEMPTS = parseInt(process.env.COLLECT_MAX_ATTEMPTS || '3', 10);
 
 const COLLECT_FIRST_DIGIT_TIMEOUT = parseInt(process.env.COLLECT_FIRST_DIGIT_TIMEOUT || '5', 10);
 const COLLECT_INTER_DIGIT_TIMEOUT = parseInt(process.env.COLLECT_INTER_DIGIT_TIMEOUT || '3', 10);
@@ -373,6 +376,11 @@ export class DynamicFlowEngine {
   
   async handleCollect(node) {
     try {
+      // On a re-ask, prefer a short retryPrompt ("press 1 for yes, 2 for no")
+      // when the flow provides one, instead of replaying the full question.
+      const attemptsSoFar = this.retryCount[node.id] || 0;
+      const promptName = (attemptsSoFar > 0 && node.retryPrompt) ? node.retryPrompt : node.prompt;
+      
       const digits = await this.collectDigits({
         maxDigits: node.maxDigits || 10,
         // node.timeout stays the first-digit wait for backwards compatibility.
@@ -382,7 +390,7 @@ export class DynamicFlowEngine {
         // Collect nodes are interruptible by default: first DTMF stops
         // the current prompt so callers can proceed immediately.
         bargeIn: node.bargeIn !== false,
-        promptPath: node.prompt ? this.getPromptPath(node.prompt) : null
+        promptPath: promptName ? this.getPromptPath(promptName) : null
       });
       
       const minDigits = Number.isInteger(node.minDigits) ? node.minDigits : 1;
@@ -405,38 +413,41 @@ export class DynamicFlowEngine {
           return this.hangup();
         }
 
+        // Silence or a rejected key means the caller has not answered yet —
+        // ask again rather than moving on, which is what every mainstream IVR
+        // does and what a caller expects. The handlers below are the giving-up
+        // path, reached only once the attempts are spent.
+        const maxAttempts = Number.isInteger(node.maxAttempts)
+          ? node.maxAttempts
+          : COLLECT_MAX_ATTEMPTS;
+        const reason = isEmpty ? 'no_input' : (isTooShort ? 'too_short' : 'out_of_range');
+        
+        if (this.retryCount[node.id] < maxAttempts) {
+          this.log('No usable answer, re-asking question', {
+            nodeId: node.id,
+            attempt: this.retryCount[node.id] + 1,
+            of: maxAttempts,
+            reason,
+            got: digits || ''
+          });
+          return this.executeNode(node.id);
+        }
+        
+        this.log('Attempts exhausted, following handler', {
+          nodeId: node.id,
+          attempts: this.retryCount[node.id],
+          reason
+        });
+        
         if (isEmpty && node.onEmpty) return this.executeNode(node.onEmpty);
         if (isEmpty && node.onTimeout) return this.executeNode(node.onTimeout);
         if ((isTooShort || isOutOfRange) && node.onInvalid) return this.executeNode(node.onInvalid);
-        
-        // A mis-press is not silence: re-ask the question so the caller gets
-        // another go, but cap it so a caller leaning on a wrong key cannot
-        // loop the node forever when the flow declares no maxRetries.
-        if (isOutOfRange && maxRetries === null
-            && this.retryCount[node.id] >= DEFAULT_INVALID_RETRIES) {
-          this.log('Collect out-of-range retries exhausted, advancing', {
-            nodeId: node.id,
-            got: digits,
-            validDigits
-          });
-          if (node.onEmpty) return this.executeNode(node.onEmpty);
-          if (node.onTimeout) return this.executeNode(node.onTimeout);
-          if (node.next) return this.executeNode(node.next);
-          return this.hangup();
-        }
-        
-        // Default safe behavior: do not advance on empty input.
-        // Retry the same collect node unless maxRetries is reached.
-        
-        this.log('Collect input invalid, retrying same node', {
-          nodeId: node.id,
-          retries: this.retryCount[node.id],
-          reason: isEmpty ? 'empty' : (isTooShort ? 'too_short' : 'out_of_range'),
-          minDigits,
-          validDigits,
-          got: digits?.length || 0
-        });
-        return this.executeNode(node.id);
+        // No dedicated handler: fall through the flow rather than stranding
+        // the caller on a question they are evidently not going to answer.
+        if (node.onEmpty) return this.executeNode(node.onEmpty);
+        if (node.onTimeout) return this.executeNode(node.onTimeout);
+        if (node.next) return this.executeNode(node.next);
+        return this.hangup();
       }
       
       // Reset retry counter on successful input.
