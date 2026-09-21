@@ -198,7 +198,7 @@ for (const survey of manifest.surveys) {
             prompt: q.name,
             variable: q.variable,
             maxDigits: 1,
-            timeout: 10,
+            // No flat timeout: the engine derives the wait from maxDigits.
             validDigits: q.validDigits || '12345',
             reportLabelAr: q.reportLabelAr || '',
             reportLabelEn: q.reportLabelEn || '',

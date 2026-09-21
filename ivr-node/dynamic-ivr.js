@@ -20,6 +20,25 @@ const DEFAULT_LANGUAGE = process.env.IVR_LANGUAGE || "ar";
 // up on the prompt and ending the collect (lost-event safety net).
 const COLLECT_PLAYBACK_SAFETY_MS = parseInt(process.env.COLLECT_PLAYBACK_SAFETY_MS || '60000', 10);
 
+// DTMF collection is governed by two separate waits, as every VoiceXML
+// platform does it, rather than one flat per-node timeout:
+//
+//   first digit  — how long to wait for the caller to start answering once
+//                  the prompt has finished. VoiceXML `timeout`, default 5s.
+//   inter-digit  — how long to wait between digits of a longer entry, so an
+//                  account number can be typed with pauses. VoiceXML
+//                  `interdigittimeout`, default 3s.
+//
+// The effective budget therefore scales with how much the caller has to
+// enter -- first + (maxDigits - 1) x inter -- instead of granting a single
+// digit the same window as a 9-digit account number.
+// How many times a caller may press a key the question does not accept
+// before the flow moves on, when the node itself sets no maxRetries.
+const DEFAULT_INVALID_RETRIES = parseInt(process.env.COLLECT_INVALID_RETRIES || '2', 10);
+
+const COLLECT_FIRST_DIGIT_TIMEOUT = parseInt(process.env.COLLECT_FIRST_DIGIT_TIMEOUT || '5', 10);
+const COLLECT_INTER_DIGIT_TIMEOUT = parseInt(process.env.COLLECT_INTER_DIGIT_TIMEOUT || '3', 10);
+
 // Caller hung up after every question had been answered. The flow never
 // reached its hangup node, but no data is missing, so the call counts as a
 // completed survey rather than an abort.
@@ -356,7 +375,9 @@ export class DynamicFlowEngine {
     try {
       const digits = await this.collectDigits({
         maxDigits: node.maxDigits || 10,
-        timeout: node.timeout || 10,
+        // node.timeout stays the first-digit wait for backwards compatibility.
+        timeout: node.timeout || COLLECT_FIRST_DIGIT_TIMEOUT,
+        interDigitTimeout: node.interDigitTimeout || COLLECT_INTER_DIGIT_TIMEOUT,
         terminators: node.terminators || '#',
         // Collect nodes are interruptible by default: first DTMF stops
         // the current prompt so callers can proceed immediately.
@@ -367,8 +388,16 @@ export class DynamicFlowEngine {
       const minDigits = Number.isInteger(node.minDigits) ? node.minDigits : 1;
       const isEmpty = !digits || digits.length === 0;
       const isTooShort = !isEmpty && digits.length < minDigits;
+      // validDigits lists the keys this question accepts (e.g. "12" for a
+      // yes/no, "12345" for a 1-5 rating). Anything else is a mis-press and
+      // must not be stored as an answer.
+      const validDigits = typeof node.validDigits === 'string' && node.validDigits.length > 0
+        ? node.validDigits
+        : null;
+      const isOutOfRange = !isEmpty && !isTooShort && validDigits !== null
+        && !digits.split('').every(d => validDigits.includes(d));
       
-      if (isEmpty || isTooShort) {
+      if (isEmpty || isTooShort || isOutOfRange) {
         this.retryCount[node.id] = (this.retryCount[node.id] || 0) + 1;
         const maxRetries = Number.isInteger(node.maxRetries) ? node.maxRetries : null;
         if (maxRetries !== null && this.retryCount[node.id] >= maxRetries) {
@@ -378,7 +407,23 @@ export class DynamicFlowEngine {
 
         if (isEmpty && node.onEmpty) return this.executeNode(node.onEmpty);
         if (isEmpty && node.onTimeout) return this.executeNode(node.onTimeout);
-        if (isTooShort && node.onInvalid) return this.executeNode(node.onInvalid);
+        if ((isTooShort || isOutOfRange) && node.onInvalid) return this.executeNode(node.onInvalid);
+        
+        // A mis-press is not silence: re-ask the question so the caller gets
+        // another go, but cap it so a caller leaning on a wrong key cannot
+        // loop the node forever when the flow declares no maxRetries.
+        if (isOutOfRange && maxRetries === null
+            && this.retryCount[node.id] >= DEFAULT_INVALID_RETRIES) {
+          this.log('Collect out-of-range retries exhausted, advancing', {
+            nodeId: node.id,
+            got: digits,
+            validDigits
+          });
+          if (node.onEmpty) return this.executeNode(node.onEmpty);
+          if (node.onTimeout) return this.executeNode(node.onTimeout);
+          if (node.next) return this.executeNode(node.next);
+          return this.hangup();
+        }
         
         // Default safe behavior: do not advance on empty input.
         // Retry the same collect node unless maxRetries is reached.
@@ -386,8 +431,9 @@ export class DynamicFlowEngine {
         this.log('Collect input invalid, retrying same node', {
           nodeId: node.id,
           retries: this.retryCount[node.id],
-          reason: isEmpty ? 'empty' : 'too_short',
+          reason: isEmpty ? 'empty' : (isTooShort ? 'too_short' : 'out_of_range'),
           minDigits,
+          validDigits,
           got: digits?.length || 0
         });
         return this.executeNode(node.id);
@@ -801,7 +847,12 @@ export class DynamicFlowEngine {
   }
   
   async collectDigits(options) {
-    const { maxDigits, timeout, terminators, bargeIn = true, promptPath = null } = options;
+    const {
+      maxDigits, timeout, terminators, bargeIn = true, promptPath = null,
+      // Wait between digits of a longer entry. Defaults to the first-digit
+      // wait so existing callers that pass only `timeout` behave as before.
+      interDigitTimeout = timeout
+    } = options;
     
     return new Promise((resolve) => {
       let digits = '';
@@ -854,11 +905,15 @@ export class DynamicFlowEngine {
         stopPrompt();
       };
       
+      // The first digit gets the full reaction window; once the caller has
+      // started entering, the shorter inter-digit wait applies, so a long
+      // entry stays responsive without rushing the opening pause.
       const resetTimeout = () => {
         clearTimeout(timeoutHandle);
+        const wait = digits.length === 0 ? timeout : interDigitTimeout;
         timeoutHandle = setTimeout(() => {
           finish();
-        }, timeout * 1000);
+        }, wait * 1000);
       };
       
       const onDtmf = (event) => {

@@ -1,0 +1,12 @@
+[Unit]
+Description=Run the IVR-Lab pull and rebuild daily
+
+[Timer]
+# 03:30 local time, outside campaign hours. RandomizedDelaySec keeps several
+# sites from hitting the registry at the same instant.
+OnCalendar=*-*-* 03:30:00
+RandomizedDelaySec=15m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

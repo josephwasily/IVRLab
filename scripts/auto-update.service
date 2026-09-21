@@ -1,0 +1,11 @@
+[Unit]
+Description=IVR-Lab daily pull and rebuild
+Documentation=file:/opt/ivr-lab-src/docs/ASSUIT_SURVEY_FIXES_2026-09-21.md
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/ivr-lab-src/scripts/auto-update.sh
+# The script logs to /var/log/ivr-auto-update.log and exits 0 when it
+# deliberately skips, so a skip is not reported as a unit failure.

@@ -1,1 +1,4 @@
 .env
+# Asterisk runtime output — bind-mounted into the container, so these churn
+# on every call and must not be tracked.
+asterisk/log/

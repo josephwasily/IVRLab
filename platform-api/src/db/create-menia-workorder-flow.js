@@ -161,7 +161,7 @@ const flowData = {
         enter_order: {
             id: 'enter_order', type: 'collect', label: 'Work Order Number',
             prompt: 'menia_wo_welcome_enter_order', variable: 'work_order_number',
-            maxDigits: 10, timeout: 10, terminators: '#',
+            maxDigits: 10, terminators: '#',
             reportLabelAr: 'رقم أمر الشغل', reportLabelEn: 'Work Order Number',
             maxRetries: 3, onMaxRetries: 'thanks',
             next: 'readback'
@@ -174,7 +174,7 @@ const flowData = {
         ask_confirm: {
             id: 'ask_confirm', type: 'collect', label: 'Confirm (1) / Re-enter (2)',
             prompt: 'menia_wo_confirm', variable: 'confirm',
-            maxDigits: 1, timeout: 10, validDigits: '12',
+            maxDigits: 1, validDigits: '12',
             maxRetries: 3, onMaxRetries: 'thanks',
             next: 'branch_confirm'
         },
@@ -187,7 +187,7 @@ const flowData = {
         region: {
             id: 'region', type: 'collect', label: 'Region (1 north / 2 center / 3 south)',
             prompt: 'menia_wo_region_menu', variable: 'region',
-            maxDigits: 1, timeout: 10, validDigits: '123',
+            maxDigits: 1, validDigits: '123',
             reportLabelAr: 'المنطقة', reportLabelEn: 'Region',
             next: 'set_region_name', onTimeout: 'thanks', onEmpty: 'thanks'
         },
@@ -206,7 +206,7 @@ const flowData = {
         centers_north: {
             id: 'centers_north', type: 'collect', label: 'North Centers (1-5)',
             prompt: 'menia_wo_centers_north', variable: 'center',
-            maxDigits: 1, timeout: 10, validDigits: '12345',
+            maxDigits: 1, validDigits: '12345',
             reportLabelAr: 'المركز', reportLabelEn: 'Center',
             next: 'set_center_north', onTimeout: 'status', onEmpty: 'status'
         },
@@ -219,7 +219,7 @@ const flowData = {
         centers_center: {
             id: 'centers_center', type: 'collect', label: 'Center Region (1 = Menia city)',
             prompt: 'menia_wo_centers_center', variable: 'center',
-            maxDigits: 1, timeout: 10, validDigits: '1',
+            maxDigits: 1, validDigits: '1',
             reportLabelAr: 'المركز', reportLabelEn: 'Center',
             next: 'set_center_center', onTimeout: 'status', onEmpty: 'status'
         },
@@ -232,7 +232,7 @@ const flowData = {
         centers_south: {
             id: 'centers_south', type: 'collect', label: 'South Centers (1-3)',
             prompt: 'menia_wo_centers_south', variable: 'center',
-            maxDigits: 1, timeout: 10, validDigits: '123',
+            maxDigits: 1, validDigits: '123',
             reportLabelAr: 'المركز', reportLabelEn: 'Center',
             next: 'set_center_south', onTimeout: 'status', onEmpty: 'status'
         },
@@ -245,7 +245,7 @@ const flowData = {
         status: {
             id: 'status', type: 'collect', label: 'Problem Status (1/2/3)',
             prompt: 'menia_wo_status', variable: 'status_digit',
-            maxDigits: 1, timeout: 10, validDigits: '123',
+            maxDigits: 1, validDigits: '123',
             reportLabelAr: 'حالة المشكلة', reportLabelEn: 'Problem Status',
             next: 'set_status_name', onTimeout: 'thanks', onEmpty: 'thanks'
         },

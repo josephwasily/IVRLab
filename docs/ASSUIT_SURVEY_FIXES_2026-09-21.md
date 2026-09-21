@@ -216,20 +216,92 @@ unrecoverable. Those calls need excluding from the report or re-running.
 
 ---
 
+## Input validation and the timeout model
+
+Two follow-ups from the work above, applied 21 Sep.
+
+### `validDigits` is now enforced
+
+Every survey question declares the keys it accepts (`"12"` for yes/no, `"12345"`
+for a 1-5 rating), but nothing read the field: a caller pressing 7 on a yes/no
+question had "7" stored as their answer.
+
+`handleCollect` now rejects input outside `validDigits` and re-asks the
+question. A mis-press is not silence, so it does not follow `onEmpty` — but the
+retry is capped (`COLLECT_INVALID_RETRIES`, default 2) so a caller leaning on a
+wrong key cannot loop the node forever when the flow declares no `maxRetries`.
+A node with no `validDigits` accepts anything, exactly as before.
+
+### One wait per digit-count, not one wait for everything
+
+Every generated flow baked `timeout: 10` into each collect node. That is one
+size for everything: a single-digit yes/no waited as long as a 9-digit account
+number, and a 9-digit entry allowed 10 seconds *between each digit*.
+
+The engine now uses the two waits every VoiceXML platform defines:
+
+| | Property | Default here | Platform defaults |
+|---|---|---:|---|
+| Wait for the caller to start | `timeout` / no-input | **5 s** | 5 s (Nuance Voice Platform, Genesys) |
+| Wait between digits | `interdigittimeout` | **3 s** | 3 s Nuance, 5 s common, 10 s Cisco |
+
+Overridable per node (`timeout`, `interDigitTimeout`) and per deployment
+(`COLLECT_FIRST_DIGIT_TIMEOUT`, `COLLECT_INTER_DIGIT_TIMEOUT`). The budget
+scales as `first + (maxDigits - 1) x inter`:
+
+| Collect | Old | New | Between digits |
+|---|---:|---:|---:|
+| 1-digit question | 10 s | **5 s** | — |
+| 6-digit account (ext 2001) | 10 s | **20 s** | 3 s |
+| 9-digit account (ext 2010) | 10 s | **29 s** | 3 s |
+
+`node.timeout` still means the first-digit wait, so any flow that sets it
+explicitly keeps working. The flow generators no longer bake in a flat value;
+`platform-api/src/db/retune-collect-timeouts.js` strips it from flows already in
+the database (dry run by default, `--keep <nodeId>` to preserve one).
+
+Covered by `ivr-node/test-collect-validation.js` (10 assertions).
+
+---
+
+## Automatic updates
+
+`scripts/auto-update.sh`, run daily by `scripts/auto-update.timer` at 03:30,
+exists because this host sat ten commits behind `main` from June to September —
+which is the only reason a bug already fixed upstream was still live.
+
+It is deliberately cautious, because this is a PBX:
+
+- does nothing when the remote has no new commits;
+- **skips** if the working tree has local changes or unpushed commits, rather
+  than clobbering them;
+- **skips** while any call is up, and retries on the next run;
+- rebuilds only the services whose files changed;
+- leaves `asterisk/` alone — rebuilding it drops SIP registration, so trunk and
+  dialplan changes stay a deliberate manual step, logged for review;
+- **rolls back** to the previous commit if the build fails or `ivr-node` does
+  not report ready.
+
+```bash
+sudo cp /opt/ivr-lab-src/scripts/auto-update.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now auto-update.timer
+systemctl list-timers auto-update.timer
+tail -f /var/log/ivr-auto-update.log
+```
+
+Run it by hand any time with `sudo /opt/ivr-lab-src/scripts/auto-update.sh`.
+
+---
+
 ## Known limitations / follow-ups
 
-- **`validDigits` is not enforced.** The manifest sets `"validDigits": "12"` on the yes/no
-  questions, but nothing in `ivr-node/` reads that field — any digit is accepted and stored.
-  `handleCollect` checks only `minDigits`.
-- **A hangup mid-survey burns ~10 s per remaining question.** `collectDigits` does not detect
+- **A hangup mid-survey burns the first-digit timeout per remaining question.** `collectDigits` does not detect
   a dead channel, so it waits out the full timeout on each subsequent node. Cosmetic, but it
   inflates recorded duration on aborted calls.
-- **`asterisk/log/` is tracked in git.** It is bind-mounted into the running Asterisk
-  container, so runtime logs dirty the working tree on every call:
-  ```bash
-  git rm -r --cached asterisk/log
-  printf 'asterisk/log/\n' >> .gitignore
-  ```
-  Worth its own commit.
-- **The deployed host drifted 10 commits behind `main`** (image built June, `main` at
-  `7777c86`). That is why defect 2 was still live. Worth a routine "pull and rebuild" step.
+- **Seed and template scripts still bake in `timeout: 10`** (`seed.js`,
+  `seed-ivr-flows.js`, `seed-new-sounds-2-template.js`, `update-billing-flow*.js`). They
+  only affect demo and template data, and `retune-collect-timeouts.js` corrects whatever
+  reaches the database, but they are worth cleaning up when next touched.
+- **`asterisk/pjsip.conf` carries a site-specific IP** as a local modification, so the
+  auto-update job will skip if upstream ever edits that file. Generating it from `.env`
+  (as `update-ip.sh` does) would remove the conflict.
