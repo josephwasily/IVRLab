@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   getCampaign,
@@ -14,7 +14,7 @@ import {
   cancelCampaign,
   generateCampaignApiKey
 } from '../lib/api'
-import { ArrowLeft, Save, Loader2, Pause, Play, Square, ExternalLink, Key, Copy, RefreshCw, Download } from 'lucide-react'
+import { ArrowLeft, Save, Loader2, Pause, Play, Square, ExternalLink, Key, Copy, RefreshCw, Download, LayoutDashboard, Plug } from 'lucide-react'
 import clsx from 'clsx'
 import CampaignReportExportModal from '../components/CampaignReportExportModal'
 import CampaignInstanceForm from '../components/CampaignInstanceForm'
@@ -44,6 +44,10 @@ export default function CampaignEdit() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const isNew = id === 'new'
+  // ?tab=integration keeps the tab across reloads and makes it linkable.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = !isNew && searchParams.get('tab') === 'integration' ? 'integration' : 'overview'
+  const setActiveTab = (tab) => setSearchParams(tab === 'overview' ? {} : { tab }, { replace: true })
 
   const [formData, setFormData] = useState({
     name: '',
@@ -198,6 +202,26 @@ export default function CampaignEdit() {
       </div>
 
       {!isNew && (
+        <div className="mb-6 flex gap-1 border-b border-gray-200">
+          {[
+            { key: 'overview', label: t('campaignEdit.tabOverview'), icon: LayoutDashboard },
+            { key: 'integration', label: t('campaignEdit.tabIntegration'), icon: Plug }
+          ].map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={clsx(
+                '-mb-px inline-flex items-center gap-2 border-b-2 px-4 py-2 text-sm font-medium',
+                activeTab === key ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+              )}
+            >
+              <Icon className="h-4 w-4" />{label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!isNew && activeTab === 'overview' && (
         <>
           <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="rounded-lg bg-white p-4 shadow"><div className="text-sm text-gray-500">{t('campaignEdit.totalInstances')}</div><div className="mt-1 text-2xl font-bold text-gray-900">{instances?.length || 0}</div></div>
@@ -211,6 +235,7 @@ export default function CampaignEdit() {
         </>
       )}
 
+      {activeTab === 'overview' && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-lg bg-white p-6 shadow">
           <h3 className="mb-4 font-medium text-gray-900">{t('campaignEdit.details')}</h3>
@@ -293,9 +318,10 @@ export default function CampaignEdit() {
           </div>
         </div>
       </div>
+      )}
 
-      {!isNew && (
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {!isNew && activeTab === 'integration' && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="rounded-lg bg-white p-6 shadow">
             <h3 className="mb-4 flex items-center gap-2 font-medium text-gray-900"><Key className="h-4 w-4" />{t('campaignEdit.webhookIntegration')}</h3>
             <p className="mb-4 text-sm text-gray-500">{t('campaignEdit.webhookSubtitle')}</p>
@@ -439,7 +465,7 @@ export default function CampaignEdit() {
         </div>
       )}
 
-      {!isNew && (
+      {!isNew && activeTab === 'overview' && (
         <>
           <div className="mt-6 rounded-lg bg-white p-6 shadow">
             <div className="mb-4 flex items-center justify-between gap-4">
