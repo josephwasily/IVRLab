@@ -167,13 +167,26 @@ for (const survey of manifest.surveys) {
     const thanksPromptName = survey.thanksPrompt
         || survey.prompts.find(p => p.role === 'thanks')?.name;
 
+    // Optional one-time instruction (e.g. "rate from 1 to 5…") played after
+    // the welcome and before the first question.
+    const instructionPromptName = survey.prompts.find(p => p.role === 'instruction')?.name;
+    const firstQuestionId = questions[0] ? questions[0].variable : 'thanks';
+
     const nodes = {};
 
     nodes.welcome = {
         id: 'welcome', type: 'play', label: 'Welcome',
         prompt: welcomePromptName,
-        next: questions[0] ? questions[0].variable : 'thanks'
+        next: instructionPromptName ? 'instruction' : firstQuestionId
     };
+
+    if (instructionPromptName) {
+        nodes.instruction = {
+            id: 'instruction', type: 'play', label: 'Rating Instruction',
+            prompt: instructionPromptName,
+            next: firstQuestionId
+        };
+    }
 
     questions.forEach((q, idx) => {
         const nextId = idx < questions.length - 1

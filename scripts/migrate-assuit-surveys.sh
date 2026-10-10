@@ -40,11 +40,12 @@ SRC_ROOT="$(dirname "$PRIMARY_SRC")"
 [ -d "$PRIMARY_SRC" ] || die "Source folder not found: $PRIMARY_SRC"
 [ -f "$PRIMARY_SRC/assuit-manifest.json" ] || die "assuit-manifest.json missing from $PRIMARY_SRC. Did you git pull?"
 
-# Assuit reuses Menia's question/thanks audio for the body of each survey;
-# only the welcomes are Assuit-specific (in "new sounds 6/"). Stage Menia's
-# folder too — no harm if the files already exist on disk.
+# Assuit reuses Menia's audio for survey 1 and survey 2's thanks; the
+# welcomes are in "new sounds 6/" and survey 2's hotline questions +
+# rating instruction are in "new sounds 9/". Stage both extra
+# folders too — no harm if the files already exist on disk.
 EXTRA_SRCS=()
-for extra in "new sounds 5"; do
+for extra in "new sounds 5" "new sounds 9"; do
     candidate="$SRC_ROOT/$extra"
     [ -d "$candidate" ] && EXTRA_SRCS+=("$candidate")
 done
@@ -87,7 +88,7 @@ log "Running migration (audio → ulaw + prompts + flows + campaigns)"
 docker compose exec -T platform-api node src/db/migrate-assuit-surveys.js
 
 log "Done. Verify in the admin portal:"
-echo "    • Prompts tab — entries with category='assuit' (9 prompts)"
+echo "    • Prompts tab — entries with category='assuit' (10 prompts)"
 echo "    • IVR Flows  — 'استطلاع حل الشكاوى - أسيوط' (ext 2040)"
 echo "                   'استطلاع رضا الخدمة - أسيوط' (ext 2041)"
 echo "    • Campaigns  — 2 new campaigns in DRAFT status"

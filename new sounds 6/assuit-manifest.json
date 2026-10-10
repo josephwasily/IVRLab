@@ -1,5 +1,5 @@
 {
-  "_comment": "Assuit surveys manifest. The 2 Assuit welcomes live in 'new sounds 6/'. Question/thanks audio is shared with Menia and copied from 'new sounds 5/' — the migration wrapper stages both folders into /app/prompts/assuit-surveys/ so the migration finds every file by basename.",
+  "_comment": "Assuit surveys manifest. The 2 Assuit welcomes live in 'new sounds 6/'. Question/thanks audio is shared with Menia and copied from 'new sounds 5/' — the migration wrapper stages both folders into /app/prompts/assuit-surveys/ so the migration finds every file by basename. Survey 2's hotline questions + rating instruction live in 'new sounds 9/' (staged by the wrapper too).",
   "language": "ar",
   "category": "assuit",
   "audioSubdir": "assuit-surveys",
@@ -45,7 +45,7 @@
     {
       "id": "assuit-survey-2",
       "name": "استطلاع رضا الخدمة - أسيوط",
-      "description": "Assuit Water & Sanitation — service satisfaction survey (4 questions)",
+      "description": "Assuit Water & Sanitation — hotline service satisfaction survey (4 questions, 1-5). Previous version: assuit-survey2-v1-reference.json",
       "extension": "2041",
       "welcomePrompt": "assuit_s2_welcome",
       "thanksPrompt": "assuit_s2_thanks",
@@ -56,40 +56,45 @@
           "role": "welcome"
         },
         {
-          "file": "2_ Question1.mp3",
-          "name": "assuit_s2_q1_service_satisfaction",
+          "file": "assuit_s2_rating_instruction.mpeg",
+          "name": "assuit_s2_rating_instruction",
+          "role": "instruction"
+        },
+        {
+          "file": "assuit_s2_q1_response_speed.mpeg",
+          "name": "assuit_s2_q1_response_speed",
           "role": "question",
-          "variable": "service_satisfaction",
+          "variable": "hotline_response_speed",
           "validDigits": "12345",
-          "reportLabelAr": "ما مدى رضاك عن الخدمة المقدمة؟ (1-5)",
-          "reportLabelEn": "Service satisfaction (1-5)"
+          "reportLabelAr": "ما مدى سرعة الاستجابة للرد على اتصالك بالخط الساخن؟ (1-5)",
+          "reportLabelEn": "Hotline response speed (1-5)"
         },
         {
-          "file": "2_ Question2.mp3",
-          "name": "assuit_s2_q2_rep_professionalism",
+          "file": "assuit_s2_q2_hotline_access.mpeg",
+          "name": "assuit_s2_q2_hotline_access",
           "role": "question",
-          "variable": "rep_professionalism",
+          "variable": "hotline_access_ease",
           "validDigits": "12345",
-          "reportLabelAr": "ما مدى تقييمكم لاحترافية ممثل خدمة العملاء؟ (1-5)",
-          "reportLabelEn": "Customer-service rep professionalism (1-5)"
+          "reportLabelAr": "ما مدى سهولة الوصول للخط الساخن من خلال قنوات الخدمة المختلفة؟ (1-5)",
+          "reportLabelEn": "Ease of reaching the hotline (1-5)"
         },
         {
-          "file": "2_ Question3.mp3",
-          "name": "assuit_s2_q3_service_time",
+          "file": "assuit_s2_q3_service_quality.mpeg",
+          "name": "assuit_s2_q3_service_quality",
           "role": "question",
-          "variable": "service_time_appropriate",
-          "validDigits": "12",
-          "reportLabelAr": "هل استغرقت الخدمة وقتاً مناسباً؟",
-          "reportLabelEn": "Did the service take an appropriate time?"
+          "variable": "hotline_service_quality",
+          "validDigits": "12345",
+          "reportLabelAr": "ما مدى رضائك عن جودة الخدمة المقدمة إليك من الخط الساخن؟ (1-5)",
+          "reportLabelEn": "Hotline service quality (1-5)"
         },
         {
-          "file": "2_ Question4.mp3",
-          "name": "assuit_s2_q4_multiple_contacts",
+          "file": "assuit_s2_q4_staff_rating.mpeg",
+          "name": "assuit_s2_q4_staff_rating",
           "role": "question",
-          "variable": "multiple_contacts_needed",
-          "validDigits": "12",
-          "reportLabelAr": "هل احتجت إلى التواصل أكثر من مرة لحل المشكلة؟",
-          "reportLabelEn": "Did you need to contact more than once?"
+          "variable": "hotline_staff_rating",
+          "validDigits": "12345",
+          "reportLabelAr": "ما تقييمك لموظفي خدمة العملاء بالخط الساخن؟ (1-5)",
+          "reportLabelEn": "Hotline customer-service staff (1-5)"
         },
         {
           "file": "2_ Thanks.mp3",
