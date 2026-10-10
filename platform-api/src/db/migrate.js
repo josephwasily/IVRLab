@@ -70,6 +70,27 @@ ensureColumn('campaign_runs', 'survey_id', 'TEXT');
 // Per-contact CMS ID — replaces run-level cms_id for new integrations
 ensureColumn('campaign_contacts', 'cms_id', 'TEXT');
 
+// v2 external API (/api/v2/campaigns/executions) addresses a campaign by
+// type + region instead of its id. campaign_type is already taken by the
+// survey/notification/... category, hence api_campaign_type.
+ensureColumn('campaigns', 'api_campaign_type', 'TEXT');
+ensureColumn('campaigns', 'region', 'TEXT');
+db.exec('CREATE INDEX IF NOT EXISTS idx_campaigns_api_type ON campaigns(tenant_id, api_campaign_type, region)');
+
+// Backfill the known client campaigns (ids like assuit-complaint-resolution-campaign).
+// Only fills blanks, so values set later through the admin API are kept.
+const REGION_BY_PREFIX = { assuit: 'assiut', menia: 'menia' };
+const backfill = db.prepare(`
+    UPDATE campaigns SET
+        api_campaign_type = COALESCE(api_campaign_type, ?),
+        region            = COALESCE(region, ?)
+    WHERE id = ?
+`);
+for (const { id } of db.prepare('SELECT id FROM campaigns').all()) {
+    const m = /^(assuit|menia)-(complaint-resolution|service-satisfaction)-campaign$/.exec(id);
+    if (m) backfill.run(m[2].replace('-', '_'), REGION_BY_PREFIX[m[1]], id);
+}
+
 // Initialize extension pool (2000-2999 for inbound IVRs)
 console.log('Initializing extension pool...');
 const insertExt = db.prepare('INSERT OR IGNORE INTO extensions (extension, status) VALUES (?, ?)');

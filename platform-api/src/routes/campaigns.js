@@ -9,6 +9,7 @@ const multer = require('multer');
 const csv = require('csv-parse/sync');
 const XLSX = require('xlsx');
 const surveyReport = require('../services/survey-report');
+const { normalizeKey, normalizeRegion } = require('../services/campaign-lookup');
 const { resolveDialPrefix, applyDialPrefix } = require('../services/dialPrefix');
 const net = require('net');
 
@@ -964,7 +965,7 @@ router.put('/:id', (req, res) => {
         const {
             name, description, campaign_type, ivr_id, trunk_id, caller_id,
             max_concurrent_calls, calls_per_minute, max_attempts, retry_delay_minutes, settings,
-            flag_variable, flag_value
+            flag_variable, flag_value, api_campaign_type, region
         } = req.body;
 
         let dial_prefix;
@@ -991,6 +992,9 @@ router.put('/:id', (req, res) => {
         if (settings !== undefined) { updates.push('settings = ?'); values.push(JSON.stringify(settings)); }
         if (flag_variable !== undefined) { updates.push('flag_variable = ?'); values.push(flag_variable || null); }
         if (flag_value !== undefined) { updates.push('flag_value = ?'); values.push(flag_value || null); }
+        // Lookup keys for the v2 external API (POST /api/v2/campaigns/executions).
+        if (api_campaign_type !== undefined) { updates.push('api_campaign_type = ?'); values.push(normalizeKey(api_campaign_type)); }
+        if (region !== undefined) { updates.push('region = ?'); values.push(normalizeRegion(region)); }
 
         updates.push('updated_at = CURRENT_TIMESTAMP');
         values.push(req.params.id, req.user.tenantId);
