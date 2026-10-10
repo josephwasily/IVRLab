@@ -18,6 +18,7 @@ import { ArrowLeft, Save, Loader2, Pause, Play, Square, ExternalLink, Key, Copy,
 import clsx from 'clsx'
 import CampaignReportExportModal from '../components/CampaignReportExportModal'
 import CampaignInstanceForm from '../components/CampaignInstanceForm'
+import ApiExamples from '../components/ApiExamples'
 import { useI18n } from '../contexts/I18nContext'
 
 const campaignTypeKeys = ['survey', 'notification', 'reminder', 'collection', 'custom']
@@ -157,12 +158,6 @@ export default function CampaignEdit() {
   const v2Region = formData.region.trim().toLowerCase()
   const v2Base = `${window.location.origin}/api/v2/campaigns/executions`
   const v2ListUrl = `${v2Base}?${new URLSearchParams({ ...(v2Type && { campaign_type: v2Type }), ...(v2Region && { region: v2Region }) })}`
-  const v2TriggerBody = JSON.stringify({
-    campaign_type: v2Type || '<campaign_type>',
-    ...(v2Region && { region: v2Region }),
-    survey_id: '<survey_id>',
-    contacts: [{ phone_number: '01xxxxxxxxx', cms_id: '<case_id>' }]
-  }, null, 2)
 
   const activeInstance = instances?.find((instance) => ['running', 'paused'].includes(instance.status)) || null
   const selectedInstance = instances?.find((instance) => instance.id === selectedInstanceId) || null
@@ -420,16 +415,6 @@ export default function CampaignEdit() {
                   {copiedField === 'v2Trigger' && <p className="mt-1 text-xs text-green-600">{t('campaignEdit.copied')}</p>}
                 </div>
                 <div>
-                  <div className="mb-1 flex items-center justify-between">
-                    <label className="block text-sm font-medium text-gray-700">{t('campaignEdit.v2Body')}</label>
-                    <button onClick={() => copyToClipboard(v2TriggerBody, 'v2Body')} className="rounded-md border border-gray-300 p-1 hover:bg-gray-50" title={t('campaignEdit.copy')}>
-                      <Copy className="h-3 w-3 text-gray-500" />
-                    </button>
-                  </div>
-                  <pre dir="ltr" className="overflow-x-auto rounded-md bg-gray-900 px-3 py-2 text-xs text-gray-100">{v2TriggerBody}</pre>
-                  {copiedField === 'v2Body' && <p className="mt-1 text-xs text-green-600">{t('campaignEdit.copied')}</p>}
-                </div>
-                <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.v2List')}</label>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 truncate rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-700" title={v2ListUrl}>GET {v2ListUrl.replace(window.location.origin, '')}</code>
@@ -446,6 +431,10 @@ export default function CampaignEdit() {
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="lg:col-span-2">
+            <ApiExamples campaign={campaign} campaignId={id} v2Type={v2Type} v2Region={v2Region} />
           </div>
         </div>
       )}
