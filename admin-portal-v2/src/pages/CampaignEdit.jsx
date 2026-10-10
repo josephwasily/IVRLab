@@ -57,7 +57,9 @@ export default function CampaignEdit() {
     retry_delay_minutes: 30,
     settings: {},
     flag_variable: '',
-    flag_value: ''
+    flag_value: '',
+    api_campaign_type: '',
+    region: ''
   })
   const [selectedInstanceId, setSelectedInstanceId] = useState(null)
   const [reportModalOpen, setReportModalOpen] = useState(false)
@@ -103,7 +105,9 @@ export default function CampaignEdit() {
       retry_delay_minutes: campaign.retry_delay_minutes || 30,
       settings: campaign.settings || {},
       flag_variable: campaign.flag_variable || '',
-      flag_value: campaign.flag_value || ''
+      flag_value: campaign.flag_value || '',
+      api_campaign_type: campaign.api_campaign_type || '',
+      region: campaign.region || ''
     })
   }, [campaign])
 
@@ -147,6 +151,18 @@ export default function CampaignEdit() {
     setCopiedField(field)
     setTimeout(() => setCopiedField(null), 2000)
   }
+
+  // v2 API (/api/v2/campaigns/executions) addresses this campaign by type + region.
+  const v2Type = formData.api_campaign_type.trim().toLowerCase()
+  const v2Region = formData.region.trim().toLowerCase()
+  const v2Base = `${window.location.origin}/api/v2/campaigns/executions`
+  const v2ListUrl = `${v2Base}?${new URLSearchParams({ ...(v2Type && { campaign_type: v2Type }), ...(v2Region && { region: v2Region }) })}`
+  const v2TriggerBody = JSON.stringify({
+    campaign_type: v2Type || '<campaign_type>',
+    ...(v2Region && { region: v2Region }),
+    survey_id: '<survey_id>',
+    contacts: [{ phone_number: '01xxxxxxxxx', cms_id: '<case_id>' }]
+  }, null, 2)
 
   const activeInstance = instances?.find((instance) => ['running', 'paused'].includes(instance.status)) || null
   const selectedInstance = instances?.find((instance) => instance.id === selectedInstanceId) || null
@@ -357,6 +373,80 @@ export default function CampaignEdit() {
               </div>
             </div>
           </div>
+
+          <div className="rounded-lg bg-white p-6 shadow lg:col-span-2">
+            <h3 className="mb-1 flex items-center gap-2 font-medium text-gray-900">
+              <Key className="h-4 w-4" />{t('campaignEdit.v2Title')}
+              <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">v2</span>
+            </h3>
+            <p className="mb-4 text-sm text-gray-500">{t('campaignEdit.v2Subtitle')}</p>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="space-y-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.v2CampaignType')}</label>
+                  <input list="v2-campaign-types" value={formData.api_campaign_type} onChange={(e) => setFormData({ ...formData, api_campaign_type: e.target.value })} placeholder="complaint_resolution" className="w-full rounded-md border-gray-300 font-mono text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+                  <datalist id="v2-campaign-types">
+                    <option value="complaint_resolution" />
+                    <option value="service_satisfaction" />
+                  </datalist>
+                  <p className="mt-1 text-xs text-gray-400">{t('campaignEdit.v2CampaignTypeHelp')}</p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.v2Region')}</label>
+                  <input list="v2-regions" value={formData.region} onChange={(e) => setFormData({ ...formData, region: e.target.value })} placeholder="assiut" className="w-full rounded-md border-gray-300 font-mono text-sm shadow-sm focus:border-blue-500 focus:ring-blue-500" />
+                  <datalist id="v2-regions">
+                    <option value="assiut" />
+                    <option value="menia" />
+                  </datalist>
+                  <p className="mt-1 text-xs text-gray-400">{t('campaignEdit.v2RegionHelp')}</p>
+                </div>
+                {(v2Type !== (campaign?.api_campaign_type || '') || v2Region !== (campaign?.region || '')) && (
+                  <p className="text-xs text-amber-600">{t('campaignEdit.v2Unsaved')}</p>
+                )}
+                <p className="text-xs text-gray-500">{t('campaignEdit.v2AuthHelp')}</p>
+              </div>
+              <div className="space-y-4">
+                {!campaign?.api_campaign_type ? (
+                  <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-700">{t('campaignEdit.v2NotConfigured')}</p>
+                ) : null}
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.v2Trigger')}</label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-700">POST /api/v2/campaigns/executions</code>
+                    <button onClick={() => copyToClipboard(v2Base, 'v2Trigger')} className="rounded-md border border-gray-300 p-2 hover:bg-gray-50" title={t('campaignEdit.copy')}>
+                      <Copy className="h-4 w-4 text-gray-500" />
+                    </button>
+                  </div>
+                  {copiedField === 'v2Trigger' && <p className="mt-1 text-xs text-green-600">{t('campaignEdit.copied')}</p>}
+                </div>
+                <div>
+                  <div className="mb-1 flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-700">{t('campaignEdit.v2Body')}</label>
+                    <button onClick={() => copyToClipboard(v2TriggerBody, 'v2Body')} className="rounded-md border border-gray-300 p-1 hover:bg-gray-50" title={t('campaignEdit.copy')}>
+                      <Copy className="h-3 w-3 text-gray-500" />
+                    </button>
+                  </div>
+                  <pre dir="ltr" className="overflow-x-auto rounded-md bg-gray-900 px-3 py-2 text-xs text-gray-100">{v2TriggerBody}</pre>
+                  {copiedField === 'v2Body' && <p className="mt-1 text-xs text-green-600">{t('campaignEdit.copied')}</p>}
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.v2List')}</label>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 truncate rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-700" title={v2ListUrl}>GET {v2ListUrl.replace(window.location.origin, '')}</code>
+                    <button onClick={() => copyToClipboard(v2ListUrl, 'v2List')} className="rounded-md border border-gray-300 p-2 hover:bg-gray-50" title={t('campaignEdit.copy')}>
+                      <Copy className="h-4 w-4 text-gray-500" />
+                    </button>
+                  </div>
+                  {copiedField === 'v2List' && <p className="mt-1 text-xs text-green-600">{t('campaignEdit.copied')}</p>}
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">{t('campaignEdit.v2Status')}</label>
+                  <code className="block rounded-md bg-gray-100 px-3 py-2 text-xs text-gray-700">GET /api/v2/campaigns/executions/{'<execution_id>'}</code>
+                  <p className="mt-1 text-xs text-gray-500">{t('campaignEdit.v2StatusHelp')}</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -397,6 +487,15 @@ export default function CampaignEdit() {
                               <Copy className="h-3 w-3 text-gray-500" />
                             </button>
                             {copiedField === `resultsUrl-${instance.id}` && <span className="text-[10px] text-green-600">{t('campaignEdit.copied')}</span>}
+                          </div>
+                          <div className="mt-1 flex items-center gap-1">
+                            <code className="max-w-[200px] truncate rounded bg-green-50 px-2 py-1 text-[10px] text-green-700" title={`${v2Base}/${instance.id}`}>
+                              v2 /api/v2/campaigns/executions/{instance.id}
+                            </code>
+                            <button onClick={() => copyToClipboard(`${v2Base}/${instance.id}`, `v2Url-${instance.id}`)} className="shrink-0 rounded border border-gray-200 p-1 hover:bg-gray-50" title={t('campaignEdit.copy')}>
+                              <Copy className="h-3 w-3 text-gray-500" />
+                            </button>
+                            {copiedField === `v2Url-${instance.id}` && <span className="text-[10px] text-green-600">{t('campaignEdit.copied')}</span>}
                           </div>
                         </td>
                         <td className="px-2 py-3">
