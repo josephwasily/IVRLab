@@ -251,6 +251,8 @@ const translations = {
       colName: 'الاسم',
       colAttempts: 'المحاولات',
       colOutcome: 'النتيجة',
+      statusCaptureFailed: 'مكتمل - لم يتم تسجيل إجابة صحيحة',
+      outcomeCaptureFailed: 'انتهت المكالمة بعد 3 محاولات خاطئة',
       colLastAttempt: 'آخر محاولة',
       dialPrefix: 'بادئة الاتصال',
       dialPrefixHelp: 'اختياري. يضاف قبل كل رقم في هذه الحملة. اتركه فارغاً لعدم استخدام بادئة. تُنسخ من بادئة الترانك عند إنشاء الحملة.'
@@ -560,6 +562,8 @@ const translations = {
       colName: 'Name',
       colAttempts: 'Attempts',
       colOutcome: 'Outcome',
+      statusCaptureFailed: 'Completed - no valid answer',
+      outcomeCaptureFailed: 'Ended after 3 invalid tries',
       colLastAttempt: 'Last Attempt',
       dialPrefix: 'Dial Prefix',
       dialPrefixHelp: 'Optional. Prepended to every number in this campaign. Leave empty for no prefix. Defaults to the trunk\'s prefix when the campaign is created.'

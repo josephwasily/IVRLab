@@ -36,7 +36,8 @@ const contactStatusClasses = {
   calling: 'bg-blue-100 text-blue-700',
   completed: 'bg-green-100 text-green-700',
   failed: 'bg-red-100 text-red-700',
-  skipped: 'bg-yellow-100 text-yellow-700'
+  skipped: 'bg-yellow-100 text-yellow-700',
+  completed_capture_failed: 'bg-orange-100 text-orange-700'
 }
 
 export default function CampaignEdit() {
@@ -168,7 +169,14 @@ export default function CampaignEdit() {
   const isEditable = !campaign || campaign.status === 'draft'
   const formatDateTime = (value) => (value ? new Date(value).toLocaleString() : '-')
   const contactName = (contact) => contact.variables?.name || '-'
-  const contactOutcome = (contact) => contact.result?.flow_final_status || contact.result?.call_outcome || '-'
+  // The survey ended the call after 3 invalid tries: completed (not redialled)
+  // but with no valid answer, which must not read as a plain success.
+  const isCaptureFailed = (contact) => contact.status === 'completed' && contact.result?.flow_final_status === 'completed_capture_failed'
+  const contactStatusKey = (contact) => (isCaptureFailed(contact) ? 'completed_capture_failed' : contact.status)
+  const contactStatusLabel = (contact) => (isCaptureFailed(contact) ? t('campaignEdit.statusCaptureFailed') : contact.status)
+  const contactOutcome = (contact) => (isCaptureFailed(contact)
+    ? t('campaignEdit.outcomeCaptureFailed')
+    : contact.result?.flow_final_status || contact.result?.call_outcome || '-')
 
   if (loadingCampaign) {
     return <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-blue-600" /></div>
@@ -553,7 +561,7 @@ export default function CampaignEdit() {
                       <tr key={contact.id} className="border-b hover:bg-gray-50">
                         <td className="px-3 py-2 font-mono">{contact.phone_number}</td>
                         <td className="px-3 py-2 text-gray-600">{contactName(contact)}</td>
-                        <td className="px-3 py-2"><span className={clsx('rounded px-2 py-0.5 text-xs', contactStatusClasses[contact.status] || 'bg-gray-100 text-gray-700')}>{contact.status}</span></td>
+                        <td className="px-3 py-2"><span className={clsx('rounded px-2 py-0.5 text-xs', contactStatusClasses[contactStatusKey(contact)] || 'bg-gray-100 text-gray-700')}>{contactStatusLabel(contact)}</span></td>
                         <td className="px-3 py-2">{contact.attempts || 0}</td>
                         <td className="px-3 py-2 text-gray-600">{contactOutcome(contact)}</td>
                         <td className="px-3 py-2 text-gray-500">{formatDateTime(contact.last_attempt_at)}</td>
