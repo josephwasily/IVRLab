@@ -454,6 +454,7 @@ router.get('/analytics', (req, res) => {
             SELECT 
                 CASE
                     WHEN oc.status = 'failed' AND oc.hangup_cause = 'caller_hangup_early' THEN 'abrupt_end'
+                    WHEN oc.status = 'completed' AND oc.hangup_cause = 'completed_capture_failed' THEN 'completed_capture_failed'
                     ELSE oc.status
                 END as status,
                 COUNT(*) as count,

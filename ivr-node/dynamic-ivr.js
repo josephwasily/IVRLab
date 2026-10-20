@@ -47,11 +47,17 @@ const COLLECT_INTER_DIGIT_TIMEOUT = parseInt(process.env.COLLECT_INTER_DIGIT_TIM
 // completed survey rather than an abort.
 const CAPTURED_THEN_HANGUP = "captured_then_hangup";
 
+// A question ran out of attempts and the flow ended the call on purpose
+// (collect node onMaxAttempts). The call was handled to the end, so it is
+// not redialled, but the answers are incomplete.
+const COMPLETED_CAPTURE_FAILED = "completed_capture_failed";
+
 // Flow outcomes that mean "the caller got through the flow" for reporting.
 const COMPLETED_FLOW_STATUSES = new Set([
   "flow_completed",
   "flow_ended",
-  CAPTURED_THEN_HANGUP
+  CAPTURED_THEN_HANGUP,
+  COMPLETED_CAPTURE_FAILED
 ]);
 
 // Sound paths based on language
@@ -133,6 +139,7 @@ export class DynamicFlowEngine {
     this.apiCalls = [];
     this.pendingDtmf = [];
     this.retryCount = {};
+    this.captureFailed = false;
     this.startTime = new Date().toISOString();
     this.branchDisplayMap = buildBranchDisplayMap(this.flow);
     this.completedFlow = false;
@@ -176,7 +183,9 @@ export class DynamicFlowEngine {
       
       await this.executeNode(this.flow.startNode);
       if (this.finalStatus === 'in_progress') {
-        this.finalStatus = this.completedFlow ? 'flow_completed' : 'flow_ended';
+        this.finalStatus = this.captureFailed
+          ? COMPLETED_CAPTURE_FAILED
+          : (this.completedFlow ? 'flow_completed' : 'flow_ended');
       }
     } catch (error) {
       this.log('Flow execution error', { error: error.message });
@@ -238,7 +247,7 @@ export class DynamicFlowEngine {
           break;
         case 'hangup':
           this.completedFlow = true;
-          this.finalStatus = 'flow_completed';
+          this.finalStatus = this.captureFailed ? COMPLETED_CAPTURE_FAILED : 'flow_completed';
           await this.hangup();
           break;
         default:
@@ -445,6 +454,13 @@ export class DynamicFlowEngine {
           attempts: this.retryCount[node.id],
           reason
         });
+        
+        // The flow chose to end the call rather than skip the question: the
+        // remaining answers will never be captured, so record it as such.
+        if (node.onMaxAttempts) {
+          this.captureFailed = true;
+          return this.executeNode(node.onMaxAttempts);
+        }
         
         if (isEmpty && node.onEmpty) return this.executeNode(node.onEmpty);
         if (isEmpty && node.onTimeout) return this.executeNode(node.onTimeout);
@@ -1070,7 +1086,7 @@ export class DynamicFlowEngine {
       
       const targets = [
         node.next, node.onTimeout, node.onEmpty, node.onInvalid,
-        node.onError, node.onHttpError, node.onMaxRetries, node.default
+        node.onError, node.onHttpError, node.onMaxRetries, node.onMaxAttempts, node.default
       ];
       if (node.branches && typeof node.branches === 'object') {
         targets.push(...Object.values(node.branches));
@@ -1089,6 +1105,8 @@ export class DynamicFlowEngine {
    * answer is already stored, so that is a completed survey, not an abort.
    */
   resolveHangupStatus(nodeId = this.currentNode?.id) {
+    // Hung up during the closing prompt after the flow already gave up.
+    if (this.captureFailed) return COMPLETED_CAPTURE_FAILED;
     if (this.dtmfInputs.length === 0) return 'caller_hangup_early';
     // Unknown position in the flow — cannot prove the data is complete.
     if (!nodeId || !(this.flow?.nodes || {})[nodeId]) return 'caller_hangup_early';
@@ -1331,9 +1349,11 @@ async function main() {
         const outboundStatus = COMPLETED_FLOW_STATUSES.has(flowFinalStatus)
           ? 'completed'
           : 'failed';
-        const callOutcome = outboundStatus === 'completed'
-          ? 'finished'
-          : (flowFinalStatus === 'caller_hangup_early' ? 'abrupt_end' : 'failed');
+        const callOutcome = flowFinalStatus === COMPLETED_CAPTURE_FAILED
+          ? 'capture_failed'
+          : (outboundStatus === 'completed'
+            ? 'finished'
+            : (flowFinalStatus === 'caller_hangup_early' ? 'abrupt_end' : 'failed'));
 
         await updateOutboundCallStatus(outboundCallId, {
           status: outboundStatus,

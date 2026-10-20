@@ -20,11 +20,12 @@ const statusConfig = {
   failed: { color: 'red', icon: XCircle, label: 'Failed' },
   cancelled: { color: 'gray', icon: AlertTriangle, label: 'Cancelled' },
   abrupt_end: { color: 'rose', icon: AlertTriangle, label: 'Aborted After Answer' },
-  captured_then_hangup: { color: 'emerald', icon: CheckCircle, label: 'Completed (Hung Up At Thanks)' }
+  captured_then_hangup: { color: 'emerald', icon: CheckCircle, label: 'Completed (Hung Up At Thanks)' },
+  completed_capture_failed: { color: 'yellow', icon: AlertTriangle, label: 'Completed (No Valid Answer)' }
 }
 
 // Synthetic statuses derived from hangup_cause — not real values to filter on.
-const derivedStatuses = ['abrupt_end', 'captured_then_hangup']
+const derivedStatuses = ['abrupt_end', 'captured_then_hangup', 'completed_capture_failed']
 const filterStatusOptions = Object.entries(statusConfig).filter(([status]) => !derivedStatuses.includes(status))
 
 export default function OutboundCalls() {
@@ -97,6 +98,7 @@ export default function OutboundCalls() {
   }
 
   const getOutcomeLabel = (call) => {
+    if (call?.status === 'completed' && call?.hangup_cause === 'completed_capture_failed') return 'Ended after 3 invalid tries'
     if (call?.status === 'completed') return 'Finished IVR'
     if (call?.status === 'cancelled') return 'Cancelled'
     if (call?.status === 'no_answer') return 'No Answer'
@@ -249,7 +251,7 @@ export default function OutboundCalls() {
               {calls.map((call) => {
                 const displayStatus = call.status === 'failed' && call.hangup_cause === 'caller_hangup_early'
                   ? 'abrupt_end'
-                  : (call.status === 'completed' && call.hangup_cause === 'captured_then_hangup' ? 'captured_then_hangup' : call.status)
+                  : (call.status === 'completed' && ['captured_then_hangup', 'completed_capture_failed'].includes(call.hangup_cause) ? call.hangup_cause : call.status)
                 const config = statusConfig[displayStatus] || statusConfig.queued
                 const StatusIcon = config.icon
                 const attemptInfo = getAttemptInfo(call)

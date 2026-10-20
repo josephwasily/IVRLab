@@ -4,9 +4,11 @@
  *
  *   1. Surveys (assuit-survey-1 ext 2040, assuit-survey-2 ext 2041):
  *        a key outside the question's range plays "اختيار خاطئ" and the
- *        question is asked again. 3 attempts in total, then the survey moves
- *        on to the next question (answer left empty), as before.
+ *        question is asked again. After 3 failed attempts (wrong keys or
+ *        silence) the call ends with the thanks prompt and is recorded as
+ *        completed_capture_failed (completed, not redialled, answers missing).
  *        prompt: assuit_invalid_option → collect node `invalidPrompt`
+ *        end:    collect node `onMaxAttempts` → thanks
  *   2. Billing (billing-inquiry-flow): ListBills rejecting the number
  *        (HTTP error such as 500 "رقم الحساب غير صحيح", or a reply without
  *        an account) plays
@@ -178,10 +180,15 @@ for (const flow of flows) {
     if (SURVEY_FLOW_IDS.includes(flow.id)) {
         const questions = Object.values(nodes).filter(n => n.type === 'collect');
         if (questions.length === 0) die(`No questions found in ${flow.id} — flow shape changed?`);
+        if (!nodes.thanks) die(`Node "thanks" not found in ${flow.id} — flow shape changed?`);
         for (const q of questions) {
-            Object.assign(q, { invalidPrompt: 'assuit_invalid_option', maxAttempts: MAX_ATTEMPTS });
+            Object.assign(q, {
+                invalidPrompt: 'assuit_invalid_option',
+                maxAttempts: MAX_ATTEMPTS,
+                onMaxAttempts: 'thanks'
+            });
         }
-        console.log(`✓ ${flow.id}: ${questions.map(q => q.id).join(', ')} → "wrong choice" + ${MAX_ATTEMPTS} attempts`);
+        console.log(`✓ ${flow.id}: ${questions.map(q => q.id).join(', ')} → "wrong choice", ${MAX_ATTEMPTS} attempts, then thanks + hang up (completed_capture_failed)`);
     } else {
         for (const id of ['fetch_invoice', 'invalid_account', 'goodbye']) {
             if (!nodes[id]) die(`Node "${id}" not found in ${flow.id} — flow shape changed?`);
