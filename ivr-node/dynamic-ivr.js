@@ -407,6 +407,13 @@ export class DynamicFlowEngine {
       
       if (isEmpty || isTooShort || isOutOfRange) {
         this.retryCount[node.id] = (this.retryCount[node.id] || 0) + 1;
+
+        // A wrong key gets a short "wrong choice" before the question is
+        // asked again (or the flow moves on). Silence does not -- the caller
+        // has not chosen anything yet.
+        if (!isEmpty && node.invalidPrompt) {
+          await this.playSound(this.getPromptPath(node.invalidPrompt), { bargeIn: false });
+        }
         const maxRetries = Number.isInteger(node.maxRetries) ? node.maxRetries : null;
         if (maxRetries !== null && this.retryCount[node.id] >= maxRetries) {
           if (node.onMaxRetries) return this.executeNode(node.onMaxRetries);
@@ -548,10 +555,34 @@ export class DynamicFlowEngine {
       }
       
       const response = await fetch(url, options);
-      const data = await response.json();
-      
+      // Some backends answer an error with a plain-text body (e.g. ListBills
+      // returns 500 "رقم الحساب غير صحيح" for an unknown account), so read
+      // text first and only then try JSON.
+      const raw = await response.text();
+      let data;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch (parseError) {
+        if (response.ok) throw parseError;
+        data = raw;
+      }
+
       const resultVar = node.resultVariable || 'api_result';
       this.variables[resultVar] = data;
+      this.variables[`${resultVar}_status`] = response.status;
+
+      // The server answered but rejected the request: a business failure
+      // (unknown account, bad input), not an outage. Flows that care route it
+      // separately from onError, which stays the unreachable/timeout path.
+      if (!response.ok && node.onHttpError) {
+        this.log('API returned an error status', { status: response.status, body: String(raw).slice(0, 200) });
+        this.apiCalls.push({
+          node: node.id, url, method,
+          status: response.status,
+          timestamp: new Date().toISOString()
+        });
+        return this.executeNode(node.onHttpError);
+      }
       
       if (data && typeof data === 'object') {
         for (const [key, value] of Object.entries(data)) {
@@ -1039,7 +1070,7 @@ export class DynamicFlowEngine {
       
       const targets = [
         node.next, node.onTimeout, node.onEmpty, node.onInvalid,
-        node.onError, node.onMaxRetries, node.default
+        node.onError, node.onHttpError, node.onMaxRetries, node.default
       ];
       if (node.branches && typeof node.branches === 'object') {
         targets.push(...Object.values(node.branches));
